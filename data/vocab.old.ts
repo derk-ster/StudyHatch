@@ -4,10 +4,12 @@ export const generalJobInterviewDeck: Deck = {
   id: 'general-job-interview',
   name: 'General Job Interview Vocab',
   description: 'Essential vocabulary for job interviews and career discussions',
+  targetLanguage: 'es',
+  createdDate: Date.now(),
   cards: [
     {
       id: 'g1',
-      spanish: 'la entrevista',
+      translation: 'la entrevista',
       english: 'the interview',
       example: 'Tengo una entrevista mañana a las 10 de la mañana.',
       category: 'Interview',
@@ -15,7 +17,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g2',
-      spanish: 'el currículum / el CV',
+      translation: 'el currículum / el CV',
       english: 'the resume',
       example: 'Por favor, envía tu currículum por correo electrónico.',
       category: 'Application',
@@ -23,7 +25,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g3',
-      spanish: 'la solicitud',
+      translation: 'la solicitud',
       english: 'the application',
       example: 'Completé la solicitud de empleo ayer.',
       category: 'Application',
@@ -31,7 +33,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g4',
-      spanish: 'el puesto',
+      translation: 'el puesto',
       english: 'the position / the job',
       example: 'Este puesto requiere experiencia en ventas.',
       category: 'Job',
@@ -39,7 +41,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g5',
-      spanish: 'el salario',
+      translation: 'el salario',
       english: 'the salary',
       example: 'El salario es competitivo para esta posición.',
       category: 'Compensation',
@@ -47,7 +49,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g6',
-      spanish: 'el horario',
+      translation: 'el horario',
       english: 'the schedule',
       example: 'Mi horario es flexible y puedo trabajar desde casa.',
       category: 'Work',
@@ -55,7 +57,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g7',
-      spanish: 'el jefe / la jefa',
+      translation: 'el jefe / la jefa',
       english: 'the boss',
       example: 'Mi jefa es muy comprensiva y me apoya mucho.',
       category: 'Work',
@@ -63,7 +65,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g8',
-      spanish: 'el/la empleado/a',
+      translation: 'el/la empleado/a',
       english: 'the employee',
       example: 'Soy empleado de esta empresa desde hace cinco años.',
       category: 'Work',
@@ -71,7 +73,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g9',
-      spanish: 'la experiencia laboral',
+      translation: 'la experiencia laboral',
       english: 'work experience',
       example: 'Tengo diez años de experiencia laboral en marketing.',
       category: 'Experience',
@@ -79,7 +81,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g10',
-      spanish: 'las habilidades',
+      translation: 'las habilidades',
       english: 'the skills',
       example: 'Mis habilidades incluyen comunicación y liderazgo.',
       category: 'Skills',
@@ -87,7 +89,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g11',
-      spanish: 'el logro',
+      translation: 'el logro',
       english: 'the achievement',
       example: 'Mi mayor logro fue aumentar las ventas en un 30%.',
       category: 'Achievement',
@@ -95,7 +97,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g12',
-      spanish: 'la meta',
+      translation: 'la meta',
       english: 'the goal',
       example: 'Mi meta es convertirme en gerente en los próximos dos años.',
       category: 'Goals',
@@ -103,7 +105,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g13',
-      spanish: 'la responsabilidad',
+      translation: 'la responsabilidad',
       english: 'the responsibility',
       example: 'Tengo la responsabilidad de supervisar el equipo.',
       category: 'Work',
@@ -111,7 +113,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g14',
-      spanish: 'puntual',
+      translation: 'puntual',
       english: 'punctual',
       example: 'Siempre soy puntual y nunca llego tarde.',
       category: 'Traits',
@@ -119,7 +121,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g15',
-      spanish: 'trabajador/a',
+      translation: 'trabajador/a',
       english: 'hardworking',
       example: 'Soy muy trabajador y me esfuerzo mucho en mi trabajo.',
       category: 'Traits',
@@ -127,7 +129,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g16',
-      spanish: 'confiable',
+      translation: 'confiable',
       english: 'reliable / trustworthy',
       example: 'Mis compañeros me consideran confiable y responsable.',
       category: 'Traits',
@@ -135,7 +137,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g17',
-      spanish: 'disponible',
+      translation: 'disponible',
       english: 'available',
       example: 'Estoy disponible para empezar la próxima semana.',
       category: 'Availability',
@@ -143,7 +145,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g18',
-      spanish: 'capacitado/a',
+      translation: 'capacitado/a',
       english: 'qualified / trained',
       example: 'Estoy capacitado para manejar proyectos complejos.',
       category: 'Qualification',
@@ -151,7 +153,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g19',
-      spanish: 'la capacitación',
+      translation: 'la capacitación',
       english: 'the training',
       example: 'Recibí capacitación en gestión de equipos.',
       category: 'Training',
@@ -159,7 +161,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g20',
-      spanish: 'el ascenso',
+      translation: 'el ascenso',
       english: 'the promotion',
       example: 'Obtuve un ascenso después de dos años en la empresa.',
       category: 'Career',
@@ -167,7 +169,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g21',
-      spanish: 'la oportunidad',
+      translation: 'la oportunidad',
       english: 'the opportunity',
       example: 'Esta es una gran oportunidad para crecer profesionalmente.',
       category: 'Career',
@@ -175,7 +177,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g22',
-      spanish: 'el/la compañero/a de trabajo',
+      translation: 'el/la compañero/a de trabajo',
       english: 'the coworker',
       example: 'Trabajo bien con mis compañeros de trabajo.',
       category: 'Work',
@@ -183,7 +185,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g23',
-      spanish: 'el ambiente laboral',
+      translation: 'el ambiente laboral',
       english: 'the work environment',
       example: 'El ambiente laboral en esta empresa es muy positivo.',
       category: 'Work',
@@ -191,7 +193,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g24',
-      spanish: 'la empresa',
+      translation: 'la empresa',
       english: 'the company',
       example: 'Trabajo para una empresa internacional.',
       category: 'Company',
@@ -199,7 +201,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g25',
-      spanish: 'contratar',
+      translation: 'contratar',
       english: 'to hire',
       example: 'La empresa quiere contratar a más desarrolladores.',
       category: 'Hiring',
@@ -207,7 +209,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g26',
-      spanish: 'despedir',
+      translation: 'despedir',
       english: 'to fire',
       example: 'Despidieron a varios empleados el mes pasado.',
       category: 'Termination',
@@ -215,7 +217,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g27',
-      spanish: 'renunciar',
+      translation: 'renunciar',
       english: 'to quit / to resign',
       example: 'Renuncié a mi trabajo anterior para buscar nuevas oportunidades.',
       category: 'Termination',
@@ -223,7 +225,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g28',
-      spanish: 'trabajar en equipo',
+      translation: 'trabajar en equipo',
       english: 'to work as a team',
       example: 'Me gusta trabajar en equipo porque aprendo de los demás.',
       category: 'Skills',
@@ -231,7 +233,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g29',
-      spanish: 'resolver problemas',
+      translation: 'resolver problemas',
       english: 'to solve problems',
       example: 'Soy bueno resolviendo problemas complejos.',
       category: 'Skills',
@@ -239,7 +241,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g30',
-      spanish: 'comunicar(se)',
+      translation: 'comunicar(se)',
       english: 'to communicate',
       example: 'Es importante comunicarse claramente con el equipo.',
       category: 'Skills',
@@ -247,7 +249,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g31',
-      spanish: 'la educación',
+      translation: 'la educación',
       english: 'the education',
       example: 'Mi educación incluye una licenciatura en negocios.',
       category: 'Education',
@@ -255,7 +257,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g32',
-      spanish: 'la universidad',
+      translation: 'la universidad',
       english: 'the university',
       example: 'Estudié en la universidad durante cuatro años.',
       category: 'Education',
@@ -263,7 +265,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g33',
-      spanish: 'el título',
+      translation: 'el título',
       english: 'the degree',
       example: 'Tengo un título en ingeniería de software.',
       category: 'Education',
@@ -271,7 +273,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g34',
-      spanish: 'la referencia',
+      translation: 'la referencia',
       english: 'the reference',
       example: 'Puedo proporcionar referencias de empleadores anteriores.',
       category: 'Application',
@@ -279,7 +281,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g35',
-      spanish: 'la fortaleza',
+      translation: 'la fortaleza',
       english: 'the strength',
       example: 'Mi mayor fortaleza es mi capacidad de liderazgo.',
       category: 'Interview',
@@ -287,7 +289,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g36',
-      spanish: 'la debilidad',
+      translation: 'la debilidad',
       english: 'the weakness',
       example: 'A veces trabajo demasiado y necesito mejorar el equilibrio trabajo-vida.',
       category: 'Interview',
@@ -295,7 +297,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g37',
-      spanish: '¿Cuáles son tus metas?',
+      translation: '¿Cuáles son tus metas?',
       english: 'What are your goals?',
       example: 'En la entrevista me preguntaron: "¿Cuáles son tus metas?"',
       category: 'Interview',
@@ -303,7 +305,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g38',
-      spanish: 'Me apasiona…',
+      translation: 'Me apasiona…',
       english: 'I\'m passionate about…',
       example: 'Me apasiona ayudar a otros a alcanzar sus objetivos.',
       category: 'Interview',
@@ -311,7 +313,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g39',
-      spanish: 'Tengo experiencia en…',
+      translation: 'Tengo experiencia en…',
       english: 'I have experience in…',
       example: 'Tengo experiencia en gestión de proyectos y liderazgo de equipos.',
       category: 'Interview',
@@ -319,7 +321,7 @@ export const generalJobInterviewDeck: Deck = {
     },
     {
       id: 'g40',
-      spanish: 'Estoy dispuesto/a a…',
+      translation: 'Estoy dispuesto/a a…',
       english: 'I\'m willing to…',
       example: 'Estoy dispuesto a aprender nuevas habilidades y adaptarme.',
       category: 'Interview',
@@ -332,10 +334,12 @@ export const techCareerDeck: Deck = {
   id: 'tech-career',
   name: 'Software / Tech Career Vocab',
   description: 'Technology and software development vocabulary for career interviews',
+  targetLanguage: 'es',
+  createdDate: Date.now(),
   cards: [
     {
       id: 't1',
-      spanish: 'el/la desarrollador/a de software',
+      translation: 'el/la desarrollador/a de software',
       english: 'the software developer',
       example: 'Soy desarrollador de software con cinco años de experiencia.',
       category: 'Role',
@@ -343,7 +347,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't2',
-      spanish: 'el/la programador/a',
+      translation: 'el/la programador/a',
       english: 'the programmer',
       example: 'Trabajo como programador en una startup tecnológica.',
       category: 'Role',
@@ -351,7 +355,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't3',
-      spanish: 'el/la desarrollador/a de videojuegos',
+      translation: 'el/la desarrollador/a de videojuegos',
       english: 'the game developer',
       example: 'Mi sueño es ser desarrollador de videojuegos.',
       category: 'Role',
@@ -359,7 +363,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't4',
-      spanish: 'la informática',
+      translation: 'la informática',
       english: 'computer science / IT',
       example: 'Estudié informática en la universidad.',
       category: 'Field',
@@ -367,7 +371,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't5',
-      spanish: 'la tecnología',
+      translation: 'la tecnología',
       english: 'the technology',
       example: 'La tecnología avanza muy rápido en este campo.',
       category: 'Field',
@@ -375,7 +379,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't6',
-      spanish: 'el código',
+      translation: 'el código',
       english: 'the code',
       example: 'Escribo código en varios lenguajes de programación.',
       category: 'Development',
@@ -383,7 +387,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't7',
-      spanish: 'programar',
+      translation: 'programar',
       english: 'to program',
       example: 'Aprendí a programar cuando tenía quince años.',
       category: 'Development',
@@ -391,7 +395,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't8',
-      spanish: 'depurar',
+      translation: 'depurar',
       english: 'to debug',
       example: 'Pasé toda la mañana depurando el código.',
       category: 'Development',
@@ -399,7 +403,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't9',
-      spanish: 'la aplicación',
+      translation: 'la aplicación',
       english: 'the app / application',
       example: 'Desarrollé una aplicación móvil para iOS y Android.',
       category: 'Development',
@@ -407,7 +411,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't10',
-      spanish: 'el sitio web / la página web',
+      translation: 'el sitio web / la página web',
       english: 'the website',
       example: 'Creé un sitio web para mi portafolio profesional.',
       category: 'Development',
@@ -415,7 +419,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't11',
-      spanish: 'el servidor',
+      translation: 'el servidor',
       english: 'the server',
       example: 'Configuré el servidor para manejar más tráfico.',
       category: 'Infrastructure',
@@ -423,7 +427,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't12',
-      spanish: 'la base de datos',
+      translation: 'la base de datos',
       english: 'the database',
       example: 'Diseñé la base de datos para almacenar información de usuarios.',
       category: 'Infrastructure',
@@ -431,7 +435,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't13',
-      spanish: 'el algoritmo',
+      translation: 'el algoritmo',
       english: 'the algorithm',
       example: 'Desarrollé un algoritmo eficiente para ordenar datos.',
       category: 'Development',
@@ -439,7 +443,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't14',
-      spanish: 'el sistema operativo',
+      translation: 'el sistema operativo',
       english: 'the operating system',
       example: 'Tengo experiencia con varios sistemas operativos.',
       category: 'System',
@@ -447,7 +451,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't15',
-      spanish: 'la red',
+      translation: 'la red',
       english: 'the network',
       example: 'Configuré la red para mejorar la seguridad.',
       category: 'Infrastructure',
@@ -455,7 +459,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't16',
-      spanish: 'la ciberseguridad',
+      translation: 'la ciberseguridad',
       english: 'cybersecurity',
       example: 'La ciberseguridad es muy importante en mi trabajo.',
       category: 'Security',
@@ -463,7 +467,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't17',
-      spanish: 'la interfaz de usuario',
+      translation: 'la interfaz de usuario',
       english: 'the user interface (UI)',
       example: 'Diseñé la interfaz de usuario para que sea intuitiva.',
       category: 'Design',
@@ -471,7 +475,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't18',
-      spanish: 'la experiencia de usuario',
+      translation: 'la experiencia de usuario',
       english: 'the user experience (UX)',
       example: 'Me enfoco en mejorar la experiencia de usuario.',
       category: 'Design',
@@ -479,7 +483,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't19',
-      spanish: 'el diseño',
+      translation: 'el diseño',
       english: 'the design',
       example: 'El diseño de la aplicación es moderno y atractivo.',
       category: 'Design',
@@ -487,7 +491,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't20',
-      spanish: 'el hardware',
+      translation: 'el hardware',
       english: 'the hardware',
       example: 'Tengo conocimientos tanto de software como de hardware.',
       category: 'System',
@@ -495,7 +499,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't21',
-      spanish: 'el software',
+      translation: 'el software',
       english: 'the software',
       example: 'Desarrollo software para empresas de tecnología.',
       category: 'System',
@@ -503,7 +507,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't22',
-      spanish: 'el teclado',
+      translation: 'el teclado',
       english: 'the keyboard',
       example: 'Uso un teclado mecánico para programar.',
       category: 'Hardware',
@@ -511,7 +515,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't23',
-      spanish: 'la pantalla',
+      translation: 'la pantalla',
       english: 'the screen',
       example: 'Trabajo con dos pantallas para ser más productivo.',
       category: 'Hardware',
@@ -519,7 +523,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't24',
-      spanish: 'el archivo',
+      translation: 'el archivo',
       english: 'the file',
       example: 'Guardé el archivo en la carpeta del proyecto.',
       category: 'System',
@@ -527,7 +531,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't25',
-      spanish: 'la carpeta',
+      translation: 'la carpeta',
       english: 'the folder',
       example: 'Organizo todos mis proyectos en carpetas.',
       category: 'System',
@@ -535,7 +539,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't26',
-      spanish: 'subir',
+      translation: 'subir',
       english: 'to upload',
       example: 'Necesito subir los archivos al servidor.',
       category: 'Actions',
@@ -543,7 +547,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't27',
-      spanish: 'descargar',
+      translation: 'descargar',
       english: 'to download',
       example: 'Voy a descargar la última versión del software.',
       category: 'Actions',
@@ -551,7 +555,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't28',
-      spanish: 'actualizar',
+      translation: 'actualizar',
       english: 'to update',
       example: 'Debo actualizar el sistema operativo.',
       category: 'Actions',
@@ -559,7 +563,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't29',
-      spanish: 'la versión',
+      translation: 'la versión',
       english: 'the version',
       example: 'Estoy trabajando en la versión 2.0 de la aplicación.',
       category: 'Development',
@@ -567,7 +571,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't30',
-      spanish: 'la herramienta',
+      translation: 'la herramienta',
       english: 'the tool',
       example: 'Esta herramienta me ayuda a ser más eficiente.',
       category: 'Tools',
@@ -575,7 +579,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't31',
-      spanish: 'el motor de juego',
+      translation: 'el motor de juego',
       english: 'the game engine',
       example: 'Uso Unity como motor de juego para mis proyectos.',
       category: 'Tools',
@@ -583,7 +587,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't32',
-      spanish: 'el modelo 3D',
+      translation: 'el modelo 3D',
       english: 'the 3D model',
       example: 'Creé un modelo 3D para el personaje del videojuego.',
       category: 'Game Dev',
@@ -591,7 +595,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't33',
-      spanish: 'la animación',
+      translation: 'la animación',
       english: 'the animation',
       example: 'La animación del personaje es muy fluida.',
       category: 'Game Dev',
@@ -599,7 +603,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't34',
-      spanish: 'los efectos visuales',
+      translation: 'los efectos visuales',
       english: 'the visual effects',
       example: 'Los efectos visuales hacen que el juego se vea increíble.',
       category: 'Game Dev',
@@ -607,7 +611,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't35',
-      spanish: 'la partícula',
+      translation: 'la partícula',
       english: 'the particle',
       example: 'Programé el sistema de partículas para los efectos.',
       category: 'Game Dev',
@@ -615,7 +619,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't36',
-      spanish: 'renderizar',
+      translation: 'renderizar',
       english: 'to render',
       example: 'El proceso de renderizar la escena toma mucho tiempo.',
       category: 'Game Dev',
@@ -623,7 +627,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't37',
-      spanish: 'el error / el fallo',
+      translation: 'el error / el fallo',
       english: 'the bug / error',
       example: 'Encontré un error en el código y lo corregí.',
       category: 'Development',
@@ -631,7 +635,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't38',
-      spanish: 'la solución',
+      translation: 'la solución',
       english: 'the solution',
       example: 'Encontré una solución elegante para el problema.',
       category: 'Development',
@@ -639,7 +643,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't39',
-      spanish: 'eficiente',
+      translation: 'eficiente',
       english: 'efficient',
       example: 'Escribo código eficiente que se ejecuta rápidamente.',
       category: 'Traits',
@@ -647,7 +651,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't40',
-      spanish: 'creativo/a',
+      translation: 'creativo/a',
       english: 'creative',
       example: 'Soy creativo cuando diseño nuevas funcionalidades.',
       category: 'Traits',
@@ -655,7 +659,7 @@ export const techCareerDeck: Deck = {
     },
     {
       id: 't41',
-      spanish: 'lógico/a',
+      translation: 'lógico/a',
       english: 'logical',
       example: 'Tengo una mente lógica que me ayuda a resolver problemas.',
       category: 'Traits',

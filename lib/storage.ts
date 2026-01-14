@@ -255,10 +255,11 @@ export const getDeckById = (deckId: string): Deck | undefined => {
     deck.targetLanguage = 'es'; // Default to Spanish for old decks
     // Also migrate old cards from spanish to translation field
     deck.cards = deck.cards.map(card => {
-      if ('spanish' in card && !('translation' in card)) {
+      const cardAny = card as any;
+      if ('spanish' in cardAny && !('translation' in cardAny)) {
         return {
-          ...card,
-          translation: (card as any).spanish,
+          ...(cardAny as object),
+          translation: cardAny.spanish,
         } as VocabCard;
       }
       return card;
