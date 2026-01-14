@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer utilities {
+  .bg-noise {
+    background-image: 
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+  
+  .card-glow {
+    box-shadow: 
+      0 0 20px rgba(139, 92, 246, 0.3),
+      0 0 40px rgba(59, 130, 246, 0.2);
+  }
+  
+  .card-glow-hover {
+    transition: all 0.3s ease;
+  }
+  
+  .card-glow-hover:hover {
+    box-shadow: 
+      0 0 30px rgba(139, 92, 246, 0.4),
+      0 0 60px rgba(59, 130, 246, 0.3),
+      0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: translateY(-5px);
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+  
+  .flip-card {
+    position: relative;
+    /* Simple flip without 3D perspective to avoid nav interference */
+  }
+  
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .flip-card-front,
+  .flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease;
+    /* Content is centered vertically and horizontally within the card */
+  }
+  
+  .flip-card-front {
+    opacity: 1;
+  }
+  
+  .flip-card-back {
+    opacity: 0;
+  }
+  
+  .flip-card.flipped .flip-card-front {
+    opacity: 0;
+  }
+  
+  .flip-card.flipped .flip-card-back {
+    opacity: 1;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out forwards;
+    animation-fill-mode: forwards !important;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out forwards;
+    animation-fill-mode: forwards !important;
+  }
+  
+  .animate-slide-down {
+    animation: slideDown 0.3s ease-out forwards;
+    animation-fill-mode: forwards !important;
+  }
+  
+  /* Smooth grid item repositioning - anti-gravity effect */
+  .grid {
+    transition: grid-template-rows 0.3s ease-in-out;
+    grid-auto-rows: min-content;
+  }
+  
+  /* Ensure grid items smoothly transition when repositioning */
+  .grid > * {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, grid-row;
+  }
+
+  /* Pulse/glow animation for Create Deck button */
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 
+        0 0 20px rgba(139, 92, 246, 0.4),
+        0 0 40px rgba(59, 130, 246, 0.3),
+        0 0 60px rgba(139, 92, 246, 0.2);
+    }
+    50% {
+      box-shadow: 
+        0 0 30px rgba(139, 92, 246, 0.6),
+        0 0 60px rgba(59, 130, 246, 0.5),
+        0 0 90px rgba(139, 92, 246, 0.4);
+    }
+  }
+}

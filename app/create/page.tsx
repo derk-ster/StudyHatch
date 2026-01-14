@@ -1,0 +1,402 @@
+'use client';
+
+import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import Nav from '@/components/Nav';
+import { Deck, VocabCard } from '@/types/vocab';
+import { saveDeck, canCreateDeck, canAddCards, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks } from '@/lib/storage';
+import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages';
+
+export default function CreateDeckPage() {
+  const router = useRouter();
+  const [deckName, setDeckName] = useState('');
+  const [deckDescription, setDeckDescription] = useState('');
+  const [targetLanguage, setTargetLanguage] = useState('es'); // Default to Spanish
+  const [wordsInput, setWordsInput] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [isSavingDeck, setIsSavingDeck] = useState(false);
+  const [error, setError] = useState('');
+  const [translations, setTranslations] = useState<Array<{ english: string; translation: string }>>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const limits = getUserLimits();
+  const selectedLanguage = getLanguageByCode(targetLanguage);
+  const dailyUsage = getDailyUsage();
+
+  const handleTranslate = async () => {
+    if (!wordsInput.trim()) {
+      setError('Please enter at least one word');
+      return;
+    }
+
+    // Parse words (newline, comma, or space separated)
+    const words = wordsInput
+      .split(/[\n,]+/)
+      .map(w => w.trim())
+      .filter(w => w.length > 0);
+
+    if (words.length === 0) {
+      setError('Please enter at least one word');
+      return;
+    }
+
+    // Check limits
+    const canCreate = canCreateDeck();
+    if (!canCreate.allowed) {
+      setError(canCreate.reason || 'Cannot create deck');
+      return;
+    }
+
+    // Check card limits for new deck (don't use canAddCards with empty deckId)
+    const limits = getUserLimits();
+    const existingDecks = getAllDecks();
+    const totalCards = existingDecks.reduce((sum, d) => sum + d.cards.length, 0);
+    const newTotal = totalCards + words.length;
+
+    if (newTotal > limits.maxCards) {
+      setError(`Free users can only have ${limits.maxCards} total cards. You currently have ${totalCards} cards. Upgrade to Premium for unlimited cards.`);
+      return;
+    }
+
+    // Check daily translation limit
+    const dailyUsage = getDailyUsage();
+    if (dailyUsage.translationsToday + words.length > limits.dailyTranslationLimit) {
+      const remaining = limits.dailyTranslationLimit - dailyUsage.translationsToday;
+      const timeUntilReset = getTimeUntilReset();
+      const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
+      setError(`Free users can only translate ${limits.dailyTranslationLimit} words per day. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}. Upgrade to Premium for unlimited daily translations.`);
+      return;
+    }
+
+    // Validate deck name before translating
+    if (!deckName.trim()) {
+      setError('Please enter a deck name before translating');
+      return;
+    }
+
+    setIsCreating(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          englishWords: words,
+          targetLanguage: targetLanguage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to translate words');
+      }
+
+      const data = await response.json();
+      setTranslations(data.translations || []);
+      setShowPreview(true);
+      
+      // Track daily usage
+      incrementDailyTranslations(words.length);
+    } catch (err: any) {
+      setError(err.message || 'Failed to translate words. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleCreateDeck = async () => {
+    // Prevent multiple submissions
+    if (isSavingDeck) {
+      return;
+    }
+
+    // Validate all required fields (description is optional)
+    if (!deckName || !deckName.trim()) {
+      setError('Please enter a deck name');
+      return;
+    }
+
+    if (!translations || translations.length === 0) {
+      setError('Please translate words first');
+      return;
+    }
+
+    // Filter out invalid translations
+    const validTranslations = translations.filter(t => 
+      t && t.english && t.english.trim() && 
+      t.translation && t.translation.trim()
+    );
+
+    if (validTranslations.length === 0) {
+      setError('No valid translations found. Please translate words first.');
+      return;
+    }
+
+    // Create deck
+    const cards: VocabCard[] = validTranslations.map((trans, index) => ({
+      id: `card-${Date.now()}-${index}`,
+      translation: trans.translation.trim(),
+      english: trans.english.trim(),
+      example: undefined,
+      category: undefined,
+      notes: undefined,
+    }));
+
+    // Description is optional - use undefined if empty
+    const deckDescriptionValue = deckDescription.trim() || undefined;
+    
+    const deck: Deck = {
+      id: `deck-${Date.now()}`,
+      name: deckName.trim(),
+      description: deckDescriptionValue, // Can be undefined
+      cards,
+      createdDate: Date.now(),
+      targetLanguage: targetLanguage,
+    };
+
+    // Clear any previous errors/success messages
+    setError('');
+    setShowSuccess(false);
+    setIsSavingDeck(true);
+    
+    try {
+      // Save deck (description can be undefined - that's fine)
+      saveDeck(deck);
+      
+      // Small delay to ensure localStorage is written
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Verify deck was saved by checking localStorage directly
+      const savedDecks = getAllDecks();
+      const savedDeck = savedDecks.find(d => 
+        d.id === deck.id || 
+        (d.name === deck.name && d.targetLanguage === deck.targetLanguage)
+      );
+      
+      if (!savedDeck) {
+        // Try one more time after a longer delay
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const retryDecks = getAllDecks();
+        const retryDeck = retryDecks.find(d => 
+          d.id === deck.id || 
+          (d.name === deck.name && d.targetLanguage === deck.targetLanguage)
+        );
+        
+        if (!retryDeck) {
+          console.error('Deck save verification failed. Deck:', deck);
+          console.error('All saved decks:', retryDecks);
+          throw new Error('Deck was not saved properly. Please try again.');
+        }
+      }
+      
+      // Track daily usage
+      incrementDailyDecks();
+      
+      // Show success message
+      setShowSuccess(true);
+      setError(''); // Ensure no error is shown
+      
+      // Redirect after showing success message
+      setTimeout(() => {
+        router.push('/decks');
+      }, 2000);
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to save deck. Please try again.';
+      setError(errorMessage);
+      setShowSuccess(false);
+      setIsSavingDeck(false);
+      console.error('Error saving deck:', err);
+      console.error('Deck that failed to save:', deck);
+    }
+  };
+
+  const handleReset = () => {
+    setWordsInput('');
+    setTranslations([]);
+    setShowPreview(false);
+    setError('');
+    setShowSuccess(false);
+    setTargetLanguage('es'); // Reset to default
+  };
+
+  return (
+    <div className="min-h-screen bg-noise">
+      <Nav />
+      <main className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow p-8">
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-2">
+            Create New Deck
+          </h1>
+          <p className="text-white/70 mb-8">
+            Paste your English words and we'll automatically generate translations
+          </p>
+
+          {/* Limits Info */}
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10 mb-6 space-y-2">
+            <p className="text-white/80 text-sm">
+              <strong className="text-white">Free Pass:</strong> {dailyUsage.decksCreatedToday} / {limits.dailyDeckLimit === Infinity ? '∞' : limits.dailyDeckLimit} decks today
+              {limits.dailyDeckLimit !== Infinity && dailyUsage.decksCreatedToday >= limits.dailyDeckLimit && (
+                <span className="text-yellow-400 ml-2">
+                  (Resets in {Math.ceil(getTimeUntilReset() / (60 * 60 * 1000))} hour{Math.ceil(getTimeUntilReset() / (60 * 60 * 1000)) !== 1 ? 's' : ''})
+                </span>
+              )}
+            </p>
+            <p className="text-white/80 text-sm">
+              <strong className="text-white">Total Decks:</strong> {limits.maxDecks === Infinity ? 'Unlimited' : `${getAllDecks().length} / ${limits.maxDecks}`} decks, {limits.maxCards === Infinity ? 'unlimited' : limits.maxCards} total cards
+            </p>
+            {limits.dailyTranslationLimit !== Infinity && (
+              <p className="text-white/80 text-sm">
+                <strong className="text-white">Daily Translation Limit:</strong> {dailyUsage.translationsToday} / {limits.dailyTranslationLimit} words today
+                {dailyUsage.translationsToday >= limits.dailyTranslationLimit && (
+                  <span className="text-yellow-400 ml-2">
+                    (Resets in {Math.ceil(getTimeUntilReset() / (60 * 60 * 1000))} hour{Math.ceil(getTimeUntilReset() / (60 * 60 * 1000)) !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg animate-fade-in">
+              <p className="text-red-400 font-medium">{error}</p>
+            </div>
+          )}
+
+          {showSuccess && (
+            <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg animate-fade-in">
+              <p className="text-green-400 font-medium text-lg">✅ New deck created!</p>
+              <p className="text-green-300 text-sm mt-1">Redirecting to your decks...</p>
+            </div>
+          )}
+
+          {!showPreview ? (
+            <>
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="deckName" className="block text-sm font-medium text-white/90 mb-2">
+                    Deck Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="deckName"
+                    value={deckName}
+                    onChange={(e) => setDeckName(e.target.value)}
+                    required
+                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="My Vocabulary Deck"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="deckDescription" className="block text-sm font-medium text-white/90 mb-2">
+                    Description (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    id="deckDescription"
+                    value={deckDescription}
+                    onChange={(e) => setDeckDescription(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="A deck for learning common words"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="targetLanguage" className="block text-sm font-medium text-white/90 mb-2">
+                    Target Language *
+                  </label>
+                  <select
+                    id="targetLanguage"
+                    value={targetLanguage}
+                    onChange={(e) => setTargetLanguage(e.target.value)}
+                    required
+                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    {SUPPORTED_LANGUAGES.map(lang => (
+                      <option key={lang.code} value={lang.code} className="bg-gray-800">
+                        {lang.flag} {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-white/60 text-sm mt-2">
+                    Select the language you want to translate English words into
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="wordsInput" className="block text-sm font-medium text-white/90 mb-2">
+                    English Words *
+                  </label>
+                  <textarea
+                    id="wordsInput"
+                    value={wordsInput}
+                    onChange={(e) => setWordsInput(e.target.value)}
+                    required
+                    rows={10}
+                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none font-mono"
+                    placeholder="Enter words separated by commas or new lines:&#10;Word1, Word2, Word3"
+                  />
+                  <p className="text-white/60 text-sm mt-2">
+                    Separate words by commas or new lines. Each word will be translated to {selectedLanguage?.name || targetLanguage}.
+                  </p>
+                  {wordsInput.trim() && (
+                    <p className="text-purple-300 text-sm mt-1 font-medium">
+                      Translate {wordsInput.split(/[\n,]+/).filter(w => w.trim().length > 0).length} word{wordsInput.split(/[\n,]+/).filter(w => w.trim().length > 0).length !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleTranslate}
+                  disabled={isCreating || !wordsInput.trim()}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreating ? 'Translating...' : 'Translate Words'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-4">Preview Translations</h2>
+                <div className="bg-white/5 rounded-lg p-4 max-h-96 overflow-y-auto">
+                  <div className="space-y-2">
+                    {translations.map((trans, index) => (
+                      <div key={index} className="flex justify-between items-center p-2 bg-white/5 rounded">
+                        <span className="text-white/90">{trans.english}</span>
+                        <span className="text-purple-300">→</span>
+                        <span className="text-white/90">{trans.translation}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm mt-2">
+                  {translations.length} cards will be created
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={handleReset}
+                  className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
+                >
+                  Start Over
+                </button>
+                <button
+                  onClick={handleCreateDeck}
+                  disabled={!deckName.trim() || isSavingDeck}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingDeck ? 'Creating Deck...' : 'Create Deck'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

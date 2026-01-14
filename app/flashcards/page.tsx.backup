@@ -1,0 +1,559 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Nav from '@/components/Nav';
+import LanguageBadge from '@/components/LanguageBadge';
+import { VocabCard } from '@/types/vocab';
+import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
+import { getLanguageName } from '@/lib/languages';
+
+export default function FlashcardsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [showTranslationFirst, setShowTranslationFirst] = useState(true);
+  const [showExamples, setShowExamples] = useState(true);
+  const [shuffledIndices, setShuffledIndices] = useState<number[]>([]);
+  const [progress, setProgress] = useState(getProgress());
+  const [markedCards, setMarkedCards] = useState<Set<string>>(new Set()); // Track cards marked in current session
+  const [cardStates, setCardStates] = useState<Map<string, 'known' | 'not-known'>>(new Map()); // Track known/not-known state per card in session
+  const [flashingCard, setFlashingCard] = useState<{id: string, type: 'known' | 'not-known'} | null>(null); // Track which card is currently flashing
+  const [lastClickedCard, setLastClickedCard] = useState<string | null>(null); // Track the last card that was clicked
+  const [showResults, setShowResults] = useState(false); // Show results modal when session completes
+  const [sessionStarredCards, setSessionStarredCards] = useState<Set<string>>(new Set()); // Track starred cards in current session only
+
+  const deckId = searchParams.get('deck');
+  const deck = deckId ? getDeckById(deckId) : null;
+  const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
+  
+  // Update progress state when it changes
+  useEffect(() => {
+    setProgress(getProgress());
+  }, []);
+
+  // Get per-deck progress
+  const deckProgress = deckId && progress.deckProgress?.[deckId] ? progress.deckProgress[deckId] : {
+    starredCards: [],
+    knownCards: [],
+    learningCards: [],
+    cardStats: {},
+    matchBestTime: undefined,
+    quizHighScore: undefined,
+    quizStreak: 0,
+  };
+
+  // Helper to update per-deck progress
+  const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
+    if (!deckId) return;
+    const newProgress = { ...progress };
+    if (!newProgress.deckProgress) {
+      newProgress.deckProgress = {};
+    }
+    if (!newProgress.deckProgress[deckId]) {
+      newProgress.deckProgress[deckId] = {
+        starredCards: [],
+        knownCards: [],
+        learningCards: [],
+        cardStats: {},
+        matchBestTime: undefined,
+        quizHighScore: undefined,
+        quizStreak: 0,
+      };
+    }
+    newProgress.deckProgress[deckId] = {
+      ...newProgress.deckProgress[deckId],
+      ...updates,
+    };
+    updateProgress(newProgress);
+    setProgress(newProgress);
+  };
+
+  const filteredCards = useMemo(() => {
+    if (!deck) return [];
+    
+    let cards = [...deck.cards];
+    
+    return cards;
+  }, [deck, sessionStarredCards]);
+
+  // Initialize shuffled indices when filteredCards change
+  useEffect(() => {
+    const indices = filteredCards.map((_, i) => i);
+    setShuffledIndices(indices);
+  }, [filteredCards]);
+
+  const actualIndex = shuffledIndices.length > 0 && shuffledIndices[currentIndex] !== undefined 
+    ? shuffledIndices[currentIndex] 
+    : currentIndex;
+  const currentCard = filteredCards[actualIndex];
+  const isStarred = currentCard ? sessionStarredCards.has(currentCard.id) : false;
+  // Card is marked if it was marked in this session (not from previous progress)
+  const isMarked = currentCard ? markedCards.has(currentCard.id) : false;
+  // Get button state from session (not localStorage)
+  const cardState = currentCard ? cardStates.get(currentCard.id) : null;
+  const isCurrentlyFlashing = currentCard && flashingCard?.id === currentCard.id;
+  const isLastClicked = currentCard && lastClickedCard === currentCard.id;
+  // Show color only if: currently flashing (0.5s) OR navigating back to a previously marked card (not the last clicked)
+  const showKnownColor = (isCurrentlyFlashing && flashingCard?.type === 'known') || 
+                         (!isCurrentlyFlashing && !isLastClicked && cardState === 'known');
+  const showNotKnownColor = (isCurrentlyFlashing && flashingCard?.type === 'not-known') || 
+                            (!isCurrentlyFlashing && !isLastClicked && cardState === 'not-known');
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setMarkedCards(new Set()); // Reset marked cards when deck/filter changes or on refresh
+    setCardStates(new Map()); // Reset card states on refresh/change
+    setFlashingCard(null); // Reset flash state
+    setLastClickedCard(null); // Reset last clicked card
+    setShowResults(false); // Reset results modal
+    setSessionStarredCards(new Set()); // Reset session starred cards
+  }, [deckId]);
+
+  // Calculate results statistics
+  const calculateResults = useMemo(() => {
+    const total = filteredCards.length;
+    let known = 0;
+    let notKnown = 0;
+    let starred = 0;
+    let blank = 0;
+
+    filteredCards.forEach(card => {
+      const state = cardStates.get(card.id);
+      if (state === 'known') {
+        known++;
+      } else if (state === 'not-known') {
+        notKnown++;
+      } else {
+        blank++;
+      }
+      
+      if (sessionStarredCards.has(card.id)) {
+        starred++;
+      }
+    });
+
+    const correct = known;
+    const incorrect = notKnown;
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    return {
+      total,
+      known,
+      notKnown,
+      correct,
+      incorrect,
+      blank,
+      starred,
+      accuracy,
+    };
+  }, [filteredCards, cardStates, sessionStarredCards]);
+
+  // Check if session is complete (all cards marked or reached end)
+  useEffect(() => {
+    if (filteredCards.length > 0 && markedCards.size === filteredCards.length) {
+      // All cards have been marked, show results
+      setTimeout(() => {
+        setShowResults(true);
+      }, 500);
+    }
+  }, [markedCards.size, filteredCards.length]);
+
+
+  const handleFlip = () => {
+    setIsFlipped(!isFlipped);
+  };
+
+  const handleNext = () => {
+    if (!isMarked) return; // Don't allow next if card isn't marked
+    setLastClickedCard(null); // Clear last clicked when navigating away
+    setCurrentIndex((prev) => (prev + 1) % filteredCards.length);
+    setIsFlipped(false);
+  };
+
+  const handlePrev = () => {
+    setLastClickedCard(null); // Clear last clicked when navigating away
+    setCurrentIndex((prev) => (prev - 1 + filteredCards.length) % filteredCards.length);
+    setIsFlipped(false);
+  };
+
+  const handleShuffle = () => {
+    const indices = filteredCards.map((_, i) => i);
+    const shuffled = indices.sort(() => Math.random() - 0.5);
+    setShuffledIndices(shuffled);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSessionStarredCards(new Set()); // Reset starred cards on shuffle
+    setMarkedCards(new Set()); // Reset marked cards on shuffle
+    setCardStates(new Map()); // Reset card states on shuffle
+    setFlashingCard(null); // Reset flash state
+    setLastClickedCard(null); // Reset last clicked card
+    setShowResults(false); // Hide results if showing
+  };
+
+  const handleStar = () => {
+    if (!currentCard || isMarked) return; // Don't allow re-marking if already marked
+    
+    // Toggle star in session state only (not localStorage)
+    setSessionStarredCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(currentCard.id)) {
+        newSet.delete(currentCard.id);
+      } else {
+        newSet.add(currentCard.id);
+      }
+      return newSet;
+    });
+    
+    // Mark the card as marked (so it counts toward completion)
+    setMarkedCards(prev => new Set(prev).add(currentCard.id));
+    
+    // Auto-advance to next card after a short delay
+    setTimeout(() => {
+      if (currentIndex < filteredCards.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+        setIsFlipped(false);
+      }
+    }, 300);
+  };
+
+  const handleKnown = () => {
+    if (!currentCard || isMarked) return; // Don't allow re-marking
+    
+    // Set state and trigger flash
+    setCardStates(prev => new Map(prev).set(currentCard.id, 'known'));
+    setMarkedCards(prev => new Set(prev).add(currentCard.id));
+    setFlashingCard({ id: currentCard.id, type: 'known' });
+    setLastClickedCard(currentCard.id);
+    
+    // Clear flash after 0.5 seconds
+    setTimeout(() => {
+      setFlashingCard(null);
+    }, 500);
+    
+    // Auto-advance to next card after a short delay
+    setTimeout(() => {
+      if (currentIndex < filteredCards.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+        setIsFlipped(false);
+      }
+    }, 300);
+  };
+
+  const handleNotKnown = () => {
+    if (!currentCard || isMarked) return; // Don't allow re-marking
+    
+    // Set state and trigger flash
+    setCardStates(prev => new Map(prev).set(currentCard.id, 'not-known'));
+    setMarkedCards(prev => new Set(prev).add(currentCard.id));
+    setFlashingCard({ id: currentCard.id, type: 'not-known' });
+    setLastClickedCard(currentCard.id);
+    
+    // Clear flash after 0.5 seconds
+    setTimeout(() => {
+      setFlashingCard(null);
+    }, 500);
+    
+    // Auto-advance to next card after a short delay
+    setTimeout(() => {
+      if (currentIndex < filteredCards.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+        setIsFlipped(false);
+      }
+    }, 300);
+  };
+
+  if (!deck || filteredCards.length === 0) {
+    return (
+      <div className="min-h-screen bg-noise">
+        <Nav />
+        <main className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white/10 rounded-2xl p-8 text-center">
+            <p className="text-xl text-white/70">No cards found. Try adjusting your filters.</p>
+            <button
+              onClick={() => router.push('/')}
+              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+            >
+              Go Home
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+
+
+  return (
+    <div className="min-h-screen bg-noise">
+      <Nav />
+      <main className="max-w-4xl mx-auto px-4 py-12">
+        {/* Header */}
+        <div className="mb-8 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Flashcards</h1>
+              <p className="text-white/70">Card {currentIndex + 1} of {filteredCards.length}</p>
+              {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 items-center">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTranslationFirst}
+                onChange={(e) => setShowTranslationFirst(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">{targetLanguageName} First</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showExamples}
+                onChange={(e) => setShowExamples(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">Show Examples</span>
+            </label>
+            <button
+              onClick={handleShuffle}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm"
+            >
+              🔀 Shuffle
+            </button>
+          </div>
+        </div>
+
+        {/* Card */}
+        <div className="relative mb-8 w-full max-w-2xl">
+          <div
+            className={`flip-card bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow min-h-[500px] h-[500px] cursor-pointer ${
+              isFlipped ? 'flipped' : ''
+            }`}
+            onClick={handleFlip}
+          >
+            <div className="flip-card-inner h-full">
+              <div className="flip-card-front text-center relative p-12">
+                <div className="absolute top-4 right-4 text-white/40 text-sm z-10">
+                  {currentIndex + 1} / {filteredCards.length}
+                </div>
+                <div className="h-full flex flex-col items-center justify-center gap-4">
+                  <div className="text-sm text-white/60">
+                    {showTranslationFirst ? targetLanguageName : 'English'}
+                  </div>
+                  <h2 className="text-5xl font-bold text-white text-center">
+                    {showTranslationFirst ? currentCard.translation : currentCard.english}
+                  </h2>
+                </div>
+              </div>
+              <div className="flip-card-back text-center relative p-12">
+                <div className="absolute top-4 right-4 text-white/40 text-sm z-10">
+                  {currentIndex + 1} / {filteredCards.length}
+                </div>
+                <div className="h-full flex flex-col items-center justify-center gap-4">
+                  <div className="text-sm text-white/60">
+                    {showTranslationFirst ? 'English' : targetLanguageName}
+                  </div>
+                  <h2 className="text-5xl font-bold text-white text-center">
+                    {showTranslationFirst ? currentCard.english : currentCard.translation}
+                  </h2>
+                  {showExamples && currentCard.example && (
+                    <div className="mt-4 p-4 bg-white/5 rounded-lg max-w-md">
+                      <p className="text-white/80 italic">{currentCard.example}</p>
+                    </div>
+                  )}
+                  {currentCard.notes && (
+                    <div className="mt-2 text-sm text-white/60">
+                      {currentCard.notes}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="text-center mt-4 text-white/60 text-sm">
+            Click card to flip
+          </div>
+        </div>
+
+        {/* Card Actions */}
+        <div className="flex flex-wrap gap-4 justify-center mb-6">
+          <button
+            onClick={handleStar}
+            disabled={isMarked}
+            className={`px-6 py-3 rounded-lg transition-all font-medium ${
+              isMarked
+                ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                : isStarred
+                ? 'bg-yellow-600 hover:bg-yellow-700'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            {isStarred ? '⭐ Starred' : '☆ Star'}
+          </button>
+          <button
+            onClick={handleKnown}
+            disabled={isMarked}
+            className={`px-6 py-3 rounded-lg transition-all font-medium ${
+              isMarked
+                ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                : showKnownColor
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            {cardState === 'known' ? '✓ Known' : 'Mark Known'}
+          </button>
+          <button
+            onClick={handleNotKnown}
+            disabled={isMarked}
+            className={`px-6 py-3 rounded-lg transition-all font-medium ${
+              isMarked
+                ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                : showNotKnownColor
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
+          >
+            {cardState === 'not-known' ? 'Not Known' : 'Mark Not Known'}
+          </button>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-4 justify-center">
+          <button
+            onClick={handlePrev}
+            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
+          >
+            ← Previous
+          </button>
+          <button
+            onClick={handleFlip}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
+          >
+            {isFlipped ? 'Show Front' : 'Flip Card'}
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={!isMarked}
+            className={`px-6 py-3 rounded-lg transition-all font-medium ${
+              isMarked
+                ? 'bg-white/10 hover:bg-white/20'
+                : 'bg-white/5 text-white/30 cursor-not-allowed'
+            }`}
+          >
+            Next →
+          </button>
+        </div>
+      </main>
+
+        {/* Results Modal */}
+        {showResults && (
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
+            onClick={() => setShowResults(false)}
+          >
+          <div 
+            className="bg-gray-900 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-white/20 card-glow animate-slide-up my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🎯</div>
+              <h2 className="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                Session Complete!
+              </h2>
+              <p className="text-white/70">Here's how you did</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-white/5 rounded-lg p-4">
+                <div className="text-white/70 text-sm mb-2">Total Cards</div>
+                <div className="text-3xl font-bold text-white">
+                  {calculateResults.total}
+                </div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <div className="text-white/70 text-sm mb-2">Accuracy</div>
+                <div className="text-3xl font-bold text-purple-400">
+                  {calculateResults.accuracy}%
+                </div>
+              </div>
+              <div className="bg-green-500/20 rounded-lg p-4 border border-green-500/30">
+                <div className="text-white/70 text-sm mb-2">Known (Correct)</div>
+                <div className="text-3xl font-bold text-green-400">
+                  {calculateResults.known}
+                </div>
+                <div className="text-sm text-white/60 mt-1">
+                  {calculateResults.total > 0 ? Math.round((calculateResults.known / calculateResults.total) * 100) : 0}%
+                </div>
+              </div>
+              <div className="bg-red-500/20 rounded-lg p-4 border border-red-500/30">
+                <div className="text-white/70 text-sm mb-2">Not Known (Incorrect)</div>
+                <div className="text-3xl font-bold text-red-400">
+                  {calculateResults.notKnown}
+                </div>
+                <div className="text-sm text-white/60 mt-1">
+                  {calculateResults.total > 0 ? Math.round((calculateResults.notKnown / calculateResults.total) * 100) : 0}%
+                </div>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <div className="text-white/70 text-sm mb-2">Left Blank</div>
+                <div className="text-3xl font-bold text-white/60">
+                  {calculateResults.blank}
+                </div>
+                <div className="text-sm text-white/60 mt-1">
+                  {calculateResults.total > 0 ? Math.round((calculateResults.blank / calculateResults.total) * 100) : 0}%
+                </div>
+              </div>
+              <div className="bg-yellow-500/20 rounded-lg p-4 border border-yellow-500/30">
+                <div className="text-white/70 text-sm mb-2">Starred</div>
+                <div className="text-3xl font-bold text-yellow-400">
+                  {calculateResults.starred}
+                </div>
+                <div className="text-sm text-white/60 mt-1">
+                  {calculateResults.total > 0 ? Math.round((calculateResults.starred / calculateResults.total) * 100) : 0}%
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/5 rounded-lg p-4 mb-6">
+              <div className="text-center">
+                <div className="text-white/70 text-sm mb-2">Score</div>
+                <div className="text-4xl font-bold text-purple-400">
+                  {calculateResults.correct} / {calculateResults.total}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowResults(false);
+                  setCurrentIndex(0);
+                  setIsFlipped(false);
+                  setMarkedCards(new Set());
+                  setCardStates(new Map());
+                  setFlashingCard(null);
+                  setLastClickedCard(null);
+                  setSessionStarredCards(new Set());
+                }}
+                className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
+              >
+                Study Again
+              </button>
+              <button
+                onClick={() => router.push('/')}
+                className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
+              >
+                Home
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
