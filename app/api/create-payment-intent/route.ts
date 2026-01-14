@@ -1,14 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
-});
-
 export async function POST(request: NextRequest) {
   try {
+    // Check if Stripe is configured
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    
+    if (!stripeSecretKey || stripeSecretKey.trim() === '') {
+      return NextResponse.json(
+        { 
+          error: 'Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment variables.',
+          needsConfiguration: true
+        },
+        { status: 503 }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2023-10-16',
+    });
+
     const body = await request.json();
     const { amount } = body;
+
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return NextResponse.json(
+        { error: 'Valid amount is required' },
+        { status: 400 }
+      );
+    }
 
     // Create a PaymentIntent with the order amount and currency
     const paymentIntent = await stripe.paymentIntents.create({

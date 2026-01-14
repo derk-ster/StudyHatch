@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
+import { StreakPetWidget } from '@/components/StreakPet';
 import { getAllDecks, deleteDeck, getUserLimits } from '@/lib/storage';
 import { Deck, ActivityType } from '@/types/vocab';
 
@@ -95,11 +96,19 @@ export default function ViewDecksPage() {
           </p>
         </div>
 
+        {/* Streak Pet Widget */}
+        <div className="mb-6 flex justify-center" style={{ position: 'relative', zIndex: 10 }}>
+          <StreakPetWidget />
+        </div>
+
         {/* Create Deck Button */}
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center flex justify-center" key="create-deck-button">
           <Link
             href="/create"
-            className="inline-block px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg text-lg"
+            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg text-lg pulse-glow whitespace-nowrap inline-flex items-center justify-center"
+            style={{ 
+              transition: 'background-color 0.2s ease',
+            }}
           >
             + Create New Deck
           </Link>
@@ -177,15 +186,8 @@ export default function ViewDecksPage() {
                   }}
                 >
                   <div className="mt-4 pt-4 border-t border-white/20">
-                    <Link
-                      href={`/study?deck=${deck.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="block w-full mb-3 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg text-center transition-all shadow-lg"
-                    >
-                      🎓 Study This Deck
-                    </Link>
-                    <div className="grid grid-cols-2 gap-2">
-                      {activities.map((activity) => (
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      {activities.slice(0, 6).map((activity) => (
                         <Link
                           key={activity.id}
                           href={createActivityUrl(activity.id, deck.id)}
@@ -196,6 +198,13 @@ export default function ViewDecksPage() {
                         </Link>
                       ))}
                     </div>
+                    <Link
+                      href={`/study?deck=${deck.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="block mt-2 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center transition-all font-medium"
+                    >
+                      View All Activities →
+                    </Link>
                   </div>
                 </div>
               </div>

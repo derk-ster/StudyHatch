@@ -75,6 +75,7 @@ export function StreakPetWidget() {
       <button
         onClick={() => setShowModal(true)}
         className="flex items-center gap-3 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+        style={{ position: 'relative', zIndex: 10 }}
       >
         <span className="text-3xl">{PET_EMOJIS[streakInfo.petStage]}</span>
         <div className="text-left">
@@ -87,12 +88,14 @@ export function StreakPetWidget() {
 
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fade-in"
           onClick={() => setShowModal(false)}
+          style={{ zIndex: 10000, position: 'fixed' }}
         >
           <div
             className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-white/20 card-glow animate-slide-up"
             onClick={(e) => e.stopPropagation()}
+            style={{ position: 'relative', zIndex: 10001 }}
           >
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">

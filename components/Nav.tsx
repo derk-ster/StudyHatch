@@ -59,6 +59,8 @@ export default function Nav() {
         willChange: 'transform',
         pointerEvents: 'auto',
         WebkitTransform: 'translateZ(0)',
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
       }}
     >
       <div 
@@ -69,7 +71,16 @@ export default function Nav() {
           className="flex items-center justify-between h-16" 
           style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
         >
-          <Link href="/" className="flex items-center space-x-2">
+          <Link 
+            href="/" 
+            className="flex items-center space-x-2"
+            style={{ 
+              position: 'relative', 
+              zIndex: 99999, 
+              pointerEvents: 'auto', 
+              cursor: 'pointer',
+            }}
+          >
             <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
               StudyHatch
             </span>
@@ -99,191 +110,107 @@ export default function Nav() {
             )}
 
             {/* View Decks Link */}
-            <div style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}>
-              <Link
-                href="/decks"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/decks');
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/decks');
-                }}
-                className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
-                  pathname === '/decks' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                }`}
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 99999, 
-                  pointerEvents: 'auto', 
-                  cursor: 'pointer', 
-                  display: 'inline-block',
-                  WebkitUserSelect: 'none',
-                  userSelect: 'none',
-                }}
-              >
-                View Decks
-              </Link>
-            </div>
+            <Link
+              href="/decks"
+              className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
+                pathname === '/decks' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+              }`}
+              style={{ 
+                position: 'relative', 
+                zIndex: 99999, 
+                pointerEvents: 'auto', 
+                cursor: 'pointer', 
+                display: 'inline-block',
+              }}
+            >
+              View Decks
+            </Link>
 
             {/* Create Deck Button */}
-            <div style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}>
-              <Link
-                href="/create"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/create');
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/create');
-                }}
-                className={`px-4 py-1.5 rounded-lg transition-all inline-block text-sm ${
-                  pathname === '/create' ? 'bg-purple-600 text-white' : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium shadow-lg'
-                }`}
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 99999, 
-                  pointerEvents: 'auto', 
-                  cursor: 'pointer', 
-                  display: 'inline-block',
-                  WebkitUserSelect: 'none',
-                  userSelect: 'none',
-                }}
-              >
-                + Create Deck
-              </Link>
-            </div>
+            <Link
+              href="/create"
+              className={`px-4 py-1.5 rounded-lg transition-all inline-block text-sm ${
+                pathname === '/create' ? 'bg-purple-600 text-white' : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium shadow-lg'
+              }`}
+              style={{ 
+                position: 'relative', 
+                zIndex: 99999, 
+                pointerEvents: 'auto', 
+                cursor: 'pointer', 
+                display: 'inline-block',
+              }}
+            >
+              + Create Deck
+            </Link>
 
             {/* AI Chat Link */}
-            <div style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}>
-              <Link
-                href="/ai-chat"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/ai-chat');
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/ai-chat');
-                }}
-                className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block"
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 99999, 
-                  pointerEvents: 'auto', 
-                  cursor: 'pointer', 
-                  display: 'inline-block',
-                  WebkitUserSelect: 'none',
-                  userSelect: 'none',
-                }}
-              >
-                🤖 AI Chat
-                {!hasAISubscription() && (
-                  <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
-                    {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
-                  </span>
-                )}
-              </Link>
-            </div>
+            <Link
+              href="/ai-chat"
+              className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block relative"
+              style={{ 
+                position: 'relative', 
+                zIndex: 99999, 
+                pointerEvents: 'auto', 
+                cursor: 'pointer', 
+                display: 'inline-block',
+              }}
+            >
+              🤖 AI Chat
+              {!hasAISubscription() && (
+                <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                  {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
+                </span>
+              )}
+            </Link>
 
             {/* Pricing Link */}
-            <div style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}>
-              <Link
-                href="/pricing"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/pricing');
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push('/pricing');
-                }}
-                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block"
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 99999, 
-                  pointerEvents: 'auto', 
-                  cursor: 'pointer', 
-                  display: 'inline-block',
-                  WebkitUserSelect: 'none',
-                  userSelect: 'none',
-                }}
-              >
-                Premium
-              </Link>
-            </div>
+            <Link
+              href="/pricing"
+              className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block"
+              style={{ 
+                position: 'relative', 
+                zIndex: 99999, 
+                pointerEvents: 'auto', 
+                cursor: 'pointer', 
+                display: 'inline-block',
+              }}
+            >
+              Premium
+            </Link>
 
             {/* Login/Account Links */}
             {session && !session.isGuest ? (
-              <div style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}>
-                <Link
-                  href="/account"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push('/account');
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push('/account');
-                  }}
-                  className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
-                    pathname === '/account' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                  }`}
-                  style={{ 
-                    position: 'relative', 
-                    zIndex: 99999, 
-                    pointerEvents: 'auto', 
-                    cursor: 'pointer', 
-                    display: 'inline-block',
-                    WebkitUserSelect: 'none',
-                    userSelect: 'none',
-                  }}
-                >
-                  Account
-                </Link>
-              </div>
+              <Link
+                href="/account"
+                className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
+                  pathname === '/account' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                }`}
+                style={{ 
+                  position: 'relative', 
+                  zIndex: 99999, 
+                  pointerEvents: 'auto', 
+                  cursor: 'pointer', 
+                  display: 'inline-block',
+                }}
+              >
+                Account
+              </Link>
             ) : (
-              <div style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}>
-                <Link
-                  href="/login"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push('/login');
-                  }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    router.push('/login');
-                  }}
-                  className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
-                    pathname === '/login' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                  }`}
-                  style={{ 
-                    position: 'relative', 
-                    zIndex: 99999, 
-                    pointerEvents: 'auto', 
-                    cursor: 'pointer', 
-                    display: 'inline-block',
-                    WebkitUserSelect: 'none',
-                    userSelect: 'none',
-                  }}
-                >
-                  Login
-                </Link>
-              </div>
+              <Link
+                href="/login"
+                className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
+                  pathname === '/login' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                }`}
+                style={{ 
+                  position: 'relative', 
+                  zIndex: 99999, 
+                  pointerEvents: 'auto', 
+                  cursor: 'pointer', 
+                  display: 'inline-block',
+                }}
+              >
+                Login
+              </Link>
             )}
           </div>
 

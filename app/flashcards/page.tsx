@@ -353,18 +353,31 @@ export default function FlashcardsPage() {
   return (
     <div className="min-h-screen bg-noise">
       <Nav />
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className="max-w-4xl mx-auto px-4 py-12" style={{ position: 'relative', zIndex: 1 }}>
         {/* Header */}
-        <div className="mb-8 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20 relative z-50" style={{ position: 'relative', zIndex: 50, pointerEvents: 'auto' }}>
+        <div className="mb-8 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20 relative" style={{ position: 'relative', zIndex: 1 }}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">Flashcards</h1>
               <p className="text-white/70">Card {currentIndex + 1} of {filteredCards.length}</p>
               {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
             </div>
+            <button
+              onClick={() => {
+                if (deckId) {
+                  router.push(`/study?deck=${deckId}`);
+                } else {
+                  router.push('/');
+                }
+              }}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium"
+              style={{ position: 'relative', zIndex: 10 }}
+            >
+              ← Back to Activities
+            </button>
           </div>
-          <div className="flex flex-wrap gap-4 items-center" style={{ position: 'relative', zIndex: 51, pointerEvents: 'auto' }}>
-            <label className="flex items-center gap-2 cursor-pointer" style={{ pointerEvents: 'auto' }}>
+          <div className="flex flex-wrap gap-4 items-center" style={{ position: 'relative', zIndex: 2 }}>
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={showDefinitions}
@@ -373,12 +386,11 @@ export default function FlashcardsPage() {
                   setShowDefinitions(e.target.checked);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4"
-                style={{ pointerEvents: 'auto' }}
+                className="w-4 h-4 cursor-pointer"
               />
-              <span className="text-sm">Show Definitions</span>
+              <span className="text-sm cursor-pointer">Show Definitions</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer" style={{ pointerEvents: 'auto' }}>
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={showTranslationFirst}
@@ -387,10 +399,9 @@ export default function FlashcardsPage() {
                   setShowTranslationFirst(e.target.checked);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4"
-                style={{ pointerEvents: 'auto' }}
+                className="w-4 h-4 cursor-pointer"
               />
-              <span className="text-sm">{targetLanguageName} First</span>
+              <span className="text-sm cursor-pointer">{targetLanguageName} First</span>
             </label>
             <button
               onClick={(e) => {
@@ -404,7 +415,6 @@ export default function FlashcardsPage() {
               }}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm cursor-pointer"
               type="button"
-              style={{ pointerEvents: 'auto', position: 'relative', zIndex: 52 }}
             >
               🔀 Shuffle
             </button>
@@ -412,7 +422,7 @@ export default function FlashcardsPage() {
         </div>
 
         {/* Card */}
-        <div className="relative mb-8 w-full max-w-2xl mx-auto">
+        <div className="relative mb-8 w-full max-w-2xl mx-auto" style={{ zIndex: 1 }}>
           <div
             className={`flip-card bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow min-h-[500px] h-[500px] cursor-pointer ${
               isFlipped ? 'flipped' : ''
@@ -421,6 +431,7 @@ export default function FlashcardsPage() {
               e.stopPropagation();
               handleFlip();
             }}
+            style={{ position: 'relative', zIndex: 1 }}
           >
             <div className="flip-card-inner h-full">
               <div className="flip-card-front text-center relative p-12">
@@ -568,8 +579,9 @@ export default function FlashcardsPage() {
         {/* Results Modal */}
         {showResults && (
           <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fade-in"
           onClick={() => setShowResults(false)}
+          style={{ zIndex: 9999 }}
           >
           <div 
             className="bg-gray-900 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-white/20 card-glow animate-slide-up"

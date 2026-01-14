@@ -133,7 +133,7 @@ export default function StudyPage() {
         {/* Back Button */}
         <div className="mt-12 text-center">
           <button
-            onClick={() => router.push('/decks')}
+            onClick={() => router.push('/')}
             className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white"
           >
             ← Back to Decks

@@ -127,7 +127,7 @@ export default function Home() {
         </div>
 
         {/* Streak Pet Widget */}
-        <div className="mb-6 flex justify-center" key="streak-pet">
+        <div className="mb-6 flex justify-center" style={{ position: 'relative', zIndex: 10 }}>
           <StreakPetWidget />
         </div>
 
