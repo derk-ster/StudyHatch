@@ -343,12 +343,6 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({ translations: mockTranslations, mock: true });
     }
-
-    return NextResponse.json({
-      translations: mockTranslations,
-      mock: true,
-      note: 'API key detected but integration not implemented. Using mock translations.',
-    });
   } catch (error: any) {
     console.error('Error translating words:', error);
     return NextResponse.json(
