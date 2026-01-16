@@ -2,6 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --button-hover-scale: 1.05;
+  --link-hover-raise: 5%;
+}
+
+button,
+input[type='button'],
+input[type='submit'],
+input[type='reset'] {
+  transition: transform 0.15s ease;
+}
+
+button:hover,
+input[type='button']:hover,
+input[type='submit']:hover,
+input[type='reset']:hover {
+  transform: scale(var(--button-hover-scale));
+}
+
+button:active,
+input[type='button']:active,
+input[type='submit']:active,
+input[type='reset']:active {
+  transform: scale(calc(2 - var(--button-hover-scale)));
+}
+
+a[class*='rounded'] {
+  transition: transform 0.15s ease;
+}
+
+a[class*='rounded']:hover {
+  transform: translateY(calc(var(--link-hover-raise) * -1));
+}
+
+a[class*='rounded']:active {
+  transform: translateY(0);
+}
+
+.hover-lift-scale {
+  transition: transform 0.18s ease;
+}
+
+.hover-lift-scale:hover {
+  transform: translateY(calc(var(--link-hover-raise) * -1)) scale(var(--button-hover-scale));
+}
+
+.hover-lift-scale:active {
+  transform: translateY(0) scale(calc(2 - var(--button-hover-scale)));
+}
+
 @layer base {
   body {
     @apply antialiased;
@@ -24,15 +74,14 @@
   }
   
   .card-glow-hover {
-    transition: all 0.3s ease;
+    transition: box-shadow 0.3s ease;
   }
   
   .card-glow-hover:hover {
     box-shadow: 
-      0 0 30px rgba(139, 92, 246, 0.4),
-      0 0 60px rgba(59, 130, 246, 0.3),
-      0 10px 30px rgba(0, 0, 0, 0.3);
-    transform: translateY(-5px);
+      0 0 45px rgba(139, 92, 246, 0.74),
+      0 0 90px rgba(59, 130, 246, 0.56),
+      0 10px 30px rgba(0, 0, 0, 0.56);
   }
   
   .text-glow {

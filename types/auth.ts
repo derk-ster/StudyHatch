@@ -4,6 +4,9 @@ export type User = {
   username: string;
   createdAt: number;
   lastLoginAt: number;
+  classroomIds?: string[];
+  role?: 'teacher' | 'student' | 'guest';
+  schoolId?: string;
 };
 
 export type AuthSession = {
@@ -11,6 +14,8 @@ export type AuthSession = {
   email: string;
   username: string;
   isGuest: boolean;
+  role?: 'teacher' | 'student' | 'guest';
+  schoolId?: string;
 };
 
 export type AuthState = {

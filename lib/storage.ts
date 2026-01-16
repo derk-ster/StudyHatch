@@ -1,7 +1,14 @@
-import { UserProgress, StudyMode, ActivityType, Deck, VocabCard } from '@/types/vocab';
+import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership } from '@/types/vocab';
+import { getUserById, setUserSchool } from './auth';
 
 const STORAGE_KEY = 'spanish-vocab-progress';
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
+const CLASSROOMS_STORAGE_KEY = 'studyhatch-classrooms';
+const PUBLISHED_DECKS_STORAGE_KEY = 'studyhatch-published-decks';
+const SCHOOLS_STORAGE_KEY = 'studyhatch-schools';
+const CLASSES_STORAGE_KEY = 'studyhatch-classes';
+const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
+const CLASS_DECKS_STORAGE_KEY = 'studyhatch-class-decks';
 
 export const getProgress = (): UserProgress => {
   if (typeof window === 'undefined') {
@@ -202,17 +209,41 @@ export const getAllDecks = (): Deck[] => {
   return [];
 };
 
+export const reorderDecksByIds = (orderedIds: string[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    const decks = getAllDecks();
+    const deckMap = new Map(decks.map(deck => [deck.id, deck]));
+    const reordered: Deck[] = [];
+    orderedIds.forEach(id => {
+      const deck = deckMap.get(id);
+      if (deck) {
+        reordered.push(deck);
+        deckMap.delete(id);
+      }
+    });
+    deckMap.forEach(deck => reordered.push(deck));
+    localStorage.setItem(DECKS_STORAGE_KEY, JSON.stringify(reordered));
+  } catch (error) {
+    console.error('Error reordering decks:', error);
+  }
+};
+
 export const saveDeck = (deck: Deck): void => {
   if (typeof window === 'undefined') return;
   
   try {
     const decks = getAllDecks();
     const existingIndex = decks.findIndex(d => d.id === deck.id);
+    const existingDeck = existingIndex >= 0 ? decks[existingIndex] : undefined;
     
     // Ensure targetLanguage exists (backward compatibility)
     const deckToSave = {
       ...deck,
       targetLanguage: deck.targetLanguage || 'es', // Default to Spanish for old decks
+      visibility: deck.visibility || 'private',
+      ownerUserId: deck.ownerUserId ?? existingDeck?.ownerUserId,
+      schoolId: deck.schoolId ?? existingDeck?.schoolId,
     };
     
     if (existingIndex >= 0) {
@@ -225,6 +256,259 @@ export const saveDeck = (deck: Deck): void => {
   } catch (error) {
     console.error('Error saving deck:', error);
   }
+};
+
+export const setDeckVisibility = (deckId: string, visibility: 'private' | 'public'): boolean => {
+  const deck = getDeckById(deckId);
+  if (!deck) return false;
+  saveDeck({ ...deck, visibility });
+  return true;
+};
+
+export const getPublicDecks = (): Deck[] => {
+  return getAllDecks().filter(deck => deck.visibility === 'public');
+};
+
+export const duplicateDeck = (deckId: string, ownerUserId?: string): Deck | null => {
+  const deck = getDeckById(deckId);
+  if (!deck) return null;
+  const copiedDeck: Deck = {
+    ...deck,
+    id: `deck-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: `${deck.name} (Copy)`,
+    createdDate: Date.now(),
+    visibility: 'private',
+    ownerUserId,
+    schoolId: undefined,
+  };
+  saveDeck(copiedDeck);
+  return copiedDeck;
+};
+
+// School + Class Storage Functions
+export const getAllSchools = (): School[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(SCHOOLS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading schools:', error);
+    return [];
+  }
+};
+
+const saveAllSchools = (schools: School[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SCHOOLS_STORAGE_KEY, JSON.stringify(schools));
+  } catch (error) {
+    console.error('Error saving schools:', error);
+  }
+};
+
+const generateInviteCode = (existingCodes: Set<string>, length = 6): string => {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < length; i += 1) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  if (existingCodes.has(code)) {
+    return generateInviteCode(existingCodes, length);
+  }
+  return code;
+};
+
+export const createSchool = (name: string, description: string | undefined, createdBy: string): School => {
+  const schools = getAllSchools();
+  const inviteCode = generateInviteCode(new Set(schools.map(s => s.inviteCode.toUpperCase())), 6);
+  const school: School = {
+    id: `school-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: name.trim(),
+    description: description?.trim() || undefined,
+    createdBy,
+    inviteCode,
+    createdAt: Date.now(),
+    teacherIds: [createdBy],
+  };
+  saveAllSchools([...schools, school]);
+  setUserSchool(createdBy, school.id);
+  return school;
+};
+
+export const getSchoolByInviteCode = (code: string): School | undefined => {
+  const normalized = code.trim().toUpperCase();
+  return getAllSchools().find(school => school.inviteCode.toUpperCase() === normalized);
+};
+
+export const joinSchoolByInviteCode = (teacherId: string, code: string): { success: boolean; error?: string; school?: School } => {
+  const school = getSchoolByInviteCode(code);
+  if (!school) {
+    return { success: false, error: 'School invite code not found.' };
+  }
+  const schools = getAllSchools();
+  const updated = schools.map(s => {
+    if (s.id !== school.id) return s;
+    const teacherIds = s.teacherIds.includes(teacherId) ? s.teacherIds : [...s.teacherIds, teacherId];
+    return { ...s, teacherIds };
+  });
+  saveAllSchools(updated);
+  setUserSchool(teacherId, school.id);
+  return { success: true, school };
+};
+
+export const getSchoolById = (schoolId: string): School | undefined => {
+  return getAllSchools().find(school => school.id === schoolId);
+};
+
+export const getSchoolForUser = (userId: string): School | undefined => {
+  const user = getUserById(userId);
+  if (!user?.schoolId) return undefined;
+  return getSchoolById(user.schoolId);
+};
+
+export const getClasses = (): ClassRoom[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(CLASSES_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading classes:', error);
+    return [];
+  }
+};
+
+const saveClasses = (classes: ClassRoom[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CLASSES_STORAGE_KEY, JSON.stringify(classes));
+  } catch (error) {
+    console.error('Error saving classes:', error);
+  }
+};
+
+export const createClassRoom = (schoolId: string, name: string, description?: string): ClassRoom => {
+  const classes = getClasses();
+  const joinCode = generateInviteCode(new Set(classes.map(c => c.joinCode.toUpperCase())), 6);
+  const classroom: ClassRoom = {
+    id: `class-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    schoolId,
+    name: name.trim(),
+    description: description?.trim() || undefined,
+    joinCode,
+    createdAt: Date.now(),
+  };
+  saveClasses([...classes, classroom]);
+  return classroom;
+};
+
+export const getClassesForSchool = (schoolId: string): ClassRoom[] => {
+  return getClasses().filter(c => c.schoolId === schoolId);
+};
+
+export const getClassByJoinCode = (code: string): ClassRoom | undefined => {
+  const normalized = code.trim().toUpperCase();
+  return getClasses().find(c => c.joinCode.toUpperCase() === normalized);
+};
+
+export const getClassMemberships = (): ClassMembership[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(CLASS_MEMBERSHIPS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading class memberships:', error);
+    return [];
+  }
+};
+
+const saveClassMemberships = (memberships: ClassMembership[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CLASS_MEMBERSHIPS_STORAGE_KEY, JSON.stringify(memberships));
+  } catch (error) {
+    console.error('Error saving class memberships:', error);
+  }
+};
+
+export const addStudentToClass = (userId: string, classId: string): void => {
+  const memberships = getClassMemberships();
+  const exists = memberships.some(m => m.userId === userId && m.classId === classId);
+  if (exists) return;
+  saveClassMemberships([...memberships, { userId, classId, joinedAt: Date.now() }]);
+};
+
+export const joinClassByCode = (userId: string, code: string): { success: boolean; error?: string; classroom?: ClassRoom } => {
+  const classroom = getClassByJoinCode(code);
+  if (!classroom) {
+    return { success: false, error: 'Class code not found.' };
+  }
+  addStudentToClass(userId, classroom.id);
+  return { success: true, classroom };
+};
+
+export const getClassesForStudent = (userId: string): ClassRoom[] => {
+  const memberships = getClassMemberships().filter(m => m.userId === userId);
+  const classes = getClasses();
+  return classes.filter(c => memberships.some(m => m.classId === c.id));
+};
+
+export const getStudentsForClass = (classId: string): { userId: string; username: string }[] => {
+  const memberships = getClassMemberships().filter(m => m.classId === classId);
+  return memberships
+    .map(m => {
+      const user = getUserById(m.userId);
+      return user ? { userId: user.id, username: user.username } : null;
+    })
+    .filter(Boolean) as { userId: string; username: string }[];
+};
+
+export type ClassPublishedDeck = {
+  deckId: string;
+  classId: string;
+  expiresAt?: number | null;
+  publishedAt: number;
+};
+
+export const getClassPublishedDecks = (): ClassPublishedDeck[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(CLASS_DECKS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading class decks:', error);
+    return [];
+  }
+};
+
+const saveClassPublishedDecks = (entries: ClassPublishedDeck[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CLASS_DECKS_STORAGE_KEY, JSON.stringify(entries));
+  } catch (error) {
+    console.error('Error saving class decks:', error);
+  }
+};
+
+const pruneExpiredClassDecks = (): ClassPublishedDeck[] => {
+  const now = Date.now();
+  const entries = getClassPublishedDecks();
+  return entries.filter(entry => !entry.expiresAt || entry.expiresAt > now);
+};
+
+export const publishDeckToClass = (deckId: string, classId: string, expiresAt?: number | null): void => {
+  const entries = pruneExpiredClassDecks().filter(entry => !(entry.deckId === deckId && entry.classId === classId));
+  entries.push({ deckId, classId, expiresAt: expiresAt ?? null, publishedAt: Date.now() });
+  saveClassPublishedDecks(entries);
+};
+
+export const getActiveClassDecks = (classId: string): ClassPublishedDeck[] => {
+  return pruneExpiredClassDecks().filter(entry => entry.classId === classId);
+};
+
+export const getClassDeckIdsForStudent = (userId: string): string[] => {
+  const classes = getClassesForStudent(userId);
+  const entries = pruneExpiredClassDecks();
+  return entries.filter(entry => classes.some(c => c.id === entry.classId)).map(entry => entry.deckId);
 };
 
 export const deleteDeck = (deckId: string): void => {
@@ -244,6 +528,165 @@ export const deleteDeck = (deckId: string): void => {
   } catch (error) {
     console.error('Error deleting deck:', error);
   }
+};
+
+// Classroom Storage Functions
+export const getAllClassrooms = (): Classroom[] => {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const stored = localStorage.getItem(CLASSROOMS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading classrooms:', error);
+  }
+  
+  return [];
+};
+
+const saveAllClassrooms = (classrooms: Classroom[]): void => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(CLASSROOMS_STORAGE_KEY, JSON.stringify(classrooms));
+  } catch (error) {
+    console.error('Error saving classrooms:', error);
+  }
+};
+
+const generateClassCode = (existingCodes: Set<string>): string => {
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i += 1) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  if (existingCodes.has(code)) {
+    return generateClassCode(existingCodes);
+  }
+  return code;
+};
+
+export const createClassroom = (ownerUserId: string, name?: string): Classroom => {
+  const classrooms = getAllClassrooms();
+  const existingCodes = new Set(classrooms.map(c => c.classCode.toUpperCase()));
+  const classroom: Classroom = {
+    id: `classroom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ownerUserId,
+    name: name?.trim() || undefined,
+    classCode: generateClassCode(existingCodes),
+    createdAt: Date.now(),
+  };
+  saveAllClassrooms([...classrooms, classroom]);
+  addUserClassroom(ownerUserId, classroom.id);
+  return classroom;
+};
+
+export const getClassroomsForUser = (userId: string): Classroom[] => {
+  const user = getUserById(userId);
+  if (!user?.classroomIds || user.classroomIds.length === 0) {
+    return [];
+  }
+  const classrooms = getAllClassrooms();
+  return classrooms.filter(c => user.classroomIds?.includes(c.id));
+};
+
+export const getOwnedClassrooms = (userId: string): Classroom[] => {
+  const classrooms = getAllClassrooms();
+  return classrooms.filter(c => c.ownerUserId === userId);
+};
+
+export const joinClassroomByCode = (userId: string, codeInput: string): { success: boolean; error?: string; classroom?: Classroom } => {
+  const code = codeInput.trim().toUpperCase();
+  if (!code) {
+    return { success: false, error: 'Please enter a class code.' };
+  }
+  const classrooms = getAllClassrooms();
+  const classroom = classrooms.find(c => c.classCode.toUpperCase() === code);
+  if (!classroom) {
+    return { success: false, error: 'Classroom not found. Check the code and try again.' };
+  }
+  addUserClassroom(userId, classroom.id);
+  return { success: true, classroom };
+};
+
+export const deleteClassroom = (classroomId: string, requestingUserId?: string): boolean => {
+  const classrooms = getAllClassrooms();
+  const classroom = classrooms.find(c => c.id === classroomId);
+  if (!classroom) return false;
+  if (requestingUserId && classroom.ownerUserId !== requestingUserId) {
+    return false;
+  }
+  const updated = classrooms.filter(c => c.id !== classroomId);
+  saveAllClassrooms(updated);
+  removeClassroomFromAllUsers(classroomId);
+  return true;
+};
+
+export const getPublishedDecks = (): PublishedDeck[] => {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const stored = localStorage.getItem(PUBLISHED_DECKS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Error loading published decks:', error);
+  }
+  
+  return [];
+};
+
+export const savePublishedDecks = (published: PublishedDeck[]): void => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(PUBLISHED_DECKS_STORAGE_KEY, JSON.stringify(published));
+  } catch (error) {
+    console.error('Error saving published decks:', error);
+  }
+};
+
+const pruneExpiredPublishedDecks = (): PublishedDeck[] => {
+  const now = Date.now();
+  const published = getPublishedDecks();
+  const active = published.filter(entry => !entry.expiresAt || entry.expiresAt > now);
+  if (active.length !== published.length) {
+    savePublishedDecks(active);
+  }
+  return active;
+};
+
+export const publishDeckToClassroom = (deckId: string, classroomId: string, expiresAt?: number | null): PublishedDeck => {
+  const published = pruneExpiredPublishedDecks();
+  const updated = published.filter(entry => !(entry.deckId === deckId && entry.classroomId === classroomId));
+  const entry: PublishedDeck = {
+    deckId,
+    classroomId,
+    expiresAt: expiresAt ?? null,
+    publishedAt: Date.now(),
+  };
+  updated.push(entry);
+  savePublishedDecks(updated);
+  return entry;
+};
+
+export const unpublishDeckFromClassroom = (deckId: string, classroomId: string): void => {
+  const published = pruneExpiredPublishedDecks();
+  const updated = published.filter(entry => !(entry.deckId === deckId && entry.classroomId === classroomId));
+  savePublishedDecks(updated);
+};
+
+export const getActivePublishedDecksForClassroom = (classroomId: string): PublishedDeck[] => {
+  const published = pruneExpiredPublishedDecks();
+  return published.filter(entry => entry.classroomId === classroomId);
+};
+
+export const getPublishedDecksForDeck = (deckId: string): PublishedDeck[] => {
+  const published = pruneExpiredPublishedDecks();
+  return published.filter(entry => entry.deckId === deckId);
 };
 
 export const getDeckById = (deckId: string): Deck | undefined => {
@@ -410,11 +853,12 @@ export type DailyUsage = {
   translationsToday: number; // number of words translated today
   decksCreatedToday: number; // number of decks created today
   aiMessagesToday: number; // number of AI chat messages sent today
+  publicSearchesToday?: number; // number of public deck searches
 };
 
 export const getDailyUsage = (): DailyUsage => {
   if (typeof window === 'undefined') {
-    return { lastReset: Date.now(), translationsToday: 0, decksCreatedToday: 0, aiMessagesToday: 0 };
+    return { lastReset: Date.now(), translationsToday: 0, decksCreatedToday: 0, aiMessagesToday: 0, publicSearchesToday: 0 };
   }
   
   try {
@@ -431,6 +875,7 @@ export const getDailyUsage = (): DailyUsage => {
           translationsToday: 0,
           decksCreatedToday: 0,
           aiMessagesToday: 0,
+          publicSearchesToday: 0,
         };
         localStorage.setItem(DAILY_USAGE_KEY, JSON.stringify(resetUsage));
         return resetUsage;
@@ -440,6 +885,10 @@ export const getDailyUsage = (): DailyUsage => {
       if (usage.aiMessagesToday === undefined) {
         usage.aiMessagesToday = 0;
       }
+
+      if (usage.publicSearchesToday === undefined) {
+        usage.publicSearchesToday = 0;
+      }
       
       return usage;
     }
@@ -447,7 +896,7 @@ export const getDailyUsage = (): DailyUsage => {
     console.error('Error loading daily usage:', error);
   }
   
-  return { lastReset: Date.now(), translationsToday: 0, decksCreatedToday: 0, aiMessagesToday: 0 };
+  return { lastReset: Date.now(), translationsToday: 0, decksCreatedToday: 0, aiMessagesToday: 0, publicSearchesToday: 0 };
 };
 
 export const saveDailyUsage = (usage: DailyUsage): void => {
@@ -478,6 +927,12 @@ export const incrementDailyAIMessages = (): void => {
   saveDailyUsage(usage);
 };
 
+export const incrementDailyPublicSearches = (): void => {
+  const usage = getDailyUsage();
+  usage.publicSearchesToday = (usage.publicSearchesToday || 0) + 1;
+  saveDailyUsage(usage);
+};
+
 export const getTimeUntilReset = (): number => {
   const usage = getDailyUsage();
   const now = Date.now();
@@ -493,8 +948,9 @@ export const getUserLimits = () => {
     maxDecks: premium ? Infinity : 5, // Free users: 5 decks
     maxCards: premium ? Infinity : 100,
     dailyTranslationLimit: premium ? Infinity : 50, // Free users: 50 words per day
-    dailyDeckLimit: premium ? Infinity : 1, // Free users: 1 deck per day
+    dailyDeckLimit: premium ? Infinity : 5, // Free users: 5 decks per day
     dailyAILimit: hasAISubscription() ? Infinity : 5, // Free users: 5 AI messages per day
+    dailySearchLimit: premium ? Infinity : 3,
   };
 };
 

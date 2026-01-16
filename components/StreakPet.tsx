@@ -139,7 +139,7 @@ export function StreakPetWidget() {
               )}
               <div className="bg-white/5 rounded-lg p-4">
                 <div className="text-white/60 text-sm">
-                  Study at least 1 card each day to maintain your streak!
+                  Complete at least 1 deck activity each day to maintain your streak!
                 </div>
               </div>
             </div>

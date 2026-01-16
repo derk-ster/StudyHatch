@@ -54,7 +54,12 @@ function saveUsers(users: Record<string, { user: User; passwordHash: string; acc
   }
 }
 
-export function signUp(email: string, username: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
+export function signUp(
+  email: string,
+  username: string,
+  password: string,
+  role: 'teacher' | 'student' = 'student'
+): Promise<{ success: boolean; error?: string; user?: User }> {
   return new Promise((resolve) => {
     // Validation
     if (!email || !email.includes('@')) {
@@ -96,6 +101,8 @@ export function signUp(email: string, username: string, password: string): Promi
       username: username.trim(),
       createdAt: Date.now(),
       lastLoginAt: Date.now(),
+      classroomIds: [],
+      role,
     };
     
     const passwordHash = simpleHash(password);
@@ -145,6 +152,9 @@ export function signIn(emailOrUsername: string, password: string): Promise<{ suc
     
     // Update last login
     userEntry.user.lastLoginAt = Date.now();
+    if (!userEntry.user.role) {
+      userEntry.user.role = 'student';
+    }
     users[userEntry.user.id] = userEntry;
     saveUsers(users);
     
@@ -188,6 +198,7 @@ export function continueAsGuest(): AuthSession {
     email: '',
     username: 'Guest',
     isGuest: true,
+    role: 'guest',
   };
   
   setCurrentSession(guestSession);
@@ -198,6 +209,46 @@ export function getAccountData(userId: string): AccountData | null {
   const users = getUsers();
   const userEntry = users[userId];
   return userEntry ? userEntry.accountData : null;
+}
+
+export function getUserById(userId: string): User | null {
+  const users = getUsers();
+  return users[userId]?.user || null;
+}
+
+export function setUserSchool(userId: string, schoolId: string): void {
+  const users = getUsers();
+  const userEntry = users[userId];
+  if (!userEntry) return;
+  userEntry.user.schoolId = schoolId;
+  saveUsers(users);
+}
+
+export function addUserClassroom(userId: string, classroomId: string): void {
+  const users = getUsers();
+  const userEntry = users[userId];
+  if (!userEntry) return;
+  const existing = userEntry.user.classroomIds || [];
+  if (!existing.includes(classroomId)) {
+    userEntry.user.classroomIds = [...existing, classroomId];
+    saveUsers(users);
+  }
+}
+
+export function removeUserClassroom(userId: string, classroomId: string): void {
+  const users = getUsers();
+  const userEntry = users[userId];
+  if (!userEntry) return;
+  userEntry.user.classroomIds = (userEntry.user.classroomIds || []).filter(id => id !== classroomId);
+  saveUsers(users);
+}
+
+export function removeClassroomFromAllUsers(classroomId: string): void {
+  const users = getUsers();
+  Object.values(users).forEach(entry => {
+    entry.user.classroomIds = (entry.user.classroomIds || []).filter(id => id !== classroomId);
+  });
+  saveUsers(users);
 }
 
 export function saveAccountData(userId: string, accountData: AccountData): void {

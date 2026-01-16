@@ -8,12 +8,15 @@ import Nav from '@/components/Nav';
 import { Deck, VocabCard } from '@/types/vocab';
 import { saveDeck, canCreateDeck, canAddCards, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks } from '@/lib/storage';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages';
+import { useAuth } from '@/lib/auth-context';
 
 export default function CreateDeckPage() {
   const router = useRouter();
+  const { session } = useAuth();
   const [deckName, setDeckName] = useState('');
   const [deckDescription, setDeckDescription] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('es'); // Default to Spanish
+  const [entryMode, setEntryMode] = useState<'auto' | 'manual'>('auto');
   const [wordsInput, setWordsInput] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
@@ -26,6 +29,42 @@ export default function CreateDeckPage() {
   const selectedLanguage = getLanguageByCode(targetLanguage);
   const dailyUsage = getDailyUsage();
 
+  const parseWordsInput = () => {
+    return wordsInput
+      .split(/[\n,]+/)
+      .map(w => w.trim())
+      .filter(w => w.length > 0);
+  };
+
+  const updateTranslationField = (index: number, field: 'english' | 'translation', value: string) => {
+    setTranslations(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleAddRow = () => {
+    setTranslations(prev => [...prev, { english: '', translation: '' }]);
+  };
+
+  const handleRemoveRow = (index: number) => {
+    setTranslations(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveRow = (index: number, direction: 'up' | 'down') => {
+    setTranslations(prev => {
+      const updated = [...prev];
+      const newIndex = direction === 'up' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= updated.length) {
+        return updated;
+      }
+      const [moved] = updated.splice(index, 1);
+      updated.splice(newIndex, 0, moved);
+      return updated;
+    });
+  };
+
   const handleTranslate = async () => {
     if (!wordsInput.trim()) {
       setError('Please enter at least one word');
@@ -33,10 +72,7 @@ export default function CreateDeckPage() {
     }
 
     // Parse words (newline, comma, or space separated)
-    const words = wordsInput
-      .split(/[\n,]+/)
-      .map(w => w.trim())
-      .filter(w => w.length > 0);
+    const words = parseWordsInput();
 
     if (words.length === 0) {
       setError('Please enter at least one word');
@@ -61,14 +97,16 @@ export default function CreateDeckPage() {
       return;
     }
 
-    // Check daily translation limit
-    const dailyUsage = getDailyUsage();
-    if (dailyUsage.translationsToday + words.length > limits.dailyTranslationLimit) {
-      const remaining = limits.dailyTranslationLimit - dailyUsage.translationsToday;
-      const timeUntilReset = getTimeUntilReset();
-      const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
-      setError(`Free users can only translate ${limits.dailyTranslationLimit} words per day. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}. Upgrade to Premium for unlimited daily translations.`);
-      return;
+    if (entryMode === 'auto') {
+      // Check daily translation limit
+      const dailyUsage = getDailyUsage();
+      if (dailyUsage.translationsToday + words.length > limits.dailyTranslationLimit) {
+        const remaining = limits.dailyTranslationLimit - dailyUsage.translationsToday;
+        const timeUntilReset = getTimeUntilReset();
+        const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
+        setError(`Free users can only translate ${limits.dailyTranslationLimit} words per day. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}. Upgrade to Premium for unlimited daily translations.`);
+        return;
+      }
     }
 
     // Validate deck name before translating
@@ -79,6 +117,14 @@ export default function CreateDeckPage() {
 
     setIsCreating(true);
     setError('');
+
+    if (entryMode === 'manual') {
+      const manualRows = words.map(word => ({ english: word, translation: '' }));
+      setTranslations(manualRows);
+      setShowPreview(true);
+      setIsCreating(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/translate', {
@@ -126,19 +172,17 @@ export default function CreateDeckPage() {
       return;
     }
 
-    // Filter out invalid translations
-    const validTranslations = translations.filter(t => 
-      t && t.english && t.english.trim() && 
-      t.translation && t.translation.trim()
+    const invalidTranslations = translations.filter(t => 
+      !t || !t.english || !t.english.trim() || !t.translation || !t.translation.trim()
     );
 
-    if (validTranslations.length === 0) {
-      setError('No valid translations found. Please translate words first.');
+    if (translations.length === 0 || invalidTranslations.length > 0) {
+      setError('Please fill in all English and translation fields or remove empty rows.');
       return;
     }
 
     // Create deck
-    const cards: VocabCard[] = validTranslations.map((trans, index) => ({
+    const cards: VocabCard[] = translations.map((trans, index) => ({
       id: `card-${Date.now()}-${index}`,
       translation: trans.translation.trim(),
       english: trans.english.trim(),
@@ -157,6 +201,8 @@ export default function CreateDeckPage() {
       cards,
       createdDate: Date.now(),
       targetLanguage: targetLanguage,
+      ownerUserId: session?.isGuest ? undefined : session?.userId,
+      schoolId: session?.role === 'teacher' ? session?.schoolId : undefined,
     };
 
     // Clear any previous errors/success messages
@@ -222,6 +268,7 @@ export default function CreateDeckPage() {
     setError('');
     setShowSuccess(false);
     setTargetLanguage('es'); // Reset to default
+    setEntryMode('auto');
   };
 
   return (
@@ -329,6 +376,41 @@ export default function CreateDeckPage() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-white/90 mb-2">
+                    Entry Mode *
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEntryMode('auto')}
+                      className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                        entryMode === 'auto'
+                          ? 'bg-purple-600/40 border-purple-400 text-white'
+                          : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                      }`}
+                    >
+                      Auto Translate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEntryMode('manual')}
+                      className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                        entryMode === 'manual'
+                          ? 'bg-purple-600/40 border-purple-400 text-white'
+                          : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                      }`}
+                    >
+                      Manual Entry
+                    </button>
+                  </div>
+                  <p className="text-white/60 text-sm mt-2">
+                    {entryMode === 'auto'
+                      ? 'We will translate automatically, then you can edit each entry.'
+                      : 'Build an editable list without automatic translations.'}
+                  </p>
+                </div>
+
+                <div>
                   <label htmlFor="wordsInput" className="block text-sm font-medium text-white/90 mb-2">
                     English Words *
                   </label>
@@ -356,28 +438,76 @@ export default function CreateDeckPage() {
                   disabled={isCreating || !wordsInput.trim()}
                   className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCreating ? 'Translating...' : 'Translate Words'}
+                  {isCreating
+                    ? entryMode === 'auto'
+                      ? 'Translating...'
+                      : 'Preparing...'
+                    : entryMode === 'auto'
+                      ? 'Translate Words'
+                      : 'Create Editable List'}
                 </button>
               </div>
             </>
           ) : (
             <>
               <div className="mb-6">
-                <h2 className="text-2xl font-bold mb-4">Preview Translations</h2>
-                <div className="bg-white/5 rounded-lg p-4 max-h-96 overflow-y-auto">
-                  <div className="space-y-2">
-                    {translations.map((trans, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-white/5 rounded">
-                        <span className="text-white/90">{trans.english}</span>
-                        <span className="text-purple-300">→</span>
-                        <span className="text-white/90">{trans.translation}</span>
+                <h2 className="text-2xl font-bold mb-4">Edit Word List</h2>
+                <div className="bg-white/5 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
+                  {translations.map((trans, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr,1fr,auto] gap-2 items-center bg-white/5 p-3 rounded">
+                      <input
+                        value={trans.english}
+                        onChange={(e) => updateTranslationField(index, 'english', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="English word"
+                      />
+                      <input
+                        value={trans.translation}
+                        onChange={(e) => updateTranslationField(index, 'translation', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder={`${selectedLanguage?.name || targetLanguage} translation`}
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveRow(index, 'up')}
+                          className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-sm"
+                          aria-label="Move up"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveRow(index, 'down')}
+                          className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-sm"
+                          aria-label="Move down"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(index)}
+                          className="px-2 py-1 rounded bg-red-500/30 hover:bg-red-500/50 text-sm text-red-200"
+                          aria-label="Remove"
+                        >
+                          Remove
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-white/60 text-sm mt-2">
-                  {translations.length} cards will be created
-                </p>
+                <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                  >
+                    + Add Row
+                  </button>
+                  <p className="text-white/60 text-sm self-center">
+                    {translations.length} cards will be created
+                  </p>
+                </div>
               </div>
 
               <div className="flex gap-4">

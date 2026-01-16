@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import LanguageBadge from '@/components/LanguageBadge';
 import { ActivityType } from '@/types/vocab';
@@ -73,7 +74,7 @@ export default function Nav() {
         >
           <Link 
             href="/" 
-            className="flex items-center space-x-2"
+            className="flex items-center gap-2 min-w-0"
             style={{ 
               position: 'relative', 
               zIndex: 99999, 
@@ -81,7 +82,15 @@ export default function Nav() {
               cursor: 'pointer',
             }}
           >
-            <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+            <Image
+              src="/WebsiteLogo.png"
+              alt="StudyHatch Logo"
+              width={32}
+              height={32}
+              className="h-8 w-8 flex-shrink-0 rounded-md object-cover"
+              priority
+            />
+            <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 whitespace-nowrap">
               StudyHatch
             </span>
           </Link>
@@ -109,11 +118,11 @@ export default function Nav() {
               </div>
             )}
 
-            {/* View Decks Link */}
+            {/* Home Link */}
             <Link
-              href="/decks"
+              href="/"
               className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
-                pathname === '/decks' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                pathname === '/' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
               }`}
               style={{ 
                 position: 'relative', 
@@ -123,25 +132,27 @@ export default function Nav() {
                 display: 'inline-block',
               }}
             >
-              View Decks
+              Home
             </Link>
 
-            {/* Create Deck Button */}
-            <Link
-              href="/create"
-              className={`px-4 py-1.5 rounded-lg transition-all inline-block text-sm ${
-                pathname === '/create' ? 'bg-purple-600 text-white' : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium shadow-lg'
-              }`}
-              style={{ 
-                position: 'relative', 
-                zIndex: 99999, 
-                pointerEvents: 'auto', 
-                cursor: 'pointer', 
-                display: 'inline-block',
-              }}
-            >
-              + Create Deck
-            </Link>
+
+            {session?.role === 'teacher' && (
+              <Link
+                href="/teacher-dashboard"
+                className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
+                  pathname === '/teacher-dashboard' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                }`}
+                style={{ 
+                  position: 'relative', 
+                  zIndex: 99999, 
+                  pointerEvents: 'auto', 
+                  cursor: 'pointer', 
+                  display: 'inline-block',
+                }}
+              >
+                Teacher Dashboard
+              </Link>
+            )}
 
             {/* AI Chat Link */}
             <Link
@@ -163,20 +174,6 @@ export default function Nav() {
               )}
             </Link>
 
-            {/* Pricing Link */}
-            <Link
-              href="/pricing"
-              className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block"
-              style={{ 
-                position: 'relative', 
-                zIndex: 99999, 
-                pointerEvents: 'auto', 
-                cursor: 'pointer', 
-                display: 'inline-block',
-              }}
-            >
-              Premium
-            </Link>
 
             {/* Login/Account Links */}
             {session && !session.isGuest ? (

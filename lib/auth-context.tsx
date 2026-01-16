@@ -7,8 +7,8 @@ import { getCurrentSession, setCurrentSession, signIn as authSignIn, signUp as a
 type AuthContextType = {
   session: AuthSession | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
+  signUp: (email: string, username: string, password: string, role: 'teacher' | 'student') => Promise<{ success: boolean; error?: string; userId?: string }>;
   signOut: () => void;
   continueAsGuest: () => void;
 };
@@ -34,26 +34,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: result.user.email,
         username: result.user.username,
         isGuest: false,
+        role: result.user.role || 'student',
+        schoolId: result.user.schoolId,
       };
       setCurrentSession(newSession);
       setSession(newSession);
     }
-    return { success: result.success, error: result.error };
+    return { success: result.success, error: result.error, userId: result.user?.id };
   };
 
-  const signUp = async (email: string, username: string, password: string) => {
-    const result = await authSignUp(email, username, password);
+  const signUp = async (email: string, username: string, password: string, role: 'teacher' | 'student') => {
+    const result = await authSignUp(email, username, password, role);
     if (result.success && result.user) {
       const newSession: AuthSession = {
         userId: result.user.id,
         email: result.user.email,
         username: result.user.username,
         isGuest: false,
+        role: result.user.role || role,
+        schoolId: result.user.schoolId,
       };
       setCurrentSession(newSession);
       setSession(newSession);
     }
-    return { success: result.success, error: result.error };
+    return { success: result.success, error: result.error, userId: result.user?.id };
   };
 
   const handleSignOut = () => {

@@ -7,22 +7,32 @@ import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { updatePassword } from '@/lib/auth';
+import { getSubscriptionInfo, isPremium } from '@/lib/storage';
+import { usePWA } from '@/components/PWAProvider';
 
 export default function AccountPage() {
   const router = useRouter();
   const { session, signOut } = useAuth();
+  const { canInstall, isInstalled, promptInstall } = usePWA();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [premiumStatus, setPremiumStatus] = useState(false);
+  const [aiSubscription, setAiSubscription] = useState(getSubscriptionInfo());
 
   useEffect(() => {
     if (session?.isGuest) {
       router.push('/');
     }
   }, [session, router]);
+
+  useEffect(() => {
+    setPremiumStatus(isPremium());
+    setAiSubscription(getSubscriptionInfo());
+  }, []);
 
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -64,8 +74,7 @@ export default function AccountPage() {
   };
 
   const handleLogout = () => {
-    signOut();
-    router.push('/login');
+    router.push('/logout');
   };
 
   if (session?.isGuest) {
@@ -99,8 +108,65 @@ export default function AccountPage() {
                   {session?.username || 'N/A'}
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Role</label>
+                <div className="px-4 py-2 bg-white/5 rounded-lg text-white capitalize">
+                  {session?.role || 'student'}
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Subscription Status */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
+            <h2 className="text-2xl font-bold mb-6 text-white">Subscriptions</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
+                <div>
+                  <p className="text-white/90 font-medium">Premium</p>
+                  <p className="text-white/60 text-sm">
+                    {premiumStatus ? 'Active' : 'Not active'}
+                  </p>
+                </div>
+                <span className={`text-sm font-semibold ${premiumStatus ? 'text-green-300' : 'text-white/40'}`}>
+                  {premiumStatus ? 'Enabled' : 'Inactive'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
+                <div>
+                  <p className="text-white/90 font-medium">AI Chat Monthly</p>
+                  <p className="text-white/60 text-sm">
+                    {aiSubscription.isActive ? `Active • ${aiSubscription.daysRemaining} day${aiSubscription.daysRemaining !== 1 ? 's' : ''} left` : 'Not active'}
+                  </p>
+                </div>
+                <span className={`text-sm font-semibold ${aiSubscription.isActive ? 'text-green-300' : 'text-white/40'}`}>
+                  {aiSubscription.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Install StudyHatch */}
+          {!isInstalled && (
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
+              <h2 className="text-2xl font-bold mb-2 text-white">Install StudyHatch</h2>
+              <p className="text-white/70 mb-4">
+                Install the app for offline study and faster launches.
+              </p>
+              {canInstall ? (
+                <button
+                  onClick={promptInstall}
+                  className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition-all text-sm font-semibold pulse-glow"
+                >
+                  Install App
+                </button>
+              ) : (
+                <p className="text-white/60 text-sm">
+                  Install is not available yet. Use Chrome/Edge or Safari on iOS.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Change Password */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">

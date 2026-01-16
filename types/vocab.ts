@@ -14,6 +14,49 @@ export type Deck = {
   cards: VocabCard[];
   createdDate: number; // timestamp
   targetLanguage: string; // Language code (e.g., 'es', 'fr', 'zh')
+  visibility?: 'private' | 'public';
+  ownerUserId?: string;
+  schoolId?: string;
+};
+
+export type Classroom = {
+  id: string;
+  ownerUserId: string;
+  name?: string;
+  classCode: string;
+  createdAt: number;
+};
+
+export type PublishedDeck = {
+  deckId: string;
+  classroomId: string;
+  expiresAt?: number | null;
+  publishedAt: number;
+};
+
+export type School = {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string;
+  inviteCode: string;
+  createdAt: number;
+  teacherIds: string[];
+};
+
+export type ClassRoom = {
+  id: string;
+  schoolId: string;
+  name: string;
+  description?: string;
+  joinCode: string;
+  createdAt: number;
+};
+
+export type ClassMembership = {
+  userId: string;
+  classId: string;
+  joinedAt: number;
 };
 
 export type Language = {

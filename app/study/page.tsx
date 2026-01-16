@@ -7,9 +7,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById } from '@/lib/storage';
+import { getDeckById, getClassDeckIdsForStudent, saveDeck } from '@/lib/storage';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
+import { useAuth } from '@/lib/auth-context';
 
 const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; description: string }[] = [
   {
@@ -51,10 +52,19 @@ const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; de
 ];
 
 export default function StudyPage() {
+  const { session } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
+  const [editedCards, setEditedCards] = useState(deck?.cards || []);
+  const [saveMessage, setSaveMessage] = useState('');
+
+  useEffect(() => {
+    if (deck) {
+      setEditedCards(deck.cards);
+    }
+  }, [deckId]);
 
   const createActivityUrl = (activity: ActivityType | 'ai-chat') => {
     if (activity === 'ai-chat') {
@@ -86,6 +96,33 @@ export default function StudyPage() {
   }
 
   const targetLanguageName = getLanguageName(deck.targetLanguage);
+  const classDeckIds = session?.role === 'student' ? getClassDeckIdsForStudent(session.userId) : [];
+  const isClassDeck = deckId ? classDeckIds.includes(deckId) : false;
+  const isOwner = !!session?.userId && deck.ownerUserId === session.userId;
+  const isLegacyPersonalDeck = !deck.ownerUserId && !isClassDeck;
+  const canEdit = isOwner || isLegacyPersonalDeck || (!session || session.isGuest);
+
+  const handleCardChange = (index: number, field: 'english' | 'translation', value: string) => {
+    setEditedCards(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleSaveEdits = () => {
+    if (!canEdit || !deckId || !deck) return;
+    const cleanedCards = editedCards
+      .map(card => ({
+        ...card,
+        english: card.english.trim(),
+        translation: card.translation.trim(),
+      }))
+      .filter(card => card.english && card.translation);
+    saveDeck({ ...deck, cards: cleanedCards });
+    setSaveMessage('Edits saved.');
+    setTimeout(() => setSaveMessage(''), 1500);
+  };
 
   return (
     <div className="min-h-screen bg-noise">
@@ -128,6 +165,46 @@ export default function StudyPage() {
               </p>
             </Link>
           ))}
+        </div>
+
+        {/* Inline Editing */}
+        <div className="mt-12 bg-white/10 rounded-2xl p-6 border border-white/20">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
+            {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
+          </div>
+          {isClassDeck && !canEdit && (
+            <p className="text-blue-200/80 text-sm mb-4">
+              Classroom decks are read-only. Make a personal copy to edit.
+            </p>
+          )}
+          <div className="space-y-3">
+            {editedCards.map((card, index) => (
+              <div key={card.id} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  value={card.english}
+                  onChange={(e) => handleCardChange(index, 'english', e.target.value)}
+                  disabled={!canEdit}
+                  className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                />
+                <input
+                  value={card.translation}
+                  onChange={(e) => handleCardChange(index, 'translation', e.target.value)}
+                  disabled={!canEdit}
+                  className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={handleSaveEdits}
+              disabled={!canEdit}
+              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Save Changes
+            </button>
+          </div>
         </div>
 
         {/* Back Button */}

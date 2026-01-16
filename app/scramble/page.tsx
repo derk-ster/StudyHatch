@@ -8,6 +8,7 @@ import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
+import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 
 export default function ScramblePage() {
@@ -24,6 +25,12 @@ export default function ScramblePage() {
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
+
+  useEffect(() => {
+    if (deckId) {
+      updateStreakOnStudy();
+    }
+  }, [deckId]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 

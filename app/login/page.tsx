@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { createSchool, getClassByJoinCode, joinClassByCode } from '@/lib/storage';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +14,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [role, setRole] = useState<'teacher' | 'student'>('student');
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolDescription, setSchoolDescription] = useState('');
+  const [classCodeInput, setClassCodeInput] = useState('');
+
+  const extractClassCode = (value: string) => {
+    const trimmed = value.trim();
+    const match = trimmed.match(/join-class\/([A-Za-z0-9]+)/i);
+    return match ? match[1] : trimmed;
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -28,8 +39,41 @@ export default function LoginPage() {
           setError(result.error || 'Login failed');
         }
       } else {
-        const result = await signUp(email, username, password);
+        if (role === 'teacher') {
+          if (!schoolName.trim()) {
+            setError('Please enter a school name.');
+            setIsSubmitting(false);
+            return;
+          }
+        } else {
+          const classCode = extractClassCode(classCodeInput);
+          if (!classCode.trim()) {
+            setError('Please enter a class code to join.');
+            setIsSubmitting(false);
+            return;
+          }
+          const existingClass = getClassByJoinCode(classCode);
+          if (!existingClass) {
+            setError('Class code not found. Please check and try again.');
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
+        const result = await signUp(email, username, password, role);
         if (result.success) {
+          if (role === 'teacher') {
+            createSchool(schoolName, schoolDescription || undefined, result.userId || '');
+            await signIn(email, password);
+            router.push('/teacher-dashboard');
+            return;
+          }
+          if (role === 'student') {
+            const classCode = extractClassCode(classCodeInput);
+            if (result.userId) {
+              joinClassByCode(result.userId, classCode);
+            }
+          }
           router.push('/');
         } else {
           setError(result.error || 'Sign up failed');
@@ -97,6 +141,35 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                <p className="text-white/80 text-sm mb-3">Account Type</p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    className={`flex-1 py-2 rounded-lg font-medium transition-all ${
+                      role === 'student'
+                        ? 'bg-blue-600/40 text-white border border-blue-400/50'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    Student
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('teacher')}
+                    className={`flex-1 py-2 rounded-lg font-medium transition-all ${
+                      role === 'teacher'
+                        ? 'bg-purple-600/40 text-white border border-purple-400/50'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }`}
+                  >
+                    Teacher
+                  </button>
+                </div>
+              </div>
+            )}
+            {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
                   Username
@@ -109,6 +182,42 @@ export default function LoginPage() {
                   className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   placeholder="Choose a username"
                 />
+              </div>
+            )}
+
+            {!isLogin && role === 'teacher' && (
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-3">
+                <p className="text-white/80 text-sm">Create Your School</p>
+                <input
+                  type="text"
+                  value={schoolName}
+                  onChange={(e) => setSchoolName(e.target.value)}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="School name"
+                />
+                <input
+                  type="text"
+                  value={schoolDescription}
+                  onChange={(e) => setSchoolDescription(e.target.value)}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="School description (optional)"
+                />
+              </div>
+            )}
+
+            {!isLogin && role === 'student' && (
+              <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-3">
+                <p className="text-white/80 text-sm">Join a Class</p>
+                <input
+                  type="text"
+                  value={classCodeInput}
+                  onChange={(e) => setClassCodeInput(e.target.value)}
+                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Enter class code or join link"
+                />
+                <p className="text-white/50 text-xs">
+                  Students must join a class to continue. Use Guest mode for personal decks only.
+                </p>
               </div>
             )}
 
