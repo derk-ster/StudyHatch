@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
-import { getDeckById, saveDeck } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
 import { getLanguageName } from '@/lib/languages';
 import { VocabCard } from '@/types/vocab';
+import { useAuth } from '@/lib/auth-context';
 
 export default function TranslateDefinitionsPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function TranslateDefinitionsPage() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [message, setMessage] = useState('');
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const { session } = useAuth();
 
   useEffect(() => {
     if (deck) {
@@ -30,8 +32,18 @@ export default function TranslateDefinitionsPage() {
 
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
+  const isTeacher = session?.role === 'teacher';
+  const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
+  const canEdit = isTeacher ? true : editStatus.allowed;
+  const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
+  const canSave = canEdit && saveStatus.allowed;
+
   const handleTranslateDefinitions = async () => {
     if (!deck) return;
+    if (!canEdit || !deckId) {
+      setMessage(editStatus.reason || 'Daily edit limit reached.');
+      return;
+    }
     const trimmedInputs = definitionInputs.map(input => input.trim());
     const indicesToTranslate = trimmedInputs
       .map((value, index) => (value ? index : -1))
@@ -45,6 +57,9 @@ export default function TranslateDefinitionsPage() {
     const englishWords = indicesToTranslate.map(index => trimmedInputs[index]);
     setIsTranslating(true);
     setMessage('');
+    if (!isTeacher) {
+      markDeckEditedToday(deckId);
+    }
 
     try {
       const response = await fetch(`${apiBase}/api/translate`, {
@@ -83,16 +98,27 @@ export default function TranslateDefinitionsPage() {
 
   const handleSave = () => {
     if (!deck || !deckId) return;
+    if (!canSave) {
+      setMessage(saveStatus.reason || 'Daily save limit reached.');
+      return;
+    }
     const cleanedCards = editedCards.map(card => ({
       ...card,
       definition: card.definition?.trim() || undefined,
     }));
     saveDeck({ ...deck, cards: cleanedCards });
+    if (!isTeacher) {
+      recordDeckSave();
+    }
     setMessage('Definitions saved.');
     setTimeout(() => setMessage(''), 1500);
   };
 
   const updateDefinition = (index: number, value: string) => {
+    if (!canEdit || !deckId) return;
+    if (!isTeacher) {
+      markDeckEditedToday(deckId);
+    }
     setEditedCards(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], definition: value };
@@ -128,6 +154,16 @@ export default function TranslateDefinitionsPage() {
             <h1 className="text-3xl font-bold">Translate Definitions</h1>
             {message && <span className="text-green-300 text-sm">{message}</span>}
           </div>
+          {!isTeacher && !editStatus.allowed && (
+            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
+              {editStatus.reason || 'Daily edit limit reached.'}
+            </div>
+          )}
+          {!isTeacher && !saveStatus.allowed && (
+            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
+              {saveStatus.reason || 'Daily save limit reached.'}
+            </div>
+          )}
           <p className="text-white/70 mb-6">
             Add English definitions, then translate them into {targetLanguageName}.
           </p>
@@ -140,6 +176,10 @@ export default function TranslateDefinitionsPage() {
                   <textarea
                     value={definitionInputs[index] || ''}
                     onChange={(e) => {
+                      if (!canEdit || !deckId) return;
+                      if (!isTeacher) {
+                        markDeckEditedToday(deckId);
+                      }
                       const value = e.target.value;
                       setDefinitionInputs(prev => {
                         const updated = [...prev];
@@ -147,14 +187,16 @@ export default function TranslateDefinitionsPage() {
                         return updated;
                       });
                     }}
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={!canEdit}
+                    className="w-full px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
                     placeholder="Definition (English)"
                     rows={3}
                   />
                   <textarea
                     value={card.definition || ''}
                     onChange={(e) => updateDefinition(index, e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={!canEdit}
+                    className="w-full px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
                     placeholder={`Definition (${targetLanguageName})`}
                     rows={3}
                   />
@@ -166,14 +208,15 @@ export default function TranslateDefinitionsPage() {
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
             <button
               onClick={handleTranslateDefinitions}
-              disabled={isTranslating}
-              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition-all font-semibold disabled:opacity-50"
+              disabled={isTranslating || !canEdit}
+              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isTranslating ? 'Translating...' : 'Translate Definitions'}
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+              disabled={!canSave}
+              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save Definitions
             </button>

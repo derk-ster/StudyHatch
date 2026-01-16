@@ -195,7 +195,8 @@ export default function PricingPage() {
           </div>
 
           {/* AI Chat Subscription Plan */}
-          <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-md rounded-2xl p-8 border-2 border-green-500 card-glow relative">
+          <div className="md:col-span-2 flex justify-center">
+            <div className="w-full max-w-md bg-gradient-to-br from-green-600/20 to-emerald-600/20 backdrop-blur-md rounded-2xl p-8 border-2 border-green-500 card-glow relative">
             {hasAISub && (
               <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">
                 Active
@@ -270,6 +271,7 @@ export default function PricingPage() {
                 {isLoading ? 'Processing...' : 'Subscribe for $1.99/month'}
               </button>
             )}
+            </div>
           </div>
         </div>
 

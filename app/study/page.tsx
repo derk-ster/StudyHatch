@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, getClassDeckIdsForStudent, saveDeck } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
@@ -59,6 +59,7 @@ export default function StudyPage() {
   const deck = deckId ? getDeckById(deckId) : null;
   const [editedCards, setEditedCards] = useState(deck?.cards || []);
   const [saveMessage, setSaveMessage] = useState('');
+  const [limitMessage, setLimitMessage] = useState('');
 
   useEffect(() => {
     if (deck) {
@@ -96,9 +97,17 @@ export default function StudyPage() {
   }
 
   const targetLanguageName = getLanguageName(deck.targetLanguage);
-  const canEdit = true;
+  const isTeacher = session?.role === 'teacher';
+  const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
+  const canEdit = isTeacher ? true : editStatus.allowed;
+  const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
+  const canSave = canEdit && saveStatus.allowed;
 
   const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
+    if (!canEdit || !deckId) return;
+    if (!isTeacher) {
+      markDeckEditedToday(deckId);
+    }
     setEditedCards(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -108,6 +117,14 @@ export default function StudyPage() {
 
   const handleSaveEdits = () => {
     if (!canEdit || !deckId || !deck) return;
+    if (!isTeacher) {
+      const saveCheck = canSaveDeckToday();
+      if (!saveCheck.allowed) {
+        setSaveMessage('');
+        setLimitMessage(saveCheck.reason || 'Daily save limit reached.');
+        return;
+      }
+    }
     const cleanedCards = editedCards
       .map(card => ({
         ...card,
@@ -117,6 +134,10 @@ export default function StudyPage() {
       }))
       .filter(card => card.english && card.translation);
     saveDeck({ ...deck, cards: cleanedCards });
+    if (!isTeacher) {
+      recordDeckSave();
+    }
+    setLimitMessage('');
     setSaveMessage('Edits saved.');
     setTimeout(() => setSaveMessage(''), 1500);
   };
@@ -170,15 +191,42 @@ export default function StudyPage() {
             <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
             {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
           </div>
+          {!isTeacher && !editStatus.allowed && (
+            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
+              {editStatus.reason || 'Daily edit limit reached.'}
+            </div>
+          )}
+          {!isTeacher && !saveStatus.allowed && (
+            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
+              {saveStatus.reason || 'Daily save limit reached.'}
+            </div>
+          )}
+          {!isTeacher && limitMessage && (
+            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
+              {limitMessage}
+            </div>
+          )}
           <div className="flex flex-wrap gap-3 mb-4">
             <Link
               href={`/edit-translations?deck=${deckId}`}
+              onClick={(e) => {
+                if (!canEdit) {
+                  e.preventDefault();
+                  setLimitMessage(editStatus.reason || 'Daily edit limit reached.');
+                }
+              }}
               className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
             >
               Edit Translations
             </Link>
             <Link
               href={`/translate-definitions?deck=${deckId}`}
+              onClick={(e) => {
+                if (!canEdit) {
+                  e.preventDefault();
+                  setLimitMessage(editStatus.reason || 'Daily edit limit reached.');
+                }
+              }}
               className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
             >
               Translate Definitions
@@ -205,7 +253,7 @@ export default function StudyPage() {
           <div className="mt-4">
             <button
               onClick={handleSaveEdits}
-              disabled={!canEdit}
+              disabled={!canSave}
               className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save Changes

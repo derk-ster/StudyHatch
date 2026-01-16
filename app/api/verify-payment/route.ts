@@ -38,9 +38,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const cashAppTag = process.env.NEXT_PUBLIC_CASH_APP_TAG || process.env.CASH_APP_TAG || '$StudyHatch01';
-      
-      const paypalUsername = process.env.NEXT_PUBLIC_PAYPAL_USERNAME || '';
+      const cashAppTagRaw = process.env.NEXT_PUBLIC_CASH_APP_TAG || process.env.CASH_APP_TAG || '$StudyHatch01';
+      const cashAppTag = cashAppTagRaw.trim().startsWith('$') ? cashAppTagRaw.trim() : `$${cashAppTagRaw.trim()}`;
+
+      const paypalUsernameRaw = process.env.NEXT_PUBLIC_PAYPAL_USERNAME || 'StudyHatch01';
+      const paypalUsername = paypalUsernameRaw.trim().replace(/^@/, '');
       
       return NextResponse.json({
         paymentCode,

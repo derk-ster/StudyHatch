@@ -19,13 +19,21 @@ export default function PaymentMethodSelector({ plan, amount, onSuccess, onClose
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
+  const normalizeCashAppTag = (tag: string) => {
+    const trimmed = tag.trim();
+    return trimmed.startsWith('$') ? trimmed : `$${trimmed}`;
+  };
+
+  const normalizePaypalUsername = (username: string) => username.trim().replace(/^@/, '');
 
   const handleSelectMethod = async (method: PaymentMethod) => {
     if (method === 'cashapp') {
       // Generate payment code first
       setIsLoading(true);
       try {
-        const response = await fetch('/api/verify-payment', {
+        const response = await fetch(`${apiBase}/api/verify-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -35,7 +43,9 @@ export default function PaymentMethodSelector({ plan, amount, onSuccess, onClose
         });
         const data = await response.json();
         if (response.ok) {
-          const cashAppTag = data.cashAppTag || process.env.NEXT_PUBLIC_CASH_APP_TAG || '$StudyHatch01';
+          const cashAppTag = normalizeCashAppTag(
+            data.cashAppTag || process.env.NEXT_PUBLIC_CASH_APP_TAG || '$StudyHatch01'
+          );
           // Open Cash App link in new tab (works on mobile too - will open app if installed)
           const cashAppLink = `https://cash.app/${cashAppTag.replace('$', '')}/${amount}`;
           window.open(cashAppLink, '_blank');
@@ -53,7 +63,7 @@ export default function PaymentMethodSelector({ plan, amount, onSuccess, onClose
       // Generate payment code first
       setIsLoading(true);
       try {
-        const response = await fetch('/api/verify-payment', {
+        const response = await fetch(`${apiBase}/api/verify-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -63,7 +73,9 @@ export default function PaymentMethodSelector({ plan, amount, onSuccess, onClose
         });
         const data = await response.json();
         if (response.ok) {
-          const paypalUsername = data.paypalUsername || process.env.NEXT_PUBLIC_PAYPAL_USERNAME || '';
+          const paypalUsername = normalizePaypalUsername(
+            data.paypalUsername || process.env.NEXT_PUBLIC_PAYPAL_USERNAME || 'StudyHatch01'
+          );
           if (paypalUsername) {
             // If username is set, open PayPal.me link
             const paypalLink = `https://www.paypal.com/paypalme/${paypalUsername}/${amount}?note=${encodeURIComponent(data.paymentCode)}`;
@@ -92,7 +104,7 @@ export default function PaymentMethodSelector({ plan, amount, onSuccess, onClose
     setError('');
     
     try {
-      const response = await fetch('/api/verify-payment', {
+      const response = await fetch(`${apiBase}/api/verify-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

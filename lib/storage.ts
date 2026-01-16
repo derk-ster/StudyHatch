@@ -854,11 +854,21 @@ export type DailyUsage = {
   decksCreatedToday: number; // number of decks created today
   aiMessagesToday: number; // number of AI chat messages sent today
   publicSearchesToday?: number; // number of public deck searches
+  editedDeckIdToday?: string | null; // deck edited today (students/guests)
+  deckSavesToday?: number; // number of deck saves today (students/guests)
 };
 
 export const getDailyUsage = (): DailyUsage => {
   if (typeof window === 'undefined') {
-    return { lastReset: Date.now(), translationsToday: 0, decksCreatedToday: 0, aiMessagesToday: 0, publicSearchesToday: 0 };
+    return {
+      lastReset: Date.now(),
+      translationsToday: 0,
+      decksCreatedToday: 0,
+      aiMessagesToday: 0,
+      publicSearchesToday: 0,
+      editedDeckIdToday: null,
+      deckSavesToday: 0,
+    };
   }
   
   try {
@@ -876,6 +886,8 @@ export const getDailyUsage = (): DailyUsage => {
           decksCreatedToday: 0,
           aiMessagesToday: 0,
           publicSearchesToday: 0,
+          editedDeckIdToday: null,
+          deckSavesToday: 0,
         };
         localStorage.setItem(DAILY_USAGE_KEY, JSON.stringify(resetUsage));
         return resetUsage;
@@ -889,6 +901,14 @@ export const getDailyUsage = (): DailyUsage => {
       if (usage.publicSearchesToday === undefined) {
         usage.publicSearchesToday = 0;
       }
+
+      if (usage.editedDeckIdToday === undefined) {
+        usage.editedDeckIdToday = null;
+      }
+
+      if (usage.deckSavesToday === undefined) {
+        usage.deckSavesToday = 0;
+      }
       
       return usage;
     }
@@ -896,7 +916,15 @@ export const getDailyUsage = (): DailyUsage => {
     console.error('Error loading daily usage:', error);
   }
   
-  return { lastReset: Date.now(), translationsToday: 0, decksCreatedToday: 0, aiMessagesToday: 0, publicSearchesToday: 0 };
+  return {
+    lastReset: Date.now(),
+    translationsToday: 0,
+    decksCreatedToday: 0,
+    aiMessagesToday: 0,
+    publicSearchesToday: 0,
+    editedDeckIdToday: null,
+    deckSavesToday: 0,
+  };
 };
 
 export const saveDailyUsage = (usage: DailyUsage): void => {
@@ -930,6 +958,47 @@ export const incrementDailyAIMessages = (): void => {
 export const incrementDailyPublicSearches = (): void => {
   const usage = getDailyUsage();
   usage.publicSearchesToday = (usage.publicSearchesToday || 0) + 1;
+  saveDailyUsage(usage);
+};
+
+export const canEditDeckToday = (deckId: string): { allowed: boolean; reason?: string } => {
+  const usage = getDailyUsage();
+  if (!usage.editedDeckIdToday || usage.editedDeckIdToday === deckId) {
+    return { allowed: true };
+  }
+  const timeUntilReset = getTimeUntilReset();
+  const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
+  return {
+    allowed: false,
+    reason: `Students and guests can only edit 1 deck per day. Try again in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}.`,
+  };
+};
+
+export const markDeckEditedToday = (deckId: string): void => {
+  const usage = getDailyUsage();
+  if (!usage.editedDeckIdToday) {
+    usage.editedDeckIdToday = deckId;
+    saveDailyUsage(usage);
+  }
+};
+
+export const canSaveDeckToday = (): { allowed: boolean; reason?: string } => {
+  const usage = getDailyUsage();
+  const savesToday = usage.deckSavesToday || 0;
+  if (savesToday >= 1) {
+    const timeUntilReset = getTimeUntilReset();
+    const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
+    return {
+      allowed: false,
+      reason: `Students and guests can only save deck edits once per day. Try again in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}.`,
+    };
+  }
+  return { allowed: true };
+};
+
+export const recordDeckSave = (): void => {
+  const usage = getDailyUsage();
+  usage.deckSavesToday = (usage.deckSavesToday || 0) + 1;
   saveDailyUsage(usage);
 };
 
