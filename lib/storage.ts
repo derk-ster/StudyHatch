@@ -1,5 +1,5 @@
 import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership } from '@/types/vocab';
-import { addUserClassroom, getUserById, setUserSchool } from './auth';
+import { addUserClassroom, getUserById, removeClassroomFromAllUsers, setUserSchool } from './auth';
 
 const STORAGE_KEY = 'spanish-vocab-progress';
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
