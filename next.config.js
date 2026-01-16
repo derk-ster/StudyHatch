@@ -14,12 +14,6 @@ const nextConfig = {
         permanent: false,
         basePath: false,
       },
-      {
-        source: '/StudyHatch',
-        destination: '/StudyHatch/',
-        permanent: false,
-        basePath: false,
-      },
     ];
   },
   // Skip static generation for pages that use useSearchParams
