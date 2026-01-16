@@ -6,6 +6,22 @@ const nextConfig = {
     NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_APP_VERSION || `local-${Date.now()}`,
     NEXT_PUBLIC_BASE_PATH: '/StudyHatch',
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/StudyHatch',
+        permanent: false,
+        basePath: false,
+      },
+      {
+        source: '/StudyHatch',
+        destination: '/StudyHatch/',
+        permanent: false,
+        basePath: false,
+      },
+    ];
+  },
   // Skip static generation for pages that use useSearchParams
   // These pages will be rendered dynamically at request time
   experimental: {
