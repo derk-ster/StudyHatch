@@ -3,11 +3,13 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import PWAProvider from '@/components/PWAProvider';
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export const metadata: Metadata = {
   title: 'StudyHatch',
   description: 'Create and study custom vocabulary decks with interactive flashcards and games',
   applicationName: 'StudyHatch',
-  manifest: '/manifest.json',
+  manifest: `${basePath}/manifest.json`,
   themeColor: '#1e1b4b',
   appleWebApp: {
     capable: true,
@@ -16,10 +18,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icon.png', type: 'image/png' },
+      { url: `${basePath}/icon.png`, type: 'image/png' },
     ],
-    shortcut: '/icon.png',
-    apple: '/icon.png',
+    shortcut: `${basePath}/icon.png`,
+    apple: `${basePath}/icon.png`,
   },
 };
 

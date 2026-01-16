@@ -29,6 +29,8 @@ const isStandaloneMode = () => {
   return window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
 };
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export function usePWA() {
   const context = useContext(PWAContext);
   if (!context) {
@@ -111,7 +113,8 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
     let refreshing = false;
 
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
+    const swPath = `${basePath}/sw.js`;
+    navigator.serviceWorker.register(swPath).then((reg) => {
       setRegistration(reg);
 
       if (reg.waiting) {

@@ -1,16 +1,19 @@
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 const swCode = `
 const CACHE_VERSION = '${appVersion}';
+const BASE_PATH = '${basePath}';
 const STATIC_CACHE = 'studyhatch-static-' + CACHE_VERSION;
 const DATA_CACHE = 'studyhatch-data-' + CACHE_VERSION;
+const withBase = (path) => BASE_PATH ? BASE_PATH + path : path;
 const APP_SHELL = [
-  '/',
-  '/manifest.json',
-  '/icon.png',
-  '/WebsiteLogo.png',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  withBase('/'),
+  withBase('/manifest.json'),
+  withBase('/icon.png'),
+  withBase('/WebsiteLogo.png'),
+  withBase('/icons/icon-192.png'),
+  withBase('/icons/icon-512.png')
 ];
 
 self.addEventListener('install', (event) => {
@@ -66,7 +69,7 @@ const networkFirst = async (request) => {
     return response;
   } catch (error) {
     const cached = await caches.match(request);
-    return cached || caches.match('/');
+    return cached || caches.match(withBase('/'));
   }
 };
 
@@ -74,6 +77,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  const path = BASE_PATH && url.pathname.startsWith(BASE_PATH)
+    ? url.pathname.slice(BASE_PATH.length) || '/'
+    : url.pathname;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request));
@@ -85,7 +91,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/_next/static') || url.pathname.endsWith('.css') || url.pathname.endsWith('.js')) {
+  if (path.startsWith('/_next/static') || path.endsWith('.css') || path.endsWith('.js')) {
     event.respondWith(cacheFirst(request));
     return;
   }
@@ -95,7 +101,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/api/')) {
+  if (path.startsWith('/api/')) {
     event.respondWith(staleWhileRevalidate(request, DATA_CACHE));
     return;
   }
