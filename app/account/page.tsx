@@ -153,16 +153,15 @@ export default function AccountPage() {
               <p className="text-white/70 mb-4">
                 Install the app for offline study and faster launches.
               </p>
-              {canInstall ? (
-                <button
-                  onClick={promptInstall}
-                  className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition-all text-sm font-semibold pulse-glow"
-                >
-                  Install App
-                </button>
-              ) : (
-                <p className="text-white/60 text-sm">
-                  Install is not available yet. Use Chrome/Edge or Safari on iOS.
+              <button
+                onClick={promptInstall}
+                className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition-all text-sm font-semibold pulse-glow"
+              >
+                Install App
+              </button>
+              {!canInstall && (
+                <p className="text-white/60 text-sm mt-3">
+                  If the install prompt doesn&apos;t appear, use the browser menu to install.
                 </p>
               )}
             </div>

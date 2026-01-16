@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getCurrentSession } from '@/lib/auth';
 import { syncToAccount } from '@/lib/storage-sync';
 
@@ -45,6 +45,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
   const [isInstalled, setIsInstalled] = useState(false);
   const [showInstallToast, setShowInstallToast] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
+  const [showBrowserInstallHelp, setShowBrowserInstallHelp] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -212,7 +213,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  const promptInstall = () => {
+  const promptInstall = useCallback(() => {
     if (isStandaloneMode()) return;
 
     if (isIosDevice()) {
@@ -221,7 +222,11 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       return;
     }
 
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      setShowBrowserInstallHelp(true);
+      setShowInstallToast(false);
+      return;
+    }
 
     setShowInstallToast(false);
     deferredPrompt.prompt();
@@ -229,7 +234,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       setDeferredPrompt(null);
       setCanInstall(false);
     });
-  };
+  }, [deferredPrompt]);
 
   const dismissInstallToast = () => {
     localStorage.setItem(INSTALL_TOAST_KEY, 'true');
@@ -253,7 +258,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     canInstall: canInstall && !isInstalled,
     isInstalled,
     promptInstall,
-  }), [canInstall, isInstalled]);
+  }), [canInstall, isInstalled, promptInstall]);
 
   return (
     <PWAContext.Provider value={contextValue}>
@@ -291,6 +296,24 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
             </div>
             <button
               onClick={() => setShowIosHelp(false)}
+              className="w-full px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-sm font-semibold"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showBrowserInstallHelp && (
+        <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4">
+          <div className="max-w-md w-full rounded-2xl bg-gray-900 border border-white/10 p-6 animate-slide-up">
+            <div className="text-lg font-semibold mb-2">Install StudyHatch</div>
+            <div className="text-sm text-white/70 mb-4">
+              If the install prompt doesn&apos;t appear, use your browser menu to install the app.
+              In Chrome or Edge, click the install icon in the address bar or open the menu and select "Install StudyHatch."
+            </div>
+            <button
+              onClick={() => setShowBrowserInstallHelp(false)}
               className="w-full px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-sm font-semibold"
             >
               Got it
