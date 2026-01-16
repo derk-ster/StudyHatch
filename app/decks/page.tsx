@@ -246,7 +246,7 @@ export default function ViewDecksPage() {
     const gridEl = gridRef.current;
     const dropTarget = event.relatedTarget as Node | null;
     if (!gridEl || !dropTarget || !gridEl.contains(dropTarget)) {
-      handleGridDrop();
+      handleGridDrop(event);
       return;
     }
     setDraggingDeckId(null);
