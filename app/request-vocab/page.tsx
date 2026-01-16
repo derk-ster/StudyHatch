@@ -13,6 +13,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 function RequestVocabForm() {
   const stripe = useStripe();
   const elements = useElements();
+  const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -41,7 +42,7 @@ function RequestVocabForm() {
 
     try {
       // Create payment intent
-      const paymentIntentResponse = await fetch('/api/create-payment-intent', {
+      const paymentIntentResponse = await fetch(`${apiBase}/api/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,7 +82,7 @@ function RequestVocabForm() {
 
       if (paymentIntent?.status === 'succeeded') {
         // Send request to backend (without card info)
-        const response = await fetch('/api/request-vocab', {
+        const response = await fetch(`${apiBase}/api/request-vocab`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

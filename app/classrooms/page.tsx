@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom } from '@/types/vocab';
@@ -10,14 +11,27 @@ import { getClassesForStudent } from '@/lib/storage';
 import Link from 'next/link';
 
 export default function ClassroomsPage() {
+  const router = useRouter();
   const { session } = useAuth();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
     if (session?.role === 'student' && session.userId) {
       setClasses(getClassesForStudent(session.userId));
     }
   }, [session?.userId, session?.role]);
+
+  const handleJoinClass = () => {
+    setJoinError('');
+    const trimmed = joinCode.trim();
+    if (!trimmed) {
+      setJoinError('Enter a class code to join.');
+      return;
+    }
+    router.push(`/join-class/${trimmed}`);
+  };
 
   return (
     <div className="min-h-screen bg-noise">
@@ -37,6 +51,27 @@ export default function ClassroomsPage() {
             <p className="text-white/60">Teacher tools are available in the Teacher Dashboard.</p>
           ) : (
             <div className="space-y-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-white/80 text-sm mb-3">Join a classroom</p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Enter class code"
+                  />
+                  <button
+                    onClick={handleJoinClass}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition-all text-sm font-semibold"
+                  >
+                    Join Class
+                  </button>
+                </div>
+                {joinError && (
+                  <p className="text-red-300 text-xs mt-2">{joinError}</p>
+                )}
+              </div>
               {classes.length === 0 ? (
                 <p className="text-white/60">No classes joined yet.</p>
               ) : (

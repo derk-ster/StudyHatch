@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 export default function CreateDeckPage() {
   const router = useRouter();
   const { session } = useAuth();
+  const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const [deckName, setDeckName] = useState('');
   const [deckDescription, setDeckDescription] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('es'); // Default to Spanish
@@ -127,7 +128,7 @@ export default function CreateDeckPage() {
     }
 
     try {
-      const response = await fetch('/api/translate', {
+      const response = await fetch(`${apiBase}/api/translate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

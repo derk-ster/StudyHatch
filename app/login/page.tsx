@@ -47,16 +47,13 @@ export default function LoginPage() {
           }
         } else {
           const classCode = extractClassCode(classCodeInput);
-          if (!classCode.trim()) {
-            setError('Please enter a class code to join.');
-            setIsSubmitting(false);
-            return;
-          }
-          const existingClass = getClassByJoinCode(classCode);
-          if (!existingClass) {
-            setError('Class code not found. Please check and try again.');
-            setIsSubmitting(false);
-            return;
+          if (classCode.trim()) {
+            const existingClass = getClassByJoinCode(classCode);
+            if (!existingClass) {
+              setError('Class code not found. Please check and try again.');
+              setIsSubmitting(false);
+              return;
+            }
           }
         }
 
@@ -70,7 +67,7 @@ export default function LoginPage() {
           }
           if (role === 'student') {
             const classCode = extractClassCode(classCodeInput);
-            if (result.userId) {
+            if (result.userId && classCode.trim()) {
               joinClassByCode(result.userId, classCode);
             }
           }
@@ -207,7 +204,7 @@ export default function LoginPage() {
 
             {!isLogin && role === 'student' && (
               <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-3">
-                <p className="text-white/80 text-sm">Join a Class</p>
+                <p className="text-white/80 text-sm">Join a Class (optional)</p>
                 <input
                   type="text"
                   value={classCodeInput}
@@ -216,7 +213,7 @@ export default function LoginPage() {
                   placeholder="Enter class code or join link"
                 />
                 <p className="text-white/50 text-xs">
-                  Students must join a class to continue. Use Guest mode for personal decks only.
+                  You can join later from the Classrooms page if you skip this now.
                 </p>
               </div>
             )}

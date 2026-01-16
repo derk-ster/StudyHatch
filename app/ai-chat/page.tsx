@@ -18,6 +18,7 @@ type Message = {
 
 export default function AIChatPage() {
   const router = useRouter();
+  const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +78,7 @@ export default function AIChatPage() {
 
     // Generate AI response using OpenAI API
     try {
-      const response = await fetch('/api/ai-chat', {
+      const response = await fetch(`${apiBase}/api/ai-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
