@@ -124,6 +124,9 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
       if (reg.waiting) {
         setUpdateAvailable(true);
+        if (isStandaloneMode()) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
       }
 
       reg.addEventListener('updatefound', () => {
@@ -132,6 +135,9 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             setUpdateAvailable(true);
+            if (isStandaloneMode() && reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
           }
         });
       });
@@ -155,6 +161,10 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     }).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
+
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.update();
+    }).catch(() => undefined);
 
     controllerHandler = () => {
       if (refreshing) return;
@@ -228,6 +238,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
   const applyUpdate = () => {
     if (!registration?.waiting) return;
+    setUpdateAvailable(false);
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   };
 
