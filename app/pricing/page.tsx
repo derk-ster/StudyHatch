@@ -284,19 +284,11 @@ export default function PricingPage() {
               </div>
             </div>
             <div>
-              <div className="text-white/70 text-sm mb-2">Total Cards</div>
+              <div className="text-white/70 text-sm mb-2">Cards Created Today</div>
               <div className="text-3xl font-bold text-blue-400">
-                {totalCards} {limits.maxCards !== Infinity && `/ ${limits.maxCards}`}
+                {dailyUsage.translationsToday} / {limits.dailyTranslationLimit}
               </div>
             </div>
-            {limits.dailyTranslationLimit !== Infinity && (
-              <div>
-                <div className="text-white/70 text-sm mb-2">Words Translated Today</div>
-                <div className="text-3xl font-bold text-green-400">
-                  {dailyUsage.translationsToday} / {limits.dailyTranslationLimit}
-                </div>
-              </div>
-            )}
             {limits.dailyDeckLimit !== Infinity && (
               <div>
                 <div className="text-white/70 text-sm mb-2">Decks Created Today</div>

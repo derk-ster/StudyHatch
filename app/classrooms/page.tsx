@@ -7,19 +7,30 @@ import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom } from '@/types/vocab';
-import { getClassesForStudent } from '@/lib/storage';
+import { getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass } from '@/lib/storage';
 import Link from 'next/link';
 
 export default function ClassroomsPage() {
   const router = useRouter();
   const { session } = useAuth();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<ClassRoom[]>([]);
+  const [teacherSchoolName, setTeacherSchoolName] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
     if (session?.role === 'student' && session.userId) {
       setClasses(getClassesForStudent(session.userId));
+    }
+    if (session?.role === 'teacher' && session.userId) {
+      const school = getSchoolForUser(session.userId);
+      setTeacherSchoolName(school?.name || null);
+      if (school) {
+        setTeacherClasses(getClassesForSchool(school.id));
+      } else {
+        setTeacherClasses([]);
+      }
     }
   }, [session?.userId, session?.role]);
 
@@ -48,7 +59,46 @@ export default function ClassroomsPage() {
           {!session || session.isGuest ? (
             <p className="text-white/60">Log in to access classroom content.</p>
           ) : session.role === 'teacher' ? (
-            <p className="text-white/60">Teacher tools are available in the Teacher Dashboard.</p>
+            <div className="space-y-4">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-white/80 text-sm mb-1">Your Classrooms</p>
+                {teacherSchoolName && (
+                  <p className="text-white/60 text-xs">School: {teacherSchoolName}</p>
+                )}
+              </div>
+              {teacherClasses.length === 0 ? (
+                <p className="text-white/60">No classrooms created yet.</p>
+              ) : (
+                teacherClasses.map(classroom => {
+                  const students = getStudentsForClass(classroom.id);
+                  return (
+                    <div key={classroom.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-white font-semibold">{classroom.name}</p>
+                          {classroom.description && (
+                            <p className="text-white/60 text-sm">{classroom.description}</p>
+                          )}
+                        </div>
+                        <p className="text-emerald-200/70 text-xs">Join code: {classroom.joinCode}</p>
+                      </div>
+                      <div>
+                        <p className="text-white/70 text-sm mb-2">Students</p>
+                        {students.length === 0 ? (
+                          <p className="text-white/40 text-sm">No students enrolled yet.</p>
+                        ) : (
+                          <ul className="text-white/70 text-sm space-y-1">
+                            {students.map(student => (
+                              <li key={student.userId}>@{student.username}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-white/5 border border-white/10 rounded-xl p-4">

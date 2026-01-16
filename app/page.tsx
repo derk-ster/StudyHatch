@@ -204,6 +204,11 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Streak Pet Widget */}
+        <div className="mb-6 flex justify-center" style={{ position: 'relative', zIndex: 10 }}>
+          <StreakPetWidget />
+        </div>
+
         {/* Create Deck Button */}
         <div className="mb-8 text-center flex justify-center" key="create-deck-button">
           <Link
@@ -237,11 +242,6 @@ export default function Home() {
           >
             Premium
           </Link>
-        </div>
-
-        {/* Streak Pet Widget */}
-        <div className="mb-6 flex justify-center" style={{ position: 'relative', zIndex: 10 }}>
-          <StreakPetWidget />
         </div>
 
         {/* Limits Info */}

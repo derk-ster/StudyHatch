@@ -945,10 +945,10 @@ export const getTimeUntilReset = (): number => {
 export const getUserLimits = () => {
   const premium = isPremium();
   return {
-    maxDecks: premium ? Infinity : 5, // Free users: 5 decks
+    maxDecks: premium ? Infinity : 10, // Free users: 10 decks
     maxCards: premium ? Infinity : 100,
     dailyTranslationLimit: premium ? Infinity : 50, // Free users: 50 words per day
-    dailyDeckLimit: premium ? Infinity : 5, // Free users: 5 decks per day
+    dailyDeckLimit: premium ? Infinity : 1, // Free users: 1 deck per day
     dailyAILimit: hasAISubscription() ? Infinity : 5, // Free users: 5 AI messages per day
     dailySearchLimit: premium ? Infinity : 3,
   };

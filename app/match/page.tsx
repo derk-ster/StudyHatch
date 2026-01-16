@@ -26,6 +26,7 @@ export default function MatchPage() {
   const [englishCards, setEnglishCards] = useState<CardState[]>([]);
   const [selectedSpanish, setSelectedSpanish] = useState<string | null>(null);
   const [matchedPairs, setMatchedPairs] = useState(0);
+  const [currentRound, setCurrentRound] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [gameComplete, setGameComplete] = useState(false);
@@ -41,6 +42,9 @@ export default function MatchPage() {
   }, [deckId]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
+  const totalPairs = deck ? deck.cards.length : 0;
+  const pairsPerRound = 8;
+  const totalRounds = Math.max(1, Math.ceil(totalPairs / pairsPerRound));
 
   // Get per-deck progress
   const deckProgress = deckId && progress.deckProgress?.[deckId] ? progress.deckProgress[deckId] : {
@@ -72,45 +76,47 @@ export default function MatchPage() {
     updateProgress(newProgress);
   };
 
-  useEffect(() => {
+  const setupRound = (roundIndex: number, resetTimer: boolean) => {
     if (!deck) return;
+    const startIndex = roundIndex * pairsPerRound;
+    const roundCards = deck.cards.slice(startIndex, startIndex + pairsPerRound);
 
-    // Select up to 8 pairs (16 cards total) or all cards if less than 8
-    const maxPairs = Math.min(8, Math.floor(deck.cards.length));
-    const selectedCards = deck.cards.slice(0, maxPairs);
-    
-    // Create translation cards (top 2 rows)
-    const translation: CardState[] = selectedCards.map(card => ({
+    const translation: CardState[] = roundCards.map(card => ({
       id: `${card.id}-translation`,
       text: card.translation,
       isSpanish: true,
       isMatched: false,
       cardId: card.id,
     }));
-    
-    // Shuffle translation cards
-    const shuffledTranslation = translation.sort(() => Math.random() - 0.5);
-    
-    // Create English cards (bottom 2 rows)
-    const english: CardState[] = selectedCards.map(card => ({
+
+    const english: CardState[] = roundCards.map(card => ({
       id: `${card.id}-english`,
       text: card.english,
       isSpanish: false,
       isMatched: false,
       cardId: card.id,
     }));
-    
-    // Shuffle English cards
+
+    const shuffledTranslation = translation.sort(() => Math.random() - 0.5);
     const shuffledEnglish = english.sort(() => Math.random() - 0.5);
-    
+
     setSpanishCards(shuffledTranslation);
     setEnglishCards(shuffledEnglish);
     setSelectedSpanish(null);
     setMatchedPairs(0);
-    setGameComplete(false);
-    setStartTime(null);
-    setElapsedTime(0);
     setIncorrectCards(new Set());
+    setGameComplete(false);
+
+    if (resetTimer) {
+      setStartTime(null);
+      setElapsedTime(0);
+    }
+  };
+
+  useEffect(() => {
+    if (!deck) return;
+    setCurrentRound(0);
+    setupRound(0, true);
   }, [deckId]);
 
   useEffect(() => {
@@ -155,12 +161,20 @@ export default function MatchPage() {
       
       setMatchedPairs(prev => {
         const newCount = prev + 1;
-        const totalPairs = Math.min(8, deck ? Math.floor(deck.cards.length) : 8);
-        if (newCount === totalPairs) {
-          setGameComplete(true);
-          const finalTime = Math.floor((Date.now() - (startTime || Date.now())) / 1000);
-          if (!deckProgress.matchBestTime || finalTime < deckProgress.matchBestTime) {
-            updateDeckProgress({ matchBestTime: finalTime });
+        const roundPairs = Math.min(pairsPerRound, deck ? deck.cards.length - currentRound * pairsPerRound : pairsPerRound);
+
+        if (newCount === roundPairs) {
+          const isLastRound = currentRound + 1 >= totalRounds;
+          if (isLastRound) {
+            setGameComplete(true);
+            const finalTime = Math.floor((Date.now() - (startTime || Date.now())) / 1000);
+            if (!deckProgress.matchBestTime || finalTime < deckProgress.matchBestTime) {
+              updateDeckProgress({ matchBestTime: finalTime });
+            }
+          } else {
+            const nextRound = currentRound + 1;
+            setCurrentRound(nextRound);
+            setupRound(nextRound, false);
           }
         }
         return newCount;
@@ -182,39 +196,8 @@ export default function MatchPage() {
 
   const handleReset = () => {
     if (!deck) return;
-    
-    // Select up to 8 pairs (16 cards total) or all cards if less than 8
-    const maxPairs = Math.min(8, Math.floor(deck.cards.length));
-    const selectedCards = deck.cards.slice(0, maxPairs);
-    
-    const translation: CardState[] = selectedCards.map(card => ({
-      id: `${card.id}-translation`,
-      text: card.translation,
-      isSpanish: true,
-      isMatched: false,
-      cardId: card.id,
-    }));
-    
-    const shuffledTranslation = translation.sort(() => Math.random() - 0.5);
-    
-    const english: CardState[] = selectedCards.map(card => ({
-      id: `${card.id}-english`,
-      text: card.english,
-      isSpanish: false,
-      isMatched: false,
-      cardId: card.id,
-    }));
-    
-    const shuffledEnglish = english.sort(() => Math.random() - 0.5);
-    
-    setSpanishCards(shuffledTranslation);
-    setEnglishCards(shuffledEnglish);
-    setSelectedSpanish(null);
-    setMatchedPairs(0);
-    setGameComplete(false);
-    setStartTime(null);
-    setElapsedTime(0);
-    setIncorrectCards(new Set());
+    setCurrentRound(0);
+    setupRound(0, true);
   };
 
   if (!deck) {
@@ -358,12 +341,12 @@ export default function MatchPage() {
         {/* Progress */}
         <div className="mt-8 text-center">
           <div className="text-xl text-white/70 mb-2">
-            Matched: {matchedPairs} / {Math.min(8, deck ? Math.floor(deck.cards.length) : 8)}
+            Round {currentRound + 1} of {totalRounds} • Matched: {matchedPairs} / {Math.min(pairsPerRound, deck ? deck.cards.length - currentRound * pairsPerRound : pairsPerRound)}
           </div>
           <div className="w-full max-w-md mx-auto bg-white/10 rounded-full h-3">
             <div
               className="bg-gradient-to-r from-purple-600 to-blue-600 h-3 rounded-full transition-all duration-300"
-              style={{ width: `${(matchedPairs / Math.min(8, deck ? Math.floor(deck.cards.length) : 8)) * 100}%` }}
+              style={{ width: `${(matchedPairs / Math.min(pairsPerRound, deck ? deck.cards.length - currentRound * pairsPerRound : pairsPerRound)) * 100}%` }}
             />
           </div>
         </div>

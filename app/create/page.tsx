@@ -98,16 +98,14 @@ export default function CreateDeckPage() {
       return;
     }
 
-    if (entryMode === 'auto') {
-      // Check daily translation limit
-      const dailyUsage = getDailyUsage();
-      if (dailyUsage.translationsToday + words.length > limits.dailyTranslationLimit) {
-        const remaining = limits.dailyTranslationLimit - dailyUsage.translationsToday;
-        const timeUntilReset = getTimeUntilReset();
-        const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
-        setError(`Free users can only translate ${limits.dailyTranslationLimit} words per day. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}. Upgrade to Premium for unlimited daily translations.`);
-        return;
-      }
+    // Check daily card creation limit
+    const dailyUsage = getDailyUsage();
+    if (dailyUsage.translationsToday + words.length > limits.dailyTranslationLimit) {
+      const remaining = limits.dailyTranslationLimit - dailyUsage.translationsToday;
+      const timeUntilReset = getTimeUntilReset();
+      const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
+      setError(`Free users can only create ${limits.dailyTranslationLimit} cards per day. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}. Upgrade to Premium for unlimited daily creation.`);
+      return;
     }
 
     // Validate deck name before translating
@@ -243,6 +241,9 @@ export default function CreateDeckPage() {
       
       // Track daily usage
       incrementDailyDecks();
+      if (entryMode === 'manual') {
+        incrementDailyTranslations(translations.length);
+      }
       
       // Show success message
       setShowSuccess(true);

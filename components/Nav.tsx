@@ -10,6 +10,7 @@ import { getAllDecks, getDeckById, getProgress, updateProgress, hasAISubscriptio
 import { useAuth } from '@/lib/auth-context';
 
 export default function Nav() {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -83,7 +84,7 @@ export default function Nav() {
             }}
           >
             <Image
-              src="/WebsiteLogo.png"
+              src={`${basePath}/WebsiteLogo.png`}
               alt="StudyHatch Logo"
               width={32}
               height={32}

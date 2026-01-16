@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom, Deck, School } from '@/types/vocab';
@@ -33,6 +34,7 @@ const getExpirationTimestamp = (selection: string): number | null => {
 };
 
 export default function TeacherDashboardPage() {
+  const router = useRouter();
   const { session } = useAuth();
   const [school, setSchool] = useState<School | undefined>();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
@@ -67,8 +69,9 @@ export default function TeacherDashboardPage() {
     setClasses(prev => [...prev, created]);
     setClassName('');
     setClassDescription('');
-    setMessage('Class created.');
+    setMessage('');
     setError('');
+    router.push('/');
   };
 
   const handlePublishSelection = (deckId: string, updates: Partial<{ classId: string; expiration: string }>) => {
