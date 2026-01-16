@@ -53,6 +53,12 @@ a[class*='rounded']:active {
 }
 
 @layer base {
+  html,
+  body {
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+
   body {
     @apply antialiased;
   }

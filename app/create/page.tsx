@@ -2,16 +2,18 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, FormEvent, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { Deck, VocabCard } from '@/types/vocab';
-import { saveDeck, canCreateDeck, canAddCards, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks } from '@/lib/storage';
+import { saveDeck, canCreateDeck, canAddCards, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks, getClassesForSchool, getSchoolForUser, publishDeckToClass } from '@/lib/storage';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
+import { ClassRoom } from '@/types/vocab';
 
 export default function CreateDeckPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { session } = useAuth();
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const [deckName, setDeckName] = useState('');
@@ -22,13 +24,30 @@ export default function CreateDeckPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
   const [error, setError] = useState('');
-  const [translations, setTranslations] = useState<Array<{ english: string; translation: string }>>([]);
+  const [translations, setTranslations] = useState<Array<{ english: string; translation: string; definition?: string }>>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [teacherClasses, setTeacherClasses] = useState<ClassRoom[]>([]);
+  const [publishAllClasses, setPublishAllClasses] = useState(false);
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
 
   const limits = getUserLimits();
   const selectedLanguage = getLanguageByCode(targetLanguage);
   const dailyUsage = getDailyUsage();
+  const presetClassId = searchParams.get('classId');
+
+  useEffect(() => {
+    if (session?.role !== 'teacher' || !session.userId) return;
+    const school = getSchoolForUser(session.userId);
+    if (!school) return;
+    const classes = getClassesForSchool(school.id);
+    setTeacherClasses(classes);
+  }, [session?.role, session?.userId]);
+
+  useEffect(() => {
+    if (!presetClassId) return;
+    setSelectedClassIds((prev) => (prev.includes(presetClassId) ? prev : [...prev, presetClassId]));
+  }, [presetClassId]);
 
   const parseWordsInput = () => {
     return wordsInput
@@ -37,7 +56,7 @@ export default function CreateDeckPage() {
       .filter(w => w.length > 0);
   };
 
-  const updateTranslationField = (index: number, field: 'english' | 'translation', value: string) => {
+  const updateTranslationField = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
     setTranslations(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -46,7 +65,7 @@ export default function CreateDeckPage() {
   };
 
   const handleAddRow = () => {
-    setTranslations(prev => [...prev, { english: '', translation: '' }]);
+    setTranslations(prev => [...prev, { english: '', translation: '', definition: '' }]);
   };
 
   const handleRemoveRow = (index: number) => {
@@ -118,7 +137,7 @@ export default function CreateDeckPage() {
     setError('');
 
     if (entryMode === 'manual') {
-      const manualRows = words.map(word => ({ english: word, translation: '' }));
+      const manualRows = words.map(word => ({ english: word, translation: '', definition: '' }));
       setTranslations(manualRows);
       setShowPreview(true);
       setIsCreating(false);
@@ -142,7 +161,11 @@ export default function CreateDeckPage() {
       }
 
       const data = await response.json();
-      setTranslations(data.translations || []);
+      const translated = (data.translations || []).map((row: { english: string; translation: string }) => ({
+        ...row,
+        definition: '',
+      }));
+      setTranslations(translated);
       setShowPreview(true);
       
       // Track daily usage
@@ -185,6 +208,7 @@ export default function CreateDeckPage() {
       id: `card-${Date.now()}-${index}`,
       translation: trans.translation.trim(),
       english: trans.english.trim(),
+      definition: trans.definition?.trim() || undefined,
       example: undefined,
       category: undefined,
       notes: undefined,
@@ -212,6 +236,13 @@ export default function CreateDeckPage() {
     try {
       // Save deck (description can be undefined - that's fine)
       saveDeck(deck);
+
+      if (session?.role === 'teacher') {
+        const classIdsToPublish = publishAllClasses
+          ? teacherClasses.map(cls => cls.id)
+          : selectedClassIds;
+        classIdsToPublish.forEach(classId => publishDeckToClass(deck.id, classId));
+      }
       
       // Small delay to ensure localStorage is written
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -377,6 +408,47 @@ export default function CreateDeckPage() {
                   </p>
                 </div>
 
+                {session?.role === 'teacher' && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <p className="text-white/80 text-sm mb-3">Publish deck to classes</p>
+                    {teacherClasses.length === 0 ? (
+                      <p className="text-white/60 text-sm">No classes found. Create a class first.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-2 text-sm text-white/80">
+                          <input
+                            type="checkbox"
+                            checked={publishAllClasses}
+                            onChange={(e) => setPublishAllClasses(e.target.checked)}
+                            className="h-4 w-4 rounded border-white/20 bg-white/10"
+                          />
+                          Publish to all classes
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {teacherClasses.map(classroom => (
+                            <label key={classroom.id} className="flex items-center gap-2 text-sm text-white/70">
+                              <input
+                                type="checkbox"
+                                checked={selectedClassIds.includes(classroom.id)}
+                                onChange={(e) => {
+                                  setSelectedClassIds(prev => (
+                                    e.target.checked
+                                      ? [...prev, classroom.id]
+                                      : prev.filter(id => id !== classroom.id)
+                                  ));
+                                }}
+                                disabled={publishAllClasses}
+                                className="h-4 w-4 rounded border-white/20 bg-white/10"
+                              />
+                              <span>{classroom.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-white/90 mb-2">
                     Entry Mode *
@@ -456,7 +528,7 @@ export default function CreateDeckPage() {
                 <h2 className="text-2xl font-bold mb-4">Edit Word List</h2>
                 <div className="bg-white/5 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
                   {translations.map((trans, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr,1fr,auto] gap-2 items-center bg-white/5 p-3 rounded">
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr,1fr,1fr,auto] gap-2 items-center bg-white/5 p-3 rounded">
                       <input
                         value={trans.english}
                         onChange={(e) => updateTranslationField(index, 'english', e.target.value)}
@@ -468,6 +540,12 @@ export default function CreateDeckPage() {
                         onChange={(e) => updateTranslationField(index, 'translation', e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
                         placeholder={`${selectedLanguage?.name || targetLanguage} translation`}
+                      />
+                      <input
+                        value={trans.definition || ''}
+                        onChange={(e) => updateTranslationField(index, 'definition', e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="Definition (optional)"
                       />
                       <div className="flex gap-2 justify-end">
                         <button

@@ -112,6 +112,9 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     }
 
     let refreshing = false;
+    let updateInterval: number | null = null;
+    let visibilityHandler: (() => void) | null = null;
+    let controllerHandler: (() => void) | null = null;
 
     const swPath = `${basePath}/sw.js`;
     navigator.serviceWorker.register(swPath).then((reg) => {
@@ -130,15 +133,40 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
           }
         });
       });
+
+      visibilityHandler = () => {
+        if (document.visibilityState === 'visible') {
+          reg.update();
+        }
+      };
+
+      updateInterval = window.setInterval(() => {
+        reg.update();
+      }, 30 * 60 * 1000);
+
+      window.addEventListener('visibilitychange', visibilityHandler);
     }).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
 
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
+    controllerHandler = () => {
       if (refreshing) return;
       refreshing = true;
       window.location.reload();
-    });
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', controllerHandler);
+
+    return () => {
+      if (visibilityHandler) {
+        window.removeEventListener('visibilitychange', visibilityHandler);
+      }
+      if (controllerHandler) {
+        navigator.serviceWorker.removeEventListener('controllerchange', controllerHandler);
+      }
+      if (updateInterval) {
+        window.clearInterval(updateInterval);
+      }
+    };
   }, []);
 
   useEffect(() => {

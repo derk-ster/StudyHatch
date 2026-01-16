@@ -96,13 +96,9 @@ export default function StudyPage() {
   }
 
   const targetLanguageName = getLanguageName(deck.targetLanguage);
-  const classDeckIds = session?.role === 'student' ? getClassDeckIdsForStudent(session.userId) : [];
-  const isClassDeck = deckId ? classDeckIds.includes(deckId) : false;
-  const isOwner = !!session?.userId && deck.ownerUserId === session.userId;
-  const isLegacyPersonalDeck = !deck.ownerUserId && !isClassDeck;
-  const canEdit = isOwner || isLegacyPersonalDeck || (!session || session.isGuest);
+  const canEdit = true;
 
-  const handleCardChange = (index: number, field: 'english' | 'translation', value: string) => {
+  const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
     setEditedCards(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -117,6 +113,7 @@ export default function StudyPage() {
         ...card,
         english: card.english.trim(),
         translation: card.translation.trim(),
+        definition: card.definition?.trim() || undefined,
       }))
       .filter(card => card.english && card.translation);
     saveDeck({ ...deck, cards: cleanedCards });
@@ -173,11 +170,20 @@ export default function StudyPage() {
             <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
             {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
           </div>
-          {isClassDeck && !canEdit && (
-            <p className="text-blue-200/80 text-sm mb-4">
-              Classroom decks are read-only. Make a personal copy to edit.
-            </p>
-          )}
+          <div className="flex flex-wrap gap-3 mb-4">
+            <Link
+              href={`/edit-translations?deck=${deckId}`}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+            >
+              Edit Translations
+            </Link>
+            <Link
+              href={`/translate-definitions?deck=${deckId}`}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+            >
+              Translate Definitions
+            </Link>
+          </div>
           <div className="space-y-3">
             {editedCards.map((card, index) => (
               <div key={card.id} className="grid grid-cols-1 md:grid-cols-2 gap-3">

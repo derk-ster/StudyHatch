@@ -2,6 +2,7 @@ export type VocabCard = {
   id: string;
   translation: string; // Translation in target language (previously "spanish")
   english: string;
+  definition?: string;
   example?: string;
   category?: string;
   notes?: string;
