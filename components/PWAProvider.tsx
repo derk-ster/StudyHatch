@@ -114,11 +114,13 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     let refreshing = false;
     let updateInterval: number | null = null;
     let visibilityHandler: (() => void) | null = null;
+    let focusHandler: (() => void) | null = null;
     let controllerHandler: (() => void) | null = null;
 
     const swPath = `${basePath}/sw.js`;
     navigator.serviceWorker.register(swPath).then((reg) => {
       setRegistration(reg);
+      reg.update();
 
       if (reg.waiting) {
         setUpdateAvailable(true);
@@ -140,11 +142,16 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
         }
       };
 
+      focusHandler = () => {
+        reg.update();
+      };
+
       updateInterval = window.setInterval(() => {
         reg.update();
       }, 30 * 60 * 1000);
 
       window.addEventListener('visibilitychange', visibilityHandler);
+      window.addEventListener('focus', focusHandler);
     }).catch((error) => {
       console.warn('Service worker registration failed:', error);
     });
@@ -159,6 +166,9 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     return () => {
       if (visibilityHandler) {
         window.removeEventListener('visibilitychange', visibilityHandler);
+      }
+      if (focusHandler) {
+        window.removeEventListener('focus', focusHandler);
       }
       if (controllerHandler) {
         navigator.serviceWorker.removeEventListener('controllerchange', controllerHandler);
@@ -220,6 +230,13 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     if (!registration?.waiting) return;
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   };
+
+  useEffect(() => {
+    if (!updateAvailable) return;
+    if (isStandaloneMode()) {
+      applyUpdate();
+    }
+  }, [updateAvailable, registration]);
 
   const contextValue = useMemo(() => ({
     canInstall: canInstall && !isInstalled,
