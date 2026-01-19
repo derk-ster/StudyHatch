@@ -4,11 +4,24 @@ import { AuthProvider } from '@/lib/auth-context';
 import PWAProvider from '@/components/PWAProvider';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
-  title: 'StudyHatch',
-  description: 'Create and study custom vocabulary decks with interactive flashcards and games',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'StudyHatch | Language Learning Flashcards',
+    template: '%s | StudyHatch',
+  },
+  description: 'StudyHatch helps students and teachers build vocabulary with flashcards, quizzes, and translation practice.',
   applicationName: 'StudyHatch',
+  keywords: [
+    'language learning',
+    'flashcards',
+    'vocabulary practice',
+    'translation practice',
+    'spanish flashcards',
+    'study tools',
+  ],
   manifest: `${basePath}/manifest.json`,
   themeColor: '#1e1b4b',
   appleWebApp: {

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, FormEvent } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
@@ -143,6 +144,28 @@ export default function AccountPage() {
                   {aiSubscription.isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Resources */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
+            <h2 className="text-2xl font-bold mb-4 text-white">Resources</h2>
+            <p className="text-white/70 mb-4">
+              Explore learning paths, flashcards, and translation practice to level up quickly.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/spanish-flashcards">
+                Spanish Flashcards
+              </Link>
+              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/translation-practice">
+                Translation Practice
+              </Link>
+              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/language-learning">
+                Language Learning
+              </Link>
+              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/public-decks">
+                Public Decks
+              </Link>
             </div>
           </div>
 

@@ -273,6 +273,29 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
+
+        <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-5 text-white/80">
+          <p className="text-sm font-semibold uppercase tracking-wide text-purple-200">
+            Explore StudyHatch
+          </p>
+          <p className="mt-2 text-sm text-white/70">
+            Study vocabulary with flashcards, quizzes, and translation practice. Start with a focused path:
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/spanish-flashcards">
+              Spanish Flashcards
+            </a>
+            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/translation-practice">
+              Translation Practice
+            </a>
+            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/language-learning">
+              Language Learning
+            </a>
+            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/public-decks">
+              Public Decks
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );

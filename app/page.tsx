@@ -77,10 +77,7 @@ export default function Home() {
   );
 
   useEffect(() => {
-    if (!isLoading && !session) {
-      router.replace('/login');
-      return;
-    }
+    if (isLoading || !session) return;
     const loadedDecks = getAllDecks();
     setDecks(loadedDecks);
     
@@ -90,12 +87,67 @@ export default function Home() {
     } else if (loadedDecks.length > 0) {
       setSelectedDeck(loadedDecks[0].id);
     }
-  }, [searchParams, pathname, session, isLoading, router]);
+  }, [searchParams, pathname, session, isLoading]);
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-xl">Redirecting to login...</div>
+      <div className="min-h-screen bg-noise">
+        <Nav />
+        <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center shadow-xl">
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 sm:text-5xl">
+              StudyHatch makes language learning simpler
+            </h1>
+            <p className="mt-4 text-lg text-white/80">
+              Build custom vocabulary decks, practice translations, and study with interactive games.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link className="rounded-lg bg-purple-600 px-5 py-2 font-semibold text-white hover:bg-purple-500" href="/login">
+                Log In or Sign Up
+              </Link>
+              <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/spanish-flashcards">
+                Spanish Flashcards
+              </Link>
+              <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/translation-practice">
+                Translation Practice
+              </Link>
+              <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/language-learning">
+                Language Learning
+              </Link>
+            </div>
+          </section>
+
+          <section className="mt-12 grid gap-6 md:grid-cols-3">
+            {[
+              { title: 'Flashcards + games', text: 'Study with flashcards, matching, quizzes, and writing modes.' },
+              { title: 'Translation practice', text: 'Move beyond words with sentence-level practice and recall.' },
+              { title: 'Teacher ready', text: 'Create classroom decks and share targeted vocabulary.' },
+            ].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <h2 className="text-xl font-semibold text-white">{item.title}</h2>
+                <p className="mt-2 text-white/70">{item.text}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-8">
+            <h2 className="text-2xl font-semibold">Popular paths</h2>
+            <div className="mt-4 flex flex-wrap gap-3 text-white/80">
+              {[
+                'Spanish vocabulary',
+                'Chinese vocabulary',
+                'Travel phrases',
+                'Classroom Spanish',
+                'Business language',
+                'Medical terms',
+              ].map((topic) => (
+                <span key={topic} className="rounded-xl border border-white/10 bg-black/20 px-4 py-2">
+                  {topic}
+                </span>
+              ))}
+            </div>
+          </section>
+        </main>
       </div>
     );
   }
