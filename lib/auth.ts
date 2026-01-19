@@ -112,7 +112,7 @@ export function signUp(
       progress: getDefaultProgress(),
       decks: [],
       favorites: [],
-      premium: false,
+      premium: role === 'teacher',
       aiSubscription: false,
       dailyUsage: {
         lastReset: Date.now(),
@@ -154,6 +154,9 @@ export function signIn(emailOrUsername: string, password: string): Promise<{ suc
     userEntry.user.lastLoginAt = Date.now();
     if (!userEntry.user.role) {
       userEntry.user.role = 'student';
+    }
+    if (userEntry.user.role === 'teacher' && !userEntry.accountData.premium) {
+      userEntry.accountData.premium = true;
     }
     users[userEntry.user.id] = userEntry;
     saveUsers(users);

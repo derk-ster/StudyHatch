@@ -1,5 +1,5 @@
 import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership } from '@/types/vocab';
-import { addUserClassroom, getUserById, removeClassroomFromAllUsers, setUserSchool } from './auth';
+import { addUserClassroom, getCurrentSession, getUserById, removeClassroomFromAllUsers, setUserSchool } from './auth';
 
 const STORAGE_KEY = 'spanish-vocab-progress';
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
@@ -719,6 +719,8 @@ export const isPremium = (): boolean => {
   if (typeof window === 'undefined') return false;
   
   try {
+    const session = getCurrentSession();
+    if (session?.role === 'teacher') return true;
     const premium = localStorage.getItem('spanish-vocab-premium');
     return premium === 'true';
   } catch (error) {
