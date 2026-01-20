@@ -17,7 +17,7 @@ A modern, interactive vocabulary study application inspired by StudyStack, featu
 - **Create Custom Decks**: Paste English words (comma or newline separated) and automatically generate translations in your chosen language
 - **Multiple Languages**: Support for 10+ languages (Spanish, French, Mandarin, Hindi, Arabic, and more)
 - **Automatic Translation**: Uses translation API (DeepL/Google/LibreTranslate) or mock translations if no API key is configured
-- **Deck Management**: Create, rename, and delete decks
+- **Deck Management**: Create, rename, and  delete decks
 - **Per-Deck Progress**: Track progress separately for each deck
 
 ### AI Chat Assistant
