@@ -8,6 +8,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+  verification: {
+    google: 'JxRzKnTZwV5Ubn-fIVS3NasIAAcdzRV__KZOo0caKfk',
+  },
   title: {
     default: 'StudyHatch | Language Learning Flashcards',
     template: '%s | StudyHatch',
