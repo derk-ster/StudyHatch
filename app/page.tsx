@@ -95,24 +95,18 @@ export default function Home() {
         <Nav />
         <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <section className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center shadow-xl">
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 sm:text-5xl">
+            <h1 className="text-4xl font-bold leading-tight pb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 sm:text-5xl">
               StudyHatch makes language learning simpler
             </h1>
             <p className="mt-4 text-lg text-white/80">
               Build custom vocabulary decks, practice translations, and study with interactive games.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link className="rounded-lg bg-purple-600 px-5 py-2 font-semibold text-white hover:bg-purple-500" href="/login">
+              <Link
+                className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-5 py-2 font-semibold text-white shadow-[0_0_18px_rgba(168,85,247,0.6)] transition-all hover:from-purple-500 hover:to-blue-500"
+                href="/login"
+              >
                 Log In or Sign Up
-              </Link>
-              <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/spanish-flashcards">
-                Spanish Flashcards
-              </Link>
-              <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/translation-practice">
-                Translation Practice
-              </Link>
-              <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/language-learning">
-                Language Learning
               </Link>
             </div>
           </section>
@@ -130,21 +124,35 @@ export default function Home() {
             ))}
           </section>
 
-          <section className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-8">
-            <h2 className="text-2xl font-semibold">Popular paths</h2>
-            <div className="mt-4 flex flex-wrap gap-3 text-white/80">
-              {[
-                'Spanish vocabulary',
-                'Chinese vocabulary',
-                'Travel phrases',
-                'Classroom Spanish',
-                'Business language',
-                'Medical terms',
-              ].map((topic) => (
-                <span key={topic} className="rounded-xl border border-white/10 bg-black/20 px-4 py-2">
-                  {topic}
-                </span>
-              ))}
+          <section className="mt-12 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+              <h2 className="text-2xl font-semibold leading-tight pb-1">About StudyHatch</h2>
+              <p className="mt-3 text-white/80 leading-relaxed">
+                StudyHatch is built for students and teachers who want a simple way to grow vocabulary, retain it, and
+                practice with short, focused activities.
+              </p>
+              <p className="mt-3 text-white/70 leading-relaxed">
+                Log in to create decks, track progress, and unlock the full study experience.
+              </p>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+              <h2 className="text-2xl font-semibold leading-tight pb-1">Activities inside StudyHatch</h2>
+              <div className="mt-4 flex flex-wrap gap-3 text-white/80">
+                {[
+                  'Flashcards',
+                  'Match Game',
+                  'Quiz',
+                  'Write Mode',
+                  'Word Scramble',
+                  'AI Chat',
+                  'Translation Practice',
+                  'Classroom Decks',
+                ].map((activity) => (
+                  <span key={activity} className="rounded-xl border border-white/10 bg-black/20 px-4 py-2">
+                    {activity}
+                  </span>
+                ))}
+              </div>
             </div>
           </section>
         </main>

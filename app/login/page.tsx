@@ -100,7 +100,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
+          <h1 className="text-4xl font-bold leading-tight pb-1 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
             StudyHatch
           </h1>
           <p className="text-white/70">Learn vocabulary the fun way</p>
@@ -276,24 +276,26 @@ export default function LoginPage() {
 
         <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-5 text-white/80">
           <p className="text-sm font-semibold uppercase tracking-wide text-purple-200">
-            Explore StudyHatch
+            About StudyHatch
           </p>
-          <p className="mt-2 text-sm text-white/70">
-            Study vocabulary with flashcards, quizzes, and translation practice. Start with a focused path:
+          <p className="mt-2 text-sm text-white/70 leading-relaxed">
+            A focused study workspace for vocabulary, translation practice, and quick recall sessions.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/spanish-flashcards">
-              Spanish Flashcards
-            </a>
-            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/translation-practice">
-              Translation Practice
-            </a>
-            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/language-learning">
-              Language Learning
-            </a>
-            <a className="rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10" href="/public-decks">
-              Public Decks
-            </a>
+            {[
+              'Flashcards',
+              'Match Game',
+              'Quiz',
+              'Write Mode',
+              'Word Scramble',
+              'AI Chat',
+              'Translation Practice',
+              'Classroom Decks',
+            ].map((activity) => (
+              <span key={activity} className="rounded-lg border border-white/20 px-3 py-1.5 text-sm">
+                {activity}
+              </span>
+            ))}
           </div>
         </div>
       </div>

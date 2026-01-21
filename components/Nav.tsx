@@ -100,137 +100,150 @@ export default function Nav() {
               </span>
             </Link>
 
-            {/* Middle Section - Deck Dropdown through Account/Login */}
-            <div 
-              className="flex items-center space-x-4 flex-1 justify-center max-w-4xl mx-4 sm:mx-8" 
-              style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
-            >
-              {/* Deck Dropdown */}
-              {decks.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <select
-                    value={currentDeck || ''}
-                    onChange={(e) => handleDeckChange(e.target.value)}
-                    className="px-4 py-1.5 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    {decks.map(deck => (
-                      <option key={deck.id} value={deck.id} className="bg-gray-800">
-                        {deck.name} ({deck.cards.length})
-                      </option>
-                    ))}
-                  </select>
-                  {currentDeckData && <LanguageBadge languageCode={currentDeckData.targetLanguage} />}
-                </div>
-              )}
-
-              {/* Home Link */}
-              <Link
-                href="/"
-                className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
-                  pathname === '/' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                }`}
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 99999, 
-                  pointerEvents: 'auto', 
-                  cursor: 'pointer', 
-                  display: 'inline-block',
-                }}
-              >
-                Home
-              </Link>
-
-
-              {session?.role === 'teacher' && (
-                <Link
-                  href="/teacher-dashboard"
-                  className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
-                    pathname === '/teacher-dashboard' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                  }`}
-                  style={{ 
-                    position: 'relative', 
-                    zIndex: 99999, 
-                    pointerEvents: 'auto', 
-                    cursor: 'pointer', 
-                    display: 'inline-block',
-                  }}
-                >
-                  Teacher Dashboard
-                </Link>
-              )}
-
-              {/* AI Chat Link */}
-              <Link
-                href="/ai-chat"
-                className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block relative"
-                style={{ 
-                  position: 'relative', 
-                  zIndex: 99999, 
-                  pointerEvents: 'auto', 
-                  cursor: 'pointer', 
-                  display: 'inline-block',
-                }}
-              >
-                🤖 AI Chat
-                {!hasAISubscription() && (
-                  <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
-                    {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
-                  </span>
-                )}
-              </Link>
-
-
-              {/* Login/Account Links */}
-              {session && !session.isGuest ? (
-                <Link
-                  href="/account"
-                  className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
-                    pathname === '/account' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                  }`}
-                  style={{ 
-                    position: 'relative', 
-                    zIndex: 99999, 
-                    pointerEvents: 'auto', 
-                    cursor: 'pointer', 
-                    display: 'inline-block',
-                  }}
-                >
-                  Account
-                </Link>
-              ) : (
+            {!session ? (
+              <div className="flex items-center gap-3">
                 <Link
                   href="/login"
-                  className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
-                    pathname === '/login' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-                  }`}
-                  style={{ 
-                    position: 'relative', 
-                    zIndex: 99999, 
-                    pointerEvents: 'auto', 
-                    cursor: 'pointer', 
-                    display: 'inline-block',
-                  }}
+                  className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_0_16px_rgba(168,85,247,0.6)] transition-all hover:from-purple-500 hover:to-blue-500"
                 >
-                  Login
+                  Log In or Sign Up
                 </Link>
-              )}
-            </div>
-
-            {/* Right Section - User Display and Progress Button */}
-            <div className="flex items-center space-x-4">
-              {/* User Display */}
-              <div className="px-4 py-1.5 text-sm font-medium text-white/80 whitespace-nowrap">
-                User: {session?.isGuest ? 'Guest' : `@${session?.username || 'Guest'}`}
               </div>
+            ) : (
+              <>
+                {/* Middle Section - Deck Dropdown through Account/Login */}
+                <div 
+                  className="flex items-center space-x-4 flex-1 justify-center max-w-4xl mx-4 sm:mx-8" 
+                  style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
+                >
+                  {/* Deck Dropdown */}
+                  {decks.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={currentDeck || ''}
+                        onChange={(e) => handleDeckChange(e.target.value)}
+                        className="px-4 py-1.5 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        {decks.map(deck => (
+                          <option key={deck.id} value={deck.id} className="bg-gray-800">
+                            {deck.name} ({deck.cards.length})
+                          </option>
+                        ))}
+                      </select>
+                      {currentDeckData && <LanguageBadge languageCode={currentDeckData.targetLanguage} />}
+                    </div>
+                  )}
 
-              {/* Progress Button */}
-              <button
-                onClick={() => setShowProgress(!showProgress)}
-                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium whitespace-nowrap"
-              >
-                📊 Progress
-              </button>
-            </div>
+                  {/* Home Link */}
+                  <Link
+                    href="/"
+                    className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
+                      pathname === '/' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                    }`}
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 99999, 
+                      pointerEvents: 'auto', 
+                      cursor: 'pointer', 
+                      display: 'inline-block',
+                    }}
+                  >
+                    Home
+                  </Link>
+
+
+                  {session?.role === 'teacher' && (
+                    <Link
+                      href="/teacher-dashboard"
+                      className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
+                        pathname === '/teacher-dashboard' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                      }`}
+                      style={{ 
+                        position: 'relative', 
+                        zIndex: 99999, 
+                        pointerEvents: 'auto', 
+                        cursor: 'pointer', 
+                        display: 'inline-block',
+                      }}
+                    >
+                      Teacher Dashboard
+                    </Link>
+                  )}
+
+                  {/* AI Chat Link */}
+                  <Link
+                    href="/ai-chat"
+                    className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block relative"
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 99999, 
+                      pointerEvents: 'auto', 
+                      cursor: 'pointer', 
+                      display: 'inline-block',
+                    }}
+                  >
+                    🤖 AI Chat
+                    {!hasAISubscription() && (
+                      <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                        {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
+                      </span>
+                    )}
+                  </Link>
+
+
+                  {/* Login/Account Links */}
+                  {session && !session.isGuest ? (
+                    <Link
+                      href="/account"
+                      className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
+                        pathname === '/account' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                      }`}
+                      style={{ 
+                        position: 'relative', 
+                        zIndex: 99999, 
+                        pointerEvents: 'auto', 
+                        cursor: 'pointer', 
+                        display: 'inline-block',
+                      }}
+                    >
+                      Account
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
+                        pathname === '/login' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                      }`}
+                      style={{ 
+                        position: 'relative', 
+                        zIndex: 99999, 
+                        pointerEvents: 'auto', 
+                        cursor: 'pointer', 
+                        display: 'inline-block',
+                      }}
+                    >
+                      Login
+                    </Link>
+                  )}
+                </div>
+
+                {/* Right Section - User Display and Progress Button */}
+                <div className="flex items-center space-x-4">
+                  {/* User Display */}
+                  <div className="px-4 py-1.5 text-sm font-medium text-white/80 whitespace-nowrap">
+                    User: {session?.isGuest ? 'Guest' : `@${session?.username || 'Guest'}`}
+                  </div>
+
+                  {/* Progress Button */}
+                  <button
+                    onClick={() => setShowProgress(!showProgress)}
+                    className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium whitespace-nowrap"
+                  >
+                    📊 Progress
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
