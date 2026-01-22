@@ -29,8 +29,19 @@ const getWebSocketUrls = () => {
   return Array.from(urls);
 };
 
+const shouldUsePolling = () => {
+  if (typeof window === 'undefined') return false;
+  if (process.env.NEXT_PUBLIC_WS_URL) return false;
+  const { hostname } = window.location;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return false;
+  }
+  return true;
+};
+
 export const createGameSocket = (options: GameSocketOptions) => {
-  const urls = getWebSocketUrls();
+  const usePollingOnly = shouldUsePolling();
+  const urls = usePollingOnly ? [] : getWebSocketUrls();
   let socket: WebSocket | null = null;
   let currentIndex = 0;
   let shouldReconnect = true;
@@ -84,8 +95,12 @@ export const createGameSocket = (options: GameSocketOptions) => {
   const connect = () => {
     if (!shouldReconnect) return;
     if (currentIndex >= urls.length) {
-      polling = true;
-      options.onOpen?.();
+      if (usePollingOnly) {
+        polling = true;
+        options.onOpen?.();
+        return;
+      }
+      options.onError?.(new Event('error'));
       return;
     }
     const url = urls[currentIndex];
