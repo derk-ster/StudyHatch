@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 
 const STORE_KEY = '__studyhatchGameStore';
 const CODE_LENGTH = 6;
@@ -82,21 +82,30 @@ const getStore = (): Map<string, GameSession> => {
 };
 
 const SESSION_TTL_SECONDS = 2 * 60 * 60;
-const hasKv = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const hasRedisUrl = Boolean(process.env.REDIS_URL);
 const isVercel = Boolean(process.env.VERCEL);
 const sessionKey = (code: string) => `game:${code}`;
 
+const redisClient = (() => {
+  if (!hasRedisUrl) return null;
+  return new Redis(process.env.REDIS_URL as string, {
+    maxRetriesPerRequest: 2,
+    enableReadyCheck: true,
+  });
+})();
+
 const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
-  if (hasKv) {
-    const session = await kv.get<GameSession>(sessionKey(code));
-    return session ?? null;
+  if (redisClient) {
+    const value = await redisClient.get(sessionKey(code));
+    if (!value) return null;
+    return JSON.parse(value) as GameSession;
   }
   return memoryStore.get(code) ?? null;
 };
 
 const setSession = async (code: string, session: GameSession, memoryStore: Map<string, GameSession>) => {
-  if (hasKv) {
-    await kv.set(sessionKey(code), session, { ex: SESSION_TTL_SECONDS });
+  if (redisClient) {
+    await redisClient.set(sessionKey(code), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
     return;
   }
   memoryStore.set(code, session);
@@ -597,7 +606,7 @@ const handleAction = async (type: string, payload: any, memoryStore: Map<string,
 
 export async function POST(req: NextRequest) {
   const memoryStore = getStore();
-  if (isVercel && !hasKv) {
+  if (isVercel && !hasRedisUrl) {
     return NextResponse.json(
       { type: 'error', payload: { message: 'Game server storage is not configured.' } } as SocketMessage,
       { status: 503 }
@@ -637,7 +646,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const memoryStore = getStore();
-  if (isVercel && !hasKv) {
+  if (isVercel && !hasRedisUrl) {
     return NextResponse.json(
       { type: 'error', payload: { message: 'Game server storage is not configured.' } } as SocketMessage,
       { status: 503 }
