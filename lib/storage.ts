@@ -10,6 +10,15 @@ const CLASSES_STORAGE_KEY = 'studyhatch-classes';
 const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
 const CLASS_DECKS_STORAGE_KEY = 'studyhatch-class-decks';
 
+const getDeckStorageKey = (): string => {
+  if (typeof window === 'undefined') return DECKS_STORAGE_KEY;
+  const session = getCurrentSession();
+  if (session?.userId && !session.isGuest) {
+    return `${DECKS_STORAGE_KEY}-${session.userId}`;
+  }
+  return DECKS_STORAGE_KEY;
+};
+
 export const getProgress = (): UserProgress => {
   if (typeof window === 'undefined') {
     return getDefaultProgress();
@@ -198,7 +207,7 @@ export const getAllDecks = (): Deck[] => {
   if (typeof window === 'undefined') return [];
   
   try {
-    const stored = localStorage.getItem(DECKS_STORAGE_KEY);
+    const stored = localStorage.getItem(getDeckStorageKey());
     if (stored) {
       return JSON.parse(stored);
     }
@@ -223,7 +232,7 @@ export const reorderDecksByIds = (orderedIds: string[]): void => {
       }
     });
     deckMap.forEach(deck => reordered.push(deck));
-    localStorage.setItem(DECKS_STORAGE_KEY, JSON.stringify(reordered));
+    localStorage.setItem(getDeckStorageKey(), JSON.stringify(reordered));
   } catch (error) {
     console.error('Error reordering decks:', error);
   }
@@ -252,7 +261,7 @@ export const saveDeck = (deck: Deck): void => {
       decks.push(deckToSave);
     }
     
-    localStorage.setItem(DECKS_STORAGE_KEY, JSON.stringify(decks));
+    localStorage.setItem(getDeckStorageKey(), JSON.stringify(decks));
   } catch (error) {
     console.error('Error saving deck:', error);
   }
@@ -517,7 +526,7 @@ export const deleteDeck = (deckId: string): void => {
   try {
     const decks = getAllDecks();
     const filtered = decks.filter(d => d.id !== deckId);
-    localStorage.setItem(DECKS_STORAGE_KEY, JSON.stringify(filtered));
+    localStorage.setItem(getDeckStorageKey(), JSON.stringify(filtered));
     
     // Also clear progress for this deck
     const progress = getProgress();

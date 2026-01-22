@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import GameShell from '@/components/games/GameShell';
 import { useAuth } from '@/lib/auth-context';
@@ -36,6 +36,8 @@ export default function GamesPage() {
   const [displayName, setDisplayName] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
+  const hostTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const loaded = getAllDecks();
@@ -63,6 +65,20 @@ export default function GamesPage() {
 
   const hasDecks = decks.length > 0;
   const deckOptions = useMemo(() => decks.map(deck => ({ value: deck.id, label: deck.name })), [decks]);
+
+  const clearHostTimeout = () => {
+    if (hostTimeoutRef.current) {
+      clearTimeout(hostTimeoutRef.current);
+      hostTimeoutRef.current = null;
+    }
+  };
+
+  const clearJoinTimeout = () => {
+    if (joinTimeoutRef.current) {
+      clearTimeout(joinTimeoutRef.current);
+      joinTimeoutRef.current = null;
+    }
+  };
 
   const handleHostGame = () => {
     setHostError('');
@@ -92,12 +108,14 @@ export default function GamesPage() {
       classroomOnly && classroomId ? getStudentsForClass(classroomId).map(student => student.userId) : [];
     const hostName = session.username || 'Host';
     setIsHosting(true);
+    clearHostTimeout();
 
     const socket = createGameSocket({
       onMessage: (message) => {
         if (message.type === 'error') {
           setHostError(message.payload.message);
           setIsHosting(false);
+          clearHostTimeout();
           socket.close();
         }
         if (message.type === 'session_joined') {
@@ -106,11 +124,17 @@ export default function GamesPage() {
             setStoredHostKey(message.payload.code, message.payload.hostKey);
           }
           setIsHosting(false);
+          clearHostTimeout();
           socket.close();
           router.push(`/games/lobby/${message.payload.code}`);
         }
       },
       onOpen: () => {
+        hostTimeoutRef.current = setTimeout(() => {
+          setHostError('Unable to reach the game server. Please try again.');
+          setIsHosting(false);
+          socket.close();
+        }, 5000);
         socket.send('create_session', {
           deck,
           mode: hostMode,
@@ -128,7 +152,15 @@ export default function GamesPage() {
           },
         });
       },
-      onClose: () => setIsHosting(false),
+      onClose: () => {
+        clearHostTimeout();
+        setIsHosting(false);
+      },
+      onError: () => {
+        setHostError('Unable to connect to the game server.');
+        setIsHosting(false);
+        clearHostTimeout();
+      },
     });
   };
 
@@ -145,29 +177,45 @@ export default function GamesPage() {
       return;
     }
     setIsJoining(true);
+    clearJoinTimeout();
     const socket = createGameSocket({
       onMessage: (message) => {
         if (message.type === 'error') {
           setJoinError(message.payload.message);
           setIsJoining(false);
+          clearJoinTimeout();
           socket.close();
         }
         if (message.type === 'session_joined') {
           setStoredPlayerId(message.payload.code, message.payload.playerId);
           localStorage.setItem('studyhatch-game-display-name', name);
           setIsJoining(false);
+          clearJoinTimeout();
           socket.close();
           router.push(`/games/lobby/${message.payload.code}`);
         }
       },
       onOpen: () => {
+        joinTimeoutRef.current = setTimeout(() => {
+          setJoinError('Unable to reach the game server. Please try again.');
+          setIsJoining(false);
+          socket.close();
+        }, 5000);
         socket.send('join_session', {
           code,
           name,
           userId: session?.isGuest ? null : session?.userId,
         });
       },
-      onClose: () => setIsJoining(false),
+      onClose: () => {
+        clearJoinTimeout();
+        setIsJoining(false);
+      },
+      onError: () => {
+        setJoinError('Unable to connect to the game server.');
+        setIsJoining(false);
+        clearJoinTimeout();
+      },
     });
   };
 
