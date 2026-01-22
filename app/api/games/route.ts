@@ -83,6 +83,7 @@ const getStore = (): Map<string, GameSession> => {
 
 const SESSION_TTL_SECONDS = 2 * 60 * 60;
 const hasKv = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const isVercel = Boolean(process.env.VERCEL);
 const sessionKey = (code: string) => `game:${code}`;
 
 const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
@@ -596,6 +597,12 @@ const handleAction = async (type: string, payload: any, memoryStore: Map<string,
 
 export async function POST(req: NextRequest) {
   const memoryStore = getStore();
+  if (isVercel && !hasKv) {
+    return NextResponse.json(
+      { type: 'error', payload: { message: 'Game server storage is not configured.' } } as SocketMessage,
+      { status: 503 }
+    );
+  }
   const body = await req.json().catch(() => ({}));
   const type = body?.type as string | undefined;
   const payload = body?.payload;
@@ -630,6 +637,12 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const memoryStore = getStore();
+  if (isVercel && !hasKv) {
+    return NextResponse.json(
+      { type: 'error', payload: { message: 'Game server storage is not configured.' } } as SocketMessage,
+      { status: 503 }
+    );
+  }
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   if (!code) {

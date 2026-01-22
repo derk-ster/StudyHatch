@@ -81,6 +81,9 @@ export const createGameSocket = (options: GameSocketOptions) => {
       });
       const data = (await response.json()) as GameSocketMessage;
       options.onMessage(data);
+      if (!response.ok) {
+        return;
+      }
       if (data.type === 'session_joined') {
         startPolling(data.payload.code);
       }
