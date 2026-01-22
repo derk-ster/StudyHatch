@@ -103,6 +103,12 @@ export default function Nav() {
             {!session ? (
               <div className="flex items-center gap-3">
                 <Link
+                  href="/games"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+                >
+                  Games
+                </Link>
+                <Link
                   href="/login"
                   className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_0_16px_rgba(168,85,247,0.6)] transition-all hover:from-purple-500 hover:to-blue-500"
                 >
@@ -149,6 +155,22 @@ export default function Nav() {
                     }}
                   >
                     Home
+                  </Link>
+
+                  <Link
+                    href="/games"
+                    className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
+                      pathname?.startsWith('/games') ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                    }`}
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 99999, 
+                      pointerEvents: 'auto', 
+                      cursor: 'pointer', 
+                      display: 'inline-block',
+                    }}
+                  >
+                    Games
                   </Link>
 
 
