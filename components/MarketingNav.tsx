@@ -33,6 +33,9 @@ export default function MarketingNav() {
           <Link className="rounded-md px-3 py-1 hover:bg-white/10" href="/public-decks">
             Public Decks
           </Link>
+          <Link className="rounded-md px-3 py-1 hover:bg-white/10" href="/games">
+            Games
+          </Link>
           <Link className="rounded-md bg-purple-600 px-3 py-1 text-white hover:bg-purple-500" href="/login">
             Get Started
           </Link>

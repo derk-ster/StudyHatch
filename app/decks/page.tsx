@@ -60,7 +60,6 @@ export default function ViewDecksPage() {
   const [publishSelections, setPublishSelections] = useState<Record<string, { classroomId: string; expiration: string }>>({});
   const [publishMessage, setPublishMessage] = useState('');
   const [publishError, setPublishError] = useState('');
-  const [activeTab, setActiveTab] = useState<'personal' | 'classroom'>('personal');
   const [classDecks, setClassDecks] = useState<Deck[]>([]);
   const [classDeckLabels, setClassDeckLabels] = useState<Record<string, string>>({});
   const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
@@ -284,6 +283,28 @@ export default function ViewDecksPage() {
           </Link>
         </div>
 
+        {/* Secondary Links */}
+        <div className="mb-8 flex flex-col sm:flex-row justify-center gap-3">
+          <Link
+            href="/classrooms"
+            className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-sm font-medium transition-all text-center"
+          >
+            Classrooms
+          </Link>
+          <Link
+            href="/public-decks"
+            className="px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/40 text-blue-100 text-sm font-medium transition-all text-center"
+          >
+            Public Decks
+          </Link>
+          <Link
+            href="/pricing"
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-medium transition-all text-center"
+          >
+            Premium
+          </Link>
+        </div>
+
         {/* Limits Info */}
         <div className="mb-8 text-center">
           <p className="text-white/60 text-sm">
@@ -299,29 +320,8 @@ export default function ViewDecksPage() {
           </div>
         )}
 
-        {session?.role === 'student' && (
-          <div className="flex justify-center gap-3 mb-8">
-            <button
-              onClick={() => setActiveTab('personal')}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                activeTab === 'personal' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
-              }`}
-            >
-              Personal Decks
-            </button>
-            <button
-              onClick={() => setActiveTab('classroom')}
-              className={`px-4 py-2 rounded-lg transition-all ${
-                activeTab === 'classroom' ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/20'
-              }`}
-            >
-              Classroom Decks
-            </button>
-          </div>
-        )}
-
         {/* Decks List */}
-        {activeTab === 'personal' && visiblePersonalDecks.length === 0 ? (
+        {visiblePersonalDecks.length === 0 ? (
           <div className="text-center py-16 opacity-0 animate-fade-in">
             <div className="text-6xl mb-4">📚</div>
             <h2 className="text-2xl font-bold mb-2 text-white/90">No decks yet</h2>
@@ -333,7 +333,7 @@ export default function ViewDecksPage() {
               Create Your First Deck
             </Link>
           </div>
-        ) : activeTab === 'personal' ? (
+        ) : (
           <div
             ref={gridRef}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 items-start"
@@ -488,15 +488,13 @@ export default function ViewDecksPage() {
               </div>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 items-start">
-            {classDecks.length === 0 ? (
-              <div className="col-span-full text-center py-16 opacity-0 animate-fade-in">
-                <div className="text-5xl mb-3">🏫</div>
-                <p className="text-white/70">No classroom decks have been shared yet.</p>
-              </div>
-            ) : (
-              classDecks.map((deck, index) => (
+        )}
+
+        {session?.role === 'student' && classDecks.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-2xl font-bold text-white mb-4">Classroom Decks</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 items-start">
+              {classDecks.map((deck, index) => (
                 <div
                   key={deck.id}
                   className="group relative bg-emerald-500/10 backdrop-blur-md rounded-2xl p-6 border-2 border-emerald-400/40 card-glow opacity-0 animate-slide-up hover-lift-scale"
@@ -544,8 +542,8 @@ export default function ViewDecksPage() {
                     </Link>
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
           </div>
         )}
 
