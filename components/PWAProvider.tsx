@@ -103,6 +103,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isStandalone = isStandaloneMode();
     if (!('serviceWorker' in navigator)) return;
 
     if (isLocalhost) {
@@ -123,20 +124,18 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       setRegistration(reg);
       reg.update();
 
-      if (reg.waiting) {
+      if (reg.waiting && isStandalone) {
         setUpdateAvailable(true);
-        if (isStandaloneMode()) {
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
 
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (!newWorker) return;
         newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller && isStandalone) {
             setUpdateAvailable(true);
-            if (isStandaloneMode() && reg.waiting) {
+            if (reg.waiting) {
               reg.waiting.postMessage({ type: 'SKIP_WAITING' });
             }
           }
@@ -167,12 +166,14 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       reg.update();
     }).catch(() => undefined);
 
-    controllerHandler = () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    };
-    navigator.serviceWorker.addEventListener('controllerchange', controllerHandler);
+    if (isStandalone) {
+      controllerHandler = () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', controllerHandler);
+    }
 
     return () => {
       if (visibilityHandler) {
@@ -322,7 +323,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
         </div>
       )}
 
-      {updateAvailable && (
+      {updateAvailable && isInstalled && (
         <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4">
           <div className="max-w-md w-full rounded-2xl bg-gray-900 border border-white/10 p-6 animate-slide-up">
             <div className="text-lg font-semibold mb-2">Update available</div>
