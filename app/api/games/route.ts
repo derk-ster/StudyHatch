@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
+import { kv } from '@vercel/kv';
 
 const STORE_KEY = '__studyhatchGameStore';
 const CODE_LENGTH = 6;
@@ -78,6 +79,26 @@ const getStore = (): Map<string, GameSession> => {
     globalAny[STORE_KEY] = new Map<string, GameSession>();
   }
   return globalAny[STORE_KEY]!;
+};
+
+const SESSION_TTL_SECONDS = 2 * 60 * 60;
+const hasKv = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const sessionKey = (code: string) => `game:${code}`;
+
+const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
+  if (hasKv) {
+    const session = await kv.get<GameSession>(sessionKey(code));
+    return session ?? null;
+  }
+  return memoryStore.get(code) ?? null;
+};
+
+const setSession = async (code: string, session: GameSession, memoryStore: Map<string, GameSession>) => {
+  if (hasKv) {
+    await kv.set(sessionKey(code), session, { ex: SESSION_TTL_SECONDS });
+    return;
+  }
+  memoryStore.set(code, session);
 };
 
 const normalizeText = (text = '') =>
@@ -184,22 +205,11 @@ const serializeSession = (session: GameSession) => ({
   },
 });
 
-const clearRoundTimer = (session: GameSession) => {
-  if (session.roundTimer) {
-    clearTimeout(session.roundTimer);
-  }
-  session.roundTimer = null;
-};
-
 const scheduleRound = (session: GameSession) => {
-  clearRoundTimer(session);
   const now = Date.now();
   const timeMs = session.modeState.roundRemainingMs ?? session.settings.timePerQuestion * 1000;
   session.modeState.roundEndAt = now + timeMs;
   session.modeState.roundRemainingMs = null;
-  session.roundTimer = setTimeout(() => {
-    advanceRound(session);
-  }, timeMs);
 };
 
 const pauseGame = (session: GameSession) => {
@@ -209,7 +219,6 @@ const pauseGame = (session: GameSession) => {
     const remaining = Math.max(0, session.modeState.roundEndAt - Date.now());
     session.modeState.roundRemainingMs = remaining;
   }
-  clearRoundTimer(session);
 };
 
 const resumeGame = (session: GameSession) => {
@@ -235,7 +244,6 @@ const advanceRound = (session: GameSession) => {
   if (session.modeState.roundIndex >= cards.length) {
     session.status = 'ended';
     session.endedAt = Date.now();
-    clearRoundTimer(session);
     return;
   }
   scheduleRound(session);
@@ -375,7 +383,6 @@ const handleAnswer = (session: GameSession, player: GamePlayer, answer: string) 
       if (player.ladderPosition >= LADDER_TOP) {
         session.status = 'ended';
         session.endedAt = Date.now();
-        clearRoundTimer(session);
       }
     } else if (session.mode === 'survival-sprint') {
       player.score += 10 + speedBonus * 5;
@@ -397,12 +404,20 @@ const handleAnswer = (session: GameSession, player: GamePlayer, answer: string) 
     if (alive.length <= 1) {
       session.status = 'ended';
       session.endedAt = Date.now();
-      clearRoundTimer(session);
     }
   }
 };
 
-const createSession = (payload: any, store: Map<string, GameSession>): SocketMessage => {
+const tickSession = (session: GameSession) => {
+  if (session.status !== 'playing') return;
+  if (session.mode === 'word-heist') return;
+  if (!session.modeState.roundEndAt) return;
+  const now = Date.now();
+  if (now < session.modeState.roundEndAt) return;
+  advanceRound(session);
+};
+
+const createSession = async (payload: any, memoryStore: Map<string, GameSession>): Promise<SocketMessage> => {
   const { deck, mode, settings, host } = payload || {};
   if (!deck || !deck.cards || deck.cards.length === 0) {
     return { type: 'error', payload: { message: 'Deck is missing or empty.' } };
@@ -411,7 +426,7 @@ const createSession = (payload: any, store: Map<string, GameSession>): SocketMes
     return { type: 'error', payload: { message: 'Host must be logged in.' } };
   }
 
-  const code = createUniqueCode(store);
+  const code = createUniqueCode(memoryStore);
   const hostKey = randomBytes(12).toString('hex');
   const hostPlayer = createPlayer({ name: host.name, userId: host.userId, isHost: true });
   const session: GameSession = {
@@ -453,7 +468,7 @@ const createSession = (payload: any, store: Map<string, GameSession>): SocketMes
     },
     roundTimer: null,
   };
-  store.set(code, session);
+  await setSession(code, session, memoryStore);
 
   return {
     type: 'session_joined',
@@ -466,9 +481,9 @@ const createSession = (payload: any, store: Map<string, GameSession>): SocketMes
   };
 };
 
-const joinSession = (payload: any, store: Map<string, GameSession>): SocketMessage => {
+const joinSession = async (payload: any, memoryStore: Map<string, GameSession>): Promise<SocketMessage> => {
   const { code, name, userId, hostKey } = payload || {};
-  const session = store.get(code);
+  const session = await getSession(code, memoryStore);
   if (!session) {
     return { type: 'error', payload: { message: 'Game not found.' } };
   }
@@ -518,6 +533,7 @@ const joinSession = (payload: any, store: Map<string, GameSession>): SocketMessa
   const player = existing || createPlayer({ name, userId, isHost: false });
   player.connected = true;
   session.players[player.id] = player;
+  await setSession(code, session, memoryStore);
 
   return {
     type: 'session_joined',
@@ -529,12 +545,12 @@ const joinSession = (payload: any, store: Map<string, GameSession>): SocketMessa
   };
 };
 
-const handleAction = (type: string, payload: any, store: Map<string, GameSession>): SocketMessage => {
+const handleAction = async (type: string, payload: any, memoryStore: Map<string, GameSession>): Promise<SocketMessage> => {
   const { code, playerId } = payload || {};
   if (!code || !playerId) {
     return { type: 'error', payload: { message: 'Invalid request.' } };
   }
-  const session = store.get(code);
+  const session = await getSession(code, memoryStore);
   if (!session) {
     return { type: 'error', payload: { message: 'Session not found.' } };
   }
@@ -560,7 +576,6 @@ const handleAction = (type: string, payload: any, store: Map<string, GameSession
     if (player.id === session.hostId) {
       session.status = 'ended';
       session.endedAt = Date.now();
-      clearRoundTimer(session);
     }
   }
 
@@ -574,11 +589,13 @@ const handleAction = (type: string, payload: any, store: Map<string, GameSession
     }
   }
 
+  tickSession(session);
+  await setSession(code, session, memoryStore);
   return { type: 'session_state', payload: serializeSession(session) };
 };
 
 export async function POST(req: NextRequest) {
-  const store = getStore();
+  const memoryStore = getStore();
   const body = await req.json().catch(() => ({}));
   const type = body?.type as string | undefined;
   const payload = body?.payload;
@@ -588,37 +605,41 @@ export async function POST(req: NextRequest) {
   }
 
   if (type === 'create_session') {
-    const message = createSession(payload, store);
+    const message = await createSession(payload, memoryStore);
     return NextResponse.json(message);
   }
 
   if (type === 'join_session') {
-    const message = joinSession(payload, store);
+    const message = await joinSession(payload, memoryStore);
     return NextResponse.json(message);
   }
 
   if (type === 'request_state') {
-    const session = store.get(payload?.code);
+    const session = await getSession(payload?.code, memoryStore);
     if (!session) {
       return NextResponse.json({ type: 'error', payload: { message: 'Game not found.' } } as SocketMessage, { status: 404 });
     }
+    tickSession(session);
+    await setSession(session.code, session, memoryStore);
     return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
   }
 
-  const message = handleAction(type, payload, store);
+  const message = await handleAction(type, payload, memoryStore);
   return NextResponse.json(message);
 }
 
 export async function GET(req: NextRequest) {
-  const store = getStore();
+  const memoryStore = getStore();
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   if (!code) {
     return NextResponse.json({ type: 'error', payload: { message: 'Missing code.' } } as SocketMessage, { status: 400 });
   }
-  const session = store.get(code);
+  const session = await getSession(code, memoryStore);
   if (!session) {
     return NextResponse.json({ type: 'error', payload: { message: 'Game not found.' } } as SocketMessage, { status: 404 });
   }
+  tickSession(session);
+  await setSession(code, session, memoryStore);
   return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
 }

@@ -72,8 +72,14 @@ export default function GameLobbyPage() {
     }
   }, [session, router]);
 
-  const handleStart = () => socketRef.current?.send('start_game');
-  const handleResume = () => socketRef.current?.send('resume_game');
+  const handleStart = () => {
+    if (!playerId) return;
+    socketRef.current?.send('start_game', { code, playerId });
+  };
+  const handleResume = () => {
+    if (!playerId) return;
+    socketRef.current?.send('resume_game', { code, playerId });
+  };
 
   const handleCopy = async () => {
     try {

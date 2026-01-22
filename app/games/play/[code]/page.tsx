@@ -133,14 +133,32 @@ export default function GamePlayPage() {
 
   const handleSubmit = () => {
     if (!answer.trim()) return;
-    socketRef.current?.send('submit_answer', { answer: answer.trim(), answerTimeMs: Date.now() });
+    if (!playerId) return;
+    socketRef.current?.send('submit_answer', {
+      code,
+      playerId,
+      answer: answer.trim(),
+      answerTimeMs: Date.now(),
+    });
     setAnswer('');
   };
 
-  const handleBank = () => socketRef.current?.send('word_heist_choice', { choice: 'bank' });
-  const handleRisk = () => socketRef.current?.send('word_heist_choice', { choice: 'risk' });
-  const handleResume = () => socketRef.current?.send('resume_game');
-  const handleEnd = () => socketRef.current?.send('end_game');
+  const handleBank = () => {
+    if (!playerId) return;
+    socketRef.current?.send('word_heist_choice', { code, playerId, choice: 'bank' });
+  };
+  const handleRisk = () => {
+    if (!playerId) return;
+    socketRef.current?.send('word_heist_choice', { code, playerId, choice: 'risk' });
+  };
+  const handleResume = () => {
+    if (!playerId) return;
+    socketRef.current?.send('resume_game', { code, playerId });
+  };
+  const handleEnd = () => {
+    if (!playerId) return;
+    socketRef.current?.send('end_game', { code, playerId });
+  };
 
   if (!session) {
     return (
