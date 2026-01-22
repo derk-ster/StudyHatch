@@ -176,7 +176,22 @@ export function getCurrentSession(): AuthSession | null {
   try {
     const stored = localStorage.getItem(CURRENT_SESSION_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const session = JSON.parse(stored) as AuthSession;
+      if (session?.userId) {
+        const user = getUserById(session.userId);
+        if (user) {
+          const updatedSession: AuthSession = {
+            ...session,
+            role: user.role || session.role || 'student',
+            schoolId: user.schoolId ?? session.schoolId,
+          };
+          if (updatedSession.role !== session.role || updatedSession.schoolId !== session.schoolId) {
+            setCurrentSession(updatedSession);
+          }
+          return updatedSession;
+        }
+      }
+      return session;
     }
   } catch (error) {
     console.error('Error loading session:', error);

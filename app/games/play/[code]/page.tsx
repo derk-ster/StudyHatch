@@ -168,6 +168,12 @@ export default function GamePlayPage() {
         </div>
       )}
 
+      <div className="mb-4 flex justify-end">
+        <div className="rounded-full bg-white/10 border border-white/20 px-4 py-1 text-xs text-white/80">
+          Join code: <span className="text-emerald-200 font-semibold">{session.code}</span>
+        </div>
+      </div>
+
       {countdown > 0 && (
         <div className="mb-4 rounded-xl border border-blue-400/40 bg-blue-500/10 p-4 text-blue-200 text-center text-xl font-semibold">
           Starting in {countdown}...

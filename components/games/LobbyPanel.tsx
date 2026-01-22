@@ -26,16 +26,17 @@ export default function LobbyPanel({ session, playerId, onStart, onResume }: Lob
   return (
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-6">
+        <div className="bg-gradient-to-r from-purple-600/30 to-blue-600/30 border border-white/20 rounded-xl p-5 text-center">
+          <p className="text-white/60 text-sm uppercase tracking-wide">Game Code</p>
+          <p className="text-5xl font-bold text-emerald-300 tracking-[0.35em] mt-2">{session.code}</p>
+          <p className="text-white/60 text-xs mt-2">Share this code to invite players.</p>
+        </div>
         <div className="bg-white/5 border border-white/10 rounded-xl p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-white/60 text-sm uppercase tracking-wide">Game Mode</p>
               <h2 className="text-2xl font-semibold text-white">{modeInfo.name}</h2>
               <p className="text-white/70 mt-1">{modeInfo.description}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-white/60 text-xs">Game Code</p>
-              <p className="text-3xl font-bold text-emerald-300 tracking-widest">{session.code}</p>
             </div>
           </div>
           <ul className="mt-4 space-y-2 text-white/70 text-sm">

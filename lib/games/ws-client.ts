@@ -34,11 +34,58 @@ export const createGameSocket = (options: GameSocketOptions) => {
   let socket: WebSocket | null = null;
   let currentIndex = 0;
   let shouldReconnect = true;
+  let polling = false;
+  let pollInterval: number | null = null;
+  let activeCode: string | null = null;
+
+  const startPolling = (code: string) => {
+    if (!code || pollInterval) return;
+    activeCode = code;
+    pollInterval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/games?code=${encodeURIComponent(code)}`);
+        if (!response.ok) return;
+        const data = (await response.json()) as GameSocketMessage;
+        options.onMessage(data);
+      } catch (error) {
+        // ignore polling errors
+      }
+    }, 1500);
+  };
+
+  const stopPolling = () => {
+    if (pollInterval) {
+      window.clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    activeCode = null;
+  };
+
+  const sendPolling = async (type: string, payload?: Record<string, unknown>) => {
+    try {
+      const response = await fetch('/api/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, payload }),
+      });
+      const data = (await response.json()) as GameSocketMessage;
+      options.onMessage(data);
+      if (data.type === 'session_joined') {
+        startPolling(data.payload.code);
+      }
+      if (data.type === 'session_state' && data.payload?.code) {
+        startPolling(data.payload.code);
+      }
+    } catch (error) {
+      options.onError?.(new Event('error'));
+    }
+  };
 
   const connect = () => {
     if (!shouldReconnect) return;
     if (currentIndex >= urls.length) {
-      options.onError?.(new Event('error'));
+      polling = true;
+      options.onOpen?.();
       return;
     }
     const url = urls[currentIndex];
@@ -81,6 +128,10 @@ export const createGameSocket = (options: GameSocketOptions) => {
   connect();
 
   const send = (type: string, payload?: Record<string, unknown>) => {
+    if (polling) {
+      sendPolling(type, payload);
+      return;
+    }
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type, payload }));
     }
@@ -88,6 +139,7 @@ export const createGameSocket = (options: GameSocketOptions) => {
 
   const close = () => {
     shouldReconnect = false;
+    stopPolling();
     socket?.close();
   };
 
