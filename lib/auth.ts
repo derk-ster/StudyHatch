@@ -15,6 +15,7 @@ import { getDefaultProgress } from './storage';
 
 const USERS_STORAGE_KEY = 'studyhatch-users'; // Mock user database
 const CURRENT_SESSION_KEY = 'studyhatch-session';
+const LAST_SESSION_KEY = 'studyhatch-session-last';
 
 // Simple password hashing (NOT SECURE - replace with bcrypt in production)
 function simpleHash(password: string): string {
@@ -167,14 +168,15 @@ export function signIn(emailOrUsername: string, password: string): Promise<{ suc
 
 export function signOut(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(CURRENT_SESSION_KEY);
+  sessionStorage.removeItem(CURRENT_SESSION_KEY);
+  localStorage.removeItem(LAST_SESSION_KEY);
 }
 
 export function getCurrentSession(): AuthSession | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const stored = localStorage.getItem(CURRENT_SESSION_KEY);
+    const stored = sessionStorage.getItem(CURRENT_SESSION_KEY) || localStorage.getItem(LAST_SESSION_KEY);
     if (stored) {
       const session = JSON.parse(stored) as AuthSession;
       if (session?.userId) {
@@ -204,9 +206,11 @@ export function setCurrentSession(session: AuthSession | null): void {
   if (typeof window === 'undefined') return;
   
   if (session) {
-    localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify(session));
+    sessionStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify(session));
+    localStorage.setItem(LAST_SESSION_KEY, JSON.stringify(session));
   } else {
-    localStorage.removeItem(CURRENT_SESSION_KEY);
+    sessionStorage.removeItem(CURRENT_SESSION_KEY);
+    localStorage.removeItem(LAST_SESSION_KEY);
   }
 }
 
