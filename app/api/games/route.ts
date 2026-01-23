@@ -97,9 +97,7 @@ const storageErrorMessage = (error: unknown) => {
 const redisClient = (() => {
   if (!hasRedisUrl) return null;
   const rawUrl = process.env.REDIS_URL as string;
-  const url = rawUrl.startsWith('redis://') && rawUrl.includes('redislabs.com')
-    ? rawUrl.replace('redis://', 'rediss://')
-    : rawUrl;
+  const url = rawUrl;
   const useTls = url.startsWith('rediss://');
   return new Redis(url, {
     maxRetriesPerRequest: 1,
