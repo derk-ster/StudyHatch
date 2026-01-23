@@ -9,7 +9,14 @@ import Leaderboard from '@/components/games/Leaderboard';
 import type { GameSession } from '@/types/games';
 import { createGameSocket } from '@/lib/games/ws-client';
 import { useAuth } from '@/lib/auth-context';
-import { getStoredHostKey, setStoredHostKey, setStoredPlayerId, clearStoredGame } from '@/lib/games/session-store';
+import {
+  clearLastGameCode,
+  clearLastHostCode,
+  clearStoredGame,
+  getStoredHostKey,
+  setStoredHostKey,
+  setStoredPlayerId,
+} from '@/lib/games/session-store';
 
 const buildCsv = (session: GameSession) => {
   const sorted = [...session.players].sort((a, b) => {
@@ -51,6 +58,7 @@ export default function GameResultsPage() {
   const router = useRouter();
   const { session: authSession } = useAuth();
   const code = String(params.code || '').toUpperCase();
+  const storageScope = authSession?.userId || 'guest';
   const [session, setSession] = useState<GameSession | null>(null);
   const [error, setError] = useState('');
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
@@ -61,7 +69,7 @@ export default function GameResultsPage() {
       localStorage.getItem('studyhatch-game-display-name') ||
       authSession?.username ||
       'Player';
-    const hostKey = getStoredHostKey(code);
+    const hostKey = getStoredHostKey(code, storageScope);
     const socket = createGameSocket({
       onMessage: (message) => {
         if (message.type === 'error') {
@@ -69,9 +77,9 @@ export default function GameResultsPage() {
           return;
         }
         if (message.type === 'session_joined') {
-          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          setStoredPlayerId(message.payload.code, message.payload.playerId, storageScope);
           if (message.payload.hostKey) {
-            setStoredHostKey(message.payload.code, message.payload.hostKey);
+            setStoredHostKey(message.payload.code, message.payload.hostKey, storageScope);
           }
           setSession(message.payload.session);
           return;
@@ -91,7 +99,7 @@ export default function GameResultsPage() {
     });
     socketRef.current = socket;
     return () => socket.close();
-  }, [code, authSession?.userId, authSession?.username, authSession?.isGuest]);
+  }, [code, authSession?.userId, authSession?.username, authSession?.isGuest, storageScope]);
 
   const handleExport = () => {
     if (!session) return;
@@ -106,7 +114,9 @@ export default function GameResultsPage() {
   };
 
   const handleExit = () => {
-    clearStoredGame(code);
+    clearStoredGame(code, storageScope);
+    clearLastGameCode(storageScope);
+    clearLastHostCode(storageScope);
     router.push('/games');
   };
 

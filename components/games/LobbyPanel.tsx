@@ -90,6 +90,12 @@ export default function LobbyPanel({ session, playerId, onStart, onResume }: Lob
                 {session.settings.maxPlayers ? session.settings.maxPlayers : 'Open'}
               </span>
             </div>
+            {session.settings.gameDurationMinutes ? (
+              <div className="flex justify-between">
+                <span>Game Duration</span>
+                <span className="font-semibold">{session.settings.gameDurationMinutes} min</span>
+              </div>
+            ) : null}
             {session.settings.classroomOnly && (
               <div className="flex justify-between">
                 <span>Classroom Only</span>

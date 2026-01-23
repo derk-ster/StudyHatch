@@ -177,6 +177,19 @@ const scheduleRound = (session) => {
   }, timeMs);
 };
 
+const checkGameDuration = (session) => {
+  if (!session.settings.gameDurationMinutes || !session.startedAt) return false;
+  const endAt = session.startedAt + session.settings.gameDurationMinutes * 60 * 1000;
+  if (Date.now() >= endAt) {
+    session.status = 'ended';
+    session.endedAt = Date.now();
+    clearRoundTimer(session);
+    broadcastSession(session);
+    return true;
+  }
+  return false;
+};
+
 const pauseGame = (session) => {
   if (session.status !== 'playing') return;
   session.status = 'paused';
@@ -205,6 +218,7 @@ const getRoundCard = (session) => {
 };
 
 const advanceRound = (session) => {
+  if (checkGameDuration(session)) return;
   if (session.status !== 'playing') return;
   session.modeState.roundIndex += 1;
   session.modeState.answers = {};
@@ -221,6 +235,7 @@ const advanceRound = (session) => {
 };
 
 const handleHeistChoice = (session, player, choice) => {
+  if (checkGameDuration(session)) return;
   if (!player.pendingDecision) return;
   if (choice === 'bank') {
     player.bankedKeys += player.unbankedKeys;
@@ -301,6 +316,7 @@ const startGame = (session) => {
 };
 
 const handleAnswer = (session, player, answer, answerTimeMs) => {
+  if (checkGameDuration(session)) return;
   if (session.status !== 'playing') return;
   const cards = session.deck?.cards || [];
   if (cards.length === 0) return;
@@ -419,6 +435,7 @@ const createSession = (payload, ws) => {
       direction: settings?.direction || 'en-to-target',
       timePerQuestion: Number(settings?.timePerQuestion || 20),
       maxPlayers: settings?.maxPlayers ? Number(settings.maxPlayers) : null,
+      gameDurationMinutes: settings?.gameDurationMinutes ? Number(settings.gameDurationMinutes) : null,
       classroomOnly: Boolean(settings?.classroomOnly),
       classroomId: settings?.classroomId || null,
       allowedUserIds: Array.from(new Set([host.userId, ...(settings?.allowedUserIds || [])])),

@@ -54,6 +54,7 @@ type GameSession = {
     direction: DirectionSetting;
     timePerQuestion: number;
     maxPlayers: number | null;
+    gameDurationMinutes: number | null;
     classroomOnly: boolean;
     classroomId: string | null;
     allowedUserIds: string[];
@@ -258,6 +259,7 @@ const serializeSession = (session: GameSession) => ({
     direction: session.settings.direction,
     timePerQuestion: session.settings.timePerQuestion,
     maxPlayers: session.settings.maxPlayers,
+    gameDurationMinutes: session.settings.gameDurationMinutes,
     classroomOnly: session.settings.classroomOnly,
     classroomId: session.settings.classroomId,
   },
@@ -476,6 +478,14 @@ const handleAnswer = (session: GameSession, player: GamePlayer, answer: string) 
 
 const tickSession = (session: GameSession) => {
   if (session.status !== 'playing') return;
+  if (session.settings.gameDurationMinutes && session.startedAt) {
+    const endAt = session.startedAt + session.settings.gameDurationMinutes * 60 * 1000;
+    if (Date.now() >= endAt) {
+      session.status = 'ended';
+      session.endedAt = Date.now();
+      return;
+    }
+  }
   if (session.mode === 'word-heist') return;
   if (!session.modeState.roundEndAt) return;
   const now = Date.now();
@@ -519,6 +529,7 @@ const createSession = async (payload: any, memoryStore: Map<string, GameSession>
       direction: settings?.direction || 'en-to-target',
       timePerQuestion: Number(settings?.timePerQuestion || 20),
       maxPlayers: settings?.maxPlayers ? Number(settings.maxPlayers) : null,
+      gameDurationMinutes: settings?.gameDurationMinutes ? Number(settings.gameDurationMinutes) : null,
       classroomOnly: Boolean(settings?.classroomOnly),
       classroomId: settings?.classroomId || null,
       allowedUserIds: Array.from(new Set([host.userId, ...(settings?.allowedUserIds || [])])),

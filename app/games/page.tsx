@@ -10,8 +10,10 @@ import { createGameSocket } from '@/lib/games/ws-client';
 import {
   clearLastHostCode,
   clearLastGameCode,
+  getLastGameCode,
   getLastHostCode,
   getStoredHostKey,
+  getStoredPlayerId,
   setLastGameCode,
   setLastHostCode,
   setStoredHostKey,
@@ -36,11 +38,13 @@ export default function GamesPage() {
   const [direction, setDirection] = useState<DirectionSetting>('en-to-target');
   const [timePerQuestion, setTimePerQuestion] = useState<number>(20);
   const [maxPlayers, setMaxPlayers] = useState<string>('');
+  const [gameDurationMinutes, setGameDurationMinutes] = useState<string>('');
   const [classroomOnly, setClassroomOnly] = useState(false);
   const [classroomId, setClassroomId] = useState('');
   const [hostError, setHostError] = useState('');
   const [isHosting, setIsHosting] = useState(false);
   const [resumeHostCode, setResumeHostCode] = useState<string | null>(null);
+  const [resumeJoinCode, setResumeJoinCode] = useState<string | null>(null);
 
   const [joinCode, setJoinCode] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -58,13 +62,20 @@ export default function GamesPage() {
   }, [hostDeckId]);
 
   useEffect(() => {
-    const lastCode = getLastHostCode();
-    if (lastCode && getStoredHostKey(lastCode)) {
-      setResumeHostCode(lastCode);
+    const scope = session?.userId || 'guest';
+    const lastHost = getLastHostCode(scope);
+    if (lastHost && getStoredHostKey(lastHost, scope)) {
+      setResumeHostCode(lastHost);
     } else {
       setResumeHostCode(null);
     }
-  }, []);
+    const lastGame = getLastGameCode(scope);
+    if (lastGame && getStoredPlayerId(lastGame, scope) && lastGame !== lastHost) {
+      setResumeJoinCode(lastGame);
+    } else {
+      setResumeJoinCode(null);
+    }
+  }, [session?.userId, session?.isGuest]);
 
   useEffect(() => {
     if (!session?.userId || session.isGuest) {
@@ -138,13 +149,15 @@ export default function GamesPage() {
           socket.close();
         }
         if (message.type === 'session_joined') {
-          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          const scope = session?.userId || 'guest';
+          setStoredPlayerId(message.payload.code, message.payload.playerId, scope);
           if (message.payload.hostKey) {
-            setStoredHostKey(message.payload.code, message.payload.hostKey);
-            setLastHostCode(message.payload.code);
+            setStoredHostKey(message.payload.code, message.payload.hostKey, scope);
+            setLastHostCode(message.payload.code, scope);
           }
-          setLastGameCode(message.payload.code);
+          setLastGameCode(message.payload.code, scope);
           setResumeHostCode(message.payload.code);
+          setResumeJoinCode(null);
           setIsHosting(false);
           clearHostTimeout();
           socket.close();
@@ -164,6 +177,7 @@ export default function GamesPage() {
             direction,
             timePerQuestion,
             maxPlayers: maxPlayers ? Number(maxPlayers) : null,
+            gameDurationMinutes: gameDurationMinutes ? Number(gameDurationMinutes) : null,
             classroomOnly,
             classroomId: classroomOnly ? classroomId : null,
             allowedUserIds,
@@ -191,13 +205,19 @@ export default function GamesPage() {
     router.push(`/games/lobby/${resumeHostCode}`);
   };
 
+  const handleResumeJoin = () => {
+    if (!resumeJoinCode) return;
+    router.push(`/games/lobby/${resumeJoinCode}`);
+  };
+
   const handleCancelHost = () => {
     if (!resumeHostCode) return;
     setHostError('');
-    const hostKey = getStoredHostKey(resumeHostCode);
+    const scope = session?.userId || 'guest';
+    const hostKey = getStoredHostKey(resumeHostCode, scope);
     if (!hostKey) {
-      clearLastHostCode();
-      clearLastGameCode();
+      clearLastHostCode(scope);
+      clearLastGameCode(scope);
       setResumeHostCode(null);
       return;
     }
@@ -209,15 +229,16 @@ export default function GamesPage() {
           return;
         }
         if (message.type === 'session_joined') {
-          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          setStoredPlayerId(message.payload.code, message.payload.playerId, scope);
           socket.send('end_game', { code: resumeHostCode, playerId: message.payload.playerId });
           return;
         }
         if (message.type === 'session_state') {
           socket.close();
-          clearLastHostCode();
-          clearLastGameCode();
+          clearLastHostCode(scope);
+          clearLastGameCode(scope);
           setResumeHostCode(null);
+          setResumeJoinCode(null);
         }
       },
       onOpen: () => {
@@ -229,9 +250,10 @@ export default function GamesPage() {
         });
       },
       onError: () => {
-        clearLastHostCode();
-        clearLastGameCode();
+        clearLastHostCode(scope);
+        clearLastGameCode(scope);
         setResumeHostCode(null);
+        setResumeJoinCode(null);
       },
     });
   };
@@ -259,9 +281,11 @@ export default function GamesPage() {
           socket.close();
         }
         if (message.type === 'session_joined') {
-          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          const scope = session?.userId || 'guest';
+          setStoredPlayerId(message.payload.code, message.payload.playerId, scope);
           localStorage.setItem('studyhatch-game-display-name', name);
-          setLastGameCode(message.payload.code);
+          setLastGameCode(message.payload.code, scope);
+          setResumeJoinCode(message.payload.code);
           setIsJoining(false);
           clearJoinTimeout();
           socket.close();
@@ -322,6 +346,19 @@ export default function GamesPage() {
                   Cancel Game
                 </button>
               </div>
+            </div>
+          )}
+          {resumeJoinCode && (
+            <div className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white/80 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                Resume your active game: <span className="font-semibold">{resumeJoinCode}</span>
+              </div>
+              <button
+                onClick={handleResumeJoin}
+                className="px-3 py-1 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20"
+              >
+                Return to Game
+              </button>
             </div>
           )}
 
@@ -409,6 +446,18 @@ export default function GamesPage() {
                   placeholder="Open"
                 />
               </div>
+            <div>
+              <label className="text-white/70 text-sm">Game Duration (minutes)</label>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={gameDurationMinutes}
+                onChange={(e) => setGameDurationMinutes(e.target.value)}
+                className="mt-2 w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+                placeholder="No limit"
+              />
+            </div>
               <div>
                 <label className="text-white/70 text-sm">Classroom Only</label>
                 <div className="mt-2 flex items-center gap-3">

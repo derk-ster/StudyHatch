@@ -11,14 +11,16 @@ type WordHeistPanelProps = {
 export default function WordHeistPanel({ player, onBank, onRisk }: WordHeistPanelProps) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-white/60 text-sm uppercase tracking-wide">Vault</p>
-          <p className="text-3xl font-bold text-emerald-300">{player.bankedKeys}</p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-3">
+          <p className="text-white/60 text-xs uppercase tracking-wide">Vault</p>
+          <p className="text-3xl font-bold text-emerald-200 mt-1">{player.bankedKeys}</p>
+          <p className="text-white/50 text-xs mt-1">Safe points</p>
         </div>
-        <div className="text-right">
-          <p className="text-white/60 text-sm uppercase tracking-wide">At Risk</p>
-          <p className="text-3xl font-bold text-amber-300">{player.unbankedKeys}</p>
+        <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-white/60 text-xs uppercase tracking-wide">At Risk</p>
+          <p className="text-3xl font-bold text-amber-200 mt-1">{player.unbankedKeys}</p>
+          <p className="text-white/50 text-xs mt-1">Stealable keys</p>
         </div>
       </div>
 
@@ -29,24 +31,27 @@ export default function WordHeistPanel({ player, onBank, onRisk }: WordHeistPane
       )}
 
       {player.pendingDecision && (
-        <div className="flex gap-3">
-          <button
-            onClick={onBank}
-            className="flex-1 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 transition-all text-white font-semibold"
-          >
-            Bank Keys
-          </button>
-          <button
-            onClick={onRisk}
-            className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 transition-all text-white font-semibold"
-          >
-            Risk Keys
-          </button>
+        <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
+          <p className="text-white/70 text-sm">Choose your next move:</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              onClick={onBank}
+              className="py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 transition-all text-white font-semibold"
+            >
+              Bank Keys
+            </button>
+            <button
+              onClick={onRisk}
+              className="py-2 rounded-lg bg-amber-500 hover:bg-amber-600 transition-all text-white font-semibold"
+            >
+              Risk Keys
+            </button>
+          </div>
         </div>
       )}
 
       {player.lastEvent && (
-        <div className="text-sm text-white/80 bg-white/10 border border-white/10 rounded-lg px-3 py-2 animate-pulse">
+        <div className="text-sm text-white/80 bg-white/10 border border-white/10 rounded-lg px-3 py-2">
           {player.lastEvent}
         </div>
       )}

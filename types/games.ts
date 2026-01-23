@@ -8,6 +8,7 @@ export type GameSettings = {
   direction: DirectionSetting;
   timePerQuestion: number;
   maxPlayers?: number | null;
+  gameDurationMinutes?: number | null;
   classroomOnly?: boolean;
   classroomId?: string | null;
 };

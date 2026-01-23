@@ -12,15 +12,23 @@ import SurvivalSprintPanel from '@/components/games/SurvivalSprintPanel';
 import type { GameSession } from '@/types/games';
 import { createGameSocket } from '@/lib/games/ws-client';
 import { useAuth } from '@/lib/auth-context';
-import { getStoredHostKey, getStoredPlayerId, setStoredHostKey, setStoredPlayerId } from '@/lib/games/session-store';
+import {
+  clearLastGameCode,
+  getStoredHostKey,
+  getStoredPlayerId,
+  setLastGameCode,
+  setStoredHostKey,
+  setStoredPlayerId,
+} from '@/lib/games/session-store';
 
 export default function GamePlayPage() {
   const params = useParams();
   const router = useRouter();
   const { session: authSession } = useAuth();
   const code = String(params.code || '').toUpperCase();
+  const storageScope = authSession?.userId || 'guest';
   const [session, setSession] = useState<GameSession | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(getStoredPlayerId(code));
+  const [playerId, setPlayerId] = useState<string | null>(getStoredPlayerId(code, storageScope));
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -28,12 +36,16 @@ export default function GamePlayPage() {
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
 
   useEffect(() => {
+    setPlayerId(getStoredPlayerId(code, storageScope));
+  }, [code, storageScope]);
+
+  useEffect(() => {
     if (!code) return;
     const name =
       localStorage.getItem('studyhatch-game-display-name') ||
       authSession?.username ||
       'Player';
-    const hostKey = getStoredHostKey(code);
+    const hostKey = getStoredHostKey(code, storageScope);
 
     const socket = createGameSocket({
       onMessage: (message) => {
@@ -42,11 +54,12 @@ export default function GamePlayPage() {
           return;
         }
         if (message.type === 'session_joined') {
-          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          setStoredPlayerId(message.payload.code, message.payload.playerId, storageScope);
           setPlayerId(message.payload.playerId);
           if (message.payload.hostKey) {
-            setStoredHostKey(message.payload.code, message.payload.hostKey);
+            setStoredHostKey(message.payload.code, message.payload.hostKey, storageScope);
           }
+          setLastGameCode(message.payload.code, storageScope);
           setSession(message.payload.session);
           return;
         }
@@ -66,14 +79,15 @@ export default function GamePlayPage() {
 
     socketRef.current = socket;
     return () => socket.close();
-  }, [code, authSession?.userId, authSession?.username, authSession?.isGuest]);
+  }, [code, authSession?.userId, authSession?.username, authSession?.isGuest, storageScope]);
 
   useEffect(() => {
     if (!session) return;
     if (session.status === 'ended') {
+      clearLastGameCode(storageScope);
       router.push(`/games/results/${session.code}`);
     }
-  }, [session, router]);
+  }, [session, router, storageScope]);
 
   useEffect(() => {
     if (!session?.modeState?.roundEndAt) {

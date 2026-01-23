@@ -25,11 +25,16 @@ export default function GameLobbyPage() {
   const { session: authSession } = useAuth();
   const code = String(params.code || '').toUpperCase();
   const [session, setSession] = useState<GameSession | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(getStoredPlayerId(code));
+  const storageScope = authSession?.userId || 'guest';
+  const [playerId, setPlayerId] = useState<string | null>(getStoredPlayerId(code, storageScope));
   const [error, setError] = useState('');
   const [copyNotice, setCopyNotice] = useState(false);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setPlayerId(getStoredPlayerId(code, storageScope));
+  }, [code, storageScope]);
 
   useEffect(() => {
     if (!code) return;
@@ -37,7 +42,7 @@ export default function GameLobbyPage() {
       localStorage.getItem('studyhatch-game-display-name') ||
       authSession?.username ||
       'Player';
-    const hostKey = getStoredHostKey(code);
+    const hostKey = getStoredHostKey(code, storageScope);
 
     const socket = createGameSocket({
       onMessage: (message) => {
@@ -46,10 +51,10 @@ export default function GameLobbyPage() {
           return;
         }
         if (message.type === 'session_joined') {
-          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          setStoredPlayerId(message.payload.code, message.payload.playerId, storageScope);
           setPlayerId(message.payload.playerId);
           if (message.payload.hostKey) {
-            setStoredHostKey(message.payload.code, message.payload.hostKey);
+            setStoredHostKey(message.payload.code, message.payload.hostKey, storageScope);
           }
           setSession(message.payload.session);
           return;
@@ -70,7 +75,7 @@ export default function GameLobbyPage() {
 
     socketRef.current = socket;
     return () => socket.close();
-  }, [code, authSession?.userId, authSession?.username, authSession?.isGuest]);
+  }, [code, authSession?.userId, authSession?.username, authSession?.isGuest, storageScope]);
 
   useEffect(() => {
     return () => {
@@ -115,9 +120,9 @@ export default function GameLobbyPage() {
   const handleCancelGame = () => {
     if (!playerId) return;
     socketRef.current?.send('end_game', { code, playerId });
-    clearStoredGame(code);
-    clearLastHostCode();
-    clearLastGameCode();
+    clearStoredGame(code, storageScope);
+    clearLastHostCode(storageScope);
+    clearLastGameCode(storageScope);
     router.push('/games');
   };
 
