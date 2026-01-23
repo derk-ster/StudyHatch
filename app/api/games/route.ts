@@ -88,8 +88,10 @@ const sessionKey = (code: string) => `game:${code}`;
 
 const storageErrorMessage = (error: unknown) => {
   const code = (error as { code?: string } | null)?.code;
+  const rawMessage = error instanceof Error ? error.message : 'Unknown error';
+  const scrubbed = rawMessage.replace(/:\/\/[^@]+@/g, '://***@');
   const suffix = code ? ` (code: ${code})` : '';
-  return `Game server storage unavailable. Verify REDIS_URL and TLS.${suffix}`;
+  return `Game server storage unavailable. ${scrubbed}.${suffix}`;
 };
 
 const redisClient = (() => {
