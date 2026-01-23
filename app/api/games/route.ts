@@ -94,8 +94,12 @@ const redisClient = (() => {
     : rawUrl;
   const useTls = url.startsWith('rediss://');
   return new Redis(url, {
-    maxRetriesPerRequest: 2,
+    maxRetriesPerRequest: 1,
     enableReadyCheck: true,
+    enableOfflineQueue: false,
+    lazyConnect: true,
+    connectTimeout: 3000,
+    commandTimeout: 3000,
     ...(useTls ? { tls: {} } : {}),
   });
 })();

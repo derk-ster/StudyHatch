@@ -9,7 +9,15 @@ import LobbyPanel from '@/components/games/LobbyPanel';
 import type { GameSession } from '@/types/games';
 import { createGameSocket } from '@/lib/games/ws-client';
 import { useAuth } from '@/lib/auth-context';
-import { getStoredHostKey, getStoredPlayerId, setStoredHostKey, setStoredPlayerId } from '@/lib/games/session-store';
+import {
+  clearLastHostCode,
+  clearLastGameCode,
+  clearStoredGame,
+  getStoredHostKey,
+  getStoredPlayerId,
+  setStoredHostKey,
+  setStoredPlayerId,
+} from '@/lib/games/session-store';
 
 export default function GameLobbyPage() {
   const params = useParams();
@@ -19,7 +27,9 @@ export default function GameLobbyPage() {
   const [session, setSession] = useState<GameSession | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(getStoredPlayerId(code));
   const [error, setError] = useState('');
+  const [copyNotice, setCopyNotice] = useState(false);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!code) return;
@@ -63,6 +73,14 @@ export default function GameLobbyPage() {
   }, [code, authSession?.userId, authSession?.username, authSession?.isGuest]);
 
   useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!session) return;
     if (session.status === 'playing') {
       router.push(`/games/play/${session.code}`);
@@ -84,9 +102,23 @@ export default function GameLobbyPage() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
+      setCopyNotice(true);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      copyTimeoutRef.current = setTimeout(() => setCopyNotice(false), 1600);
     } catch (err) {
       // ignore clipboard errors
     }
+  };
+
+  const handleCancelGame = () => {
+    if (!playerId) return;
+    socketRef.current?.send('end_game', { code, playerId });
+    clearStoredGame(code);
+    clearLastHostCode();
+    clearLastGameCode();
+    router.push('/games');
   };
 
   if (!session) {
@@ -102,14 +134,29 @@ export default function GameLobbyPage() {
       {error && <p className="text-red-300 mb-4">{error}</p>}
       <div className="mb-4 flex justify-between items-center">
         <div className="text-white/70 text-sm">
+          {copyNotice && (
+            <div className="text-emerald-200 text-xs mb-1 animate-fade-in">
+              Code copied to clipboard.
+            </div>
+          )}
           Share this code: <span className="text-emerald-300 font-semibold">{code}</span>
         </div>
-        <button
-          onClick={handleCopy}
-          className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
-        >
-          Copy Code
-        </button>
+        <div className="flex gap-2">
+          {session?.hostId === playerId && (
+            <button
+              onClick={handleCancelGame}
+              className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
+            >
+              Cancel Game
+            </button>
+          )}
+          <button
+            onClick={handleCopy}
+            className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm"
+          >
+            Copy Code
+          </button>
+        </div>
       </div>
       <LobbyPanel session={session} playerId={playerId} onStart={handleStart} onResume={handleResume} />
     </GameShell>

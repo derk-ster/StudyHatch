@@ -7,7 +7,16 @@ import { useRouter } from 'next/navigation';
 import GameShell from '@/components/games/GameShell';
 import { useAuth } from '@/lib/auth-context';
 import { createGameSocket } from '@/lib/games/ws-client';
-import { setStoredHostKey, setStoredPlayerId } from '@/lib/games/session-store';
+import {
+  clearLastHostCode,
+  clearLastGameCode,
+  getLastHostCode,
+  getStoredHostKey,
+  setLastGameCode,
+  setLastHostCode,
+  setStoredHostKey,
+  setStoredPlayerId,
+} from '@/lib/games/session-store';
 import { getAllDecks, getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass, getDeckById } from '@/lib/storage';
 import type { ClassRoom, Deck } from '@/types/vocab';
 import type { DirectionSetting, GameMode } from '@/types/games';
@@ -31,6 +40,7 @@ export default function GamesPage() {
   const [classroomId, setClassroomId] = useState('');
   const [hostError, setHostError] = useState('');
   const [isHosting, setIsHosting] = useState(false);
+  const [resumeHostCode, setResumeHostCode] = useState<string | null>(null);
 
   const [joinCode, setJoinCode] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -46,6 +56,15 @@ export default function GamesPage() {
       setHostDeckId(loaded[0].id);
     }
   }, [hostDeckId]);
+
+  useEffect(() => {
+    const lastCode = getLastHostCode();
+    if (lastCode && getStoredHostKey(lastCode)) {
+      setResumeHostCode(lastCode);
+    } else {
+      setResumeHostCode(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!session?.userId || session.isGuest) {
@@ -122,7 +141,10 @@ export default function GamesPage() {
           setStoredPlayerId(message.payload.code, message.payload.playerId);
           if (message.payload.hostKey) {
             setStoredHostKey(message.payload.code, message.payload.hostKey);
+            setLastHostCode(message.payload.code);
           }
+          setLastGameCode(message.payload.code);
+          setResumeHostCode(message.payload.code);
           setIsHosting(false);
           clearHostTimeout();
           socket.close();
@@ -164,6 +186,56 @@ export default function GamesPage() {
     });
   };
 
+  const handleResumeHost = () => {
+    if (!resumeHostCode) return;
+    router.push(`/games/lobby/${resumeHostCode}`);
+  };
+
+  const handleCancelHost = () => {
+    if (!resumeHostCode) return;
+    setHostError('');
+    const hostKey = getStoredHostKey(resumeHostCode);
+    if (!hostKey) {
+      clearLastHostCode();
+      clearLastGameCode();
+      setResumeHostCode(null);
+      return;
+    }
+    const socket = createGameSocket({
+      onMessage: (message) => {
+        if (message.type === 'error') {
+          setHostError(message.payload.message);
+          socket.close();
+          return;
+        }
+        if (message.type === 'session_joined') {
+          setStoredPlayerId(message.payload.code, message.payload.playerId);
+          socket.send('end_game', { code: resumeHostCode, playerId: message.payload.playerId });
+          return;
+        }
+        if (message.type === 'session_state') {
+          socket.close();
+          clearLastHostCode();
+          clearLastGameCode();
+          setResumeHostCode(null);
+        }
+      },
+      onOpen: () => {
+        socket.send('join_session', {
+          code: resumeHostCode,
+          name: session?.username || 'Host',
+          userId: session?.isGuest ? null : session?.userId,
+          hostKey,
+        });
+      },
+      onError: () => {
+        clearLastHostCode();
+        clearLastGameCode();
+        setResumeHostCode(null);
+      },
+    });
+  };
+
   const handleJoinGame = () => {
     setJoinError('');
     const code = joinCode.trim().toUpperCase();
@@ -189,6 +261,7 @@ export default function GamesPage() {
         if (message.type === 'session_joined') {
           setStoredPlayerId(message.payload.code, message.payload.playerId);
           localStorage.setItem('studyhatch-game-display-name', name);
+          setLastGameCode(message.payload.code);
           setIsJoining(false);
           clearJoinTimeout();
           socket.close();
@@ -230,6 +303,27 @@ export default function GamesPage() {
           <p className="text-white/70 text-sm">
             Teachers and students can host. Guests may join but cannot host.
           </p>
+          {resumeHostCode && (
+            <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                Resume your active game: <span className="font-semibold">{resumeHostCode}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleResumeHost}
+                  className="px-3 py-1 rounded-lg bg-emerald-500 text-white text-sm hover:bg-emerald-400"
+                >
+                  Resume
+                </button>
+                <button
+                  onClick={handleCancelHost}
+                  className="px-3 py-1 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20"
+                >
+                  Cancel Game
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4">
             <div>
