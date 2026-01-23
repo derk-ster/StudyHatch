@@ -11,16 +11,21 @@ const getCanonicalHost = () => {
 };
 
 export function middleware(request: NextRequest) {
-  const canonicalHost = getCanonicalHost();
-  const host = request.headers.get('host') || '';
-  const isLocal = host.includes('localhost') || host.startsWith('127.0.0.1');
-  const isPreview = host.endsWith('vercel.app');
+  try {
+    const canonicalHost = getCanonicalHost();
+    const host = request.headers.get('host') || '';
+    const isLocal = host.includes('localhost') || host.startsWith('127.0.0.1');
+    const isPreview = host.endsWith('vercel.app');
 
-  if (!isLocal && isPreview && host !== canonicalHost) {
-    const url = request.nextUrl.clone();
-    url.host = canonicalHost;
-    url.protocol = 'https:';
-    return NextResponse.redirect(url, 308);
+    if (!isLocal && isPreview && host !== canonicalHost) {
+      const url = request.nextUrl.clone();
+      url.host = canonicalHost;
+      url.protocol = 'https:';
+      return NextResponse.redirect(url, 308);
+    }
+  } catch (error) {
+    // Fail open to avoid blocking requests if middleware throws.
+    return NextResponse.next();
   }
 
   return NextResponse.next();
