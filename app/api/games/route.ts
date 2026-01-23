@@ -88,25 +88,39 @@ const sessionKey = (code: string) => `game:${code}`;
 
 const redisClient = (() => {
   if (!hasRedisUrl) return null;
-  return new Redis(process.env.REDIS_URL as string, {
+  const rawUrl = process.env.REDIS_URL as string;
+  const url = rawUrl.startsWith('redis://') && rawUrl.includes('redislabs.com')
+    ? rawUrl.replace('redis://', 'rediss://')
+    : rawUrl;
+  const useTls = url.startsWith('rediss://');
+  return new Redis(url, {
     maxRetriesPerRequest: 2,
     enableReadyCheck: true,
+    ...(useTls ? { tls: {} } : {}),
   });
 })();
 
 const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
   if (redisClient) {
-    const value = await redisClient.get(sessionKey(code));
-    if (!value) return null;
-    return JSON.parse(value) as GameSession;
+    try {
+      const value = await redisClient.get(sessionKey(code));
+      if (!value) return null;
+      return JSON.parse(value) as GameSession;
+    } catch (error) {
+      throw new Error('Redis unavailable');
+    }
   }
   return memoryStore.get(code) ?? null;
 };
 
 const setSession = async (code: string, session: GameSession, memoryStore: Map<string, GameSession>) => {
   if (redisClient) {
-    await redisClient.set(sessionKey(code), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
-    return;
+    try {
+      await redisClient.set(sessionKey(code), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
+      return;
+    } catch (error) {
+      throw new Error('Redis unavailable');
+    }
   }
   memoryStore.set(code, session);
 };
@@ -612,36 +626,43 @@ export async function POST(req: NextRequest) {
       { status: 503 }
     );
   }
-  const body = await req.json().catch(() => ({}));
-  const type = body?.type as string | undefined;
-  const payload = body?.payload;
+  try {
+    const body = await req.json().catch(() => ({}));
+    const type = body?.type as string | undefined;
+    const payload = body?.payload;
 
-  if (!type) {
-    return NextResponse.json({ type: 'error', payload: { message: 'Missing type.' } } as SocketMessage, { status: 400 });
-  }
-
-  if (type === 'create_session') {
-    const message = await createSession(payload, memoryStore);
-    return NextResponse.json(message);
-  }
-
-  if (type === 'join_session') {
-    const message = await joinSession(payload, memoryStore);
-    return NextResponse.json(message);
-  }
-
-  if (type === 'request_state') {
-    const session = await getSession(payload?.code, memoryStore);
-    if (!session) {
-      return NextResponse.json({ type: 'error', payload: { message: 'Game not found.' } } as SocketMessage, { status: 404 });
+    if (!type) {
+      return NextResponse.json({ type: 'error', payload: { message: 'Missing type.' } } as SocketMessage, { status: 400 });
     }
-    tickSession(session);
-    await setSession(session.code, session, memoryStore);
-    return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
-  }
 
-  const message = await handleAction(type, payload, memoryStore);
-  return NextResponse.json(message);
+    if (type === 'create_session') {
+      const message = await createSession(payload, memoryStore);
+      return NextResponse.json(message);
+    }
+
+    if (type === 'join_session') {
+      const message = await joinSession(payload, memoryStore);
+      return NextResponse.json(message);
+    }
+
+    if (type === 'request_state') {
+      const session = await getSession(payload?.code, memoryStore);
+      if (!session) {
+        return NextResponse.json({ type: 'error', payload: { message: 'Game not found.' } } as SocketMessage, { status: 404 });
+      }
+      tickSession(session);
+      await setSession(session.code, session, memoryStore);
+      return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
+    }
+
+    const message = await handleAction(type, payload, memoryStore);
+    return NextResponse.json(message);
+  } catch (error) {
+    return NextResponse.json(
+      { type: 'error', payload: { message: 'Game server storage unavailable.' } } as SocketMessage,
+      { status: 503 }
+    );
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -652,16 +673,23 @@ export async function GET(req: NextRequest) {
       { status: 503 }
     );
   }
-  const url = new URL(req.url);
-  const code = url.searchParams.get('code');
-  if (!code) {
-    return NextResponse.json({ type: 'error', payload: { message: 'Missing code.' } } as SocketMessage, { status: 400 });
+  try {
+    const url = new URL(req.url);
+    const code = url.searchParams.get('code');
+    if (!code) {
+      return NextResponse.json({ type: 'error', payload: { message: 'Missing code.' } } as SocketMessage, { status: 400 });
+    }
+    const session = await getSession(code, memoryStore);
+    if (!session) {
+      return NextResponse.json({ type: 'error', payload: { message: 'Game not found.' } } as SocketMessage, { status: 404 });
+    }
+    tickSession(session);
+    await setSession(code, session, memoryStore);
+    return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
+  } catch (error) {
+    return NextResponse.json(
+      { type: 'error', payload: { message: 'Game server storage unavailable.' } } as SocketMessage,
+      { status: 503 }
+    );
   }
-  const session = await getSession(code, memoryStore);
-  if (!session) {
-    return NextResponse.json({ type: 'error', payload: { message: 'Game not found.' } } as SocketMessage, { status: 404 });
-  }
-  tickSession(session);
-  await setSession(code, session, memoryStore);
-  return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
 }
