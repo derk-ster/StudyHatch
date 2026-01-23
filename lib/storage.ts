@@ -3,6 +3,7 @@ import { addUserClassroom, getCurrentSession, getUserById, removeClassroomFromAl
 
 const STORAGE_KEY = 'spanish-vocab-progress';
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
+const DECKS_BACKUP_STORAGE_KEY = 'spanish-vocab-decks-backup';
 const CLASSROOMS_STORAGE_KEY = 'studyhatch-classrooms';
 const PUBLISHED_DECKS_STORAGE_KEY = 'studyhatch-published-decks';
 const SCHOOLS_STORAGE_KEY = 'studyhatch-schools';
@@ -17,6 +18,41 @@ const getDeckStorageKey = (): string => {
     return `${DECKS_STORAGE_KEY}-${session.userId}`;
   }
   return DECKS_STORAGE_KEY;
+};
+
+const getDeckBackupStorageKey = (): string => {
+  if (typeof window === 'undefined') return DECKS_BACKUP_STORAGE_KEY;
+  const session = getCurrentSession();
+  if (session?.userId && !session.isGuest) {
+    return `${DECKS_BACKUP_STORAGE_KEY}-${session.userId}`;
+  }
+  return DECKS_BACKUP_STORAGE_KEY;
+};
+
+export const backupDecks = (): void => {
+  if (typeof window === 'undefined') return;
+  const decks = getAllDecks();
+  if (decks.length === 0) return;
+  try {
+    localStorage.setItem(getDeckBackupStorageKey(), JSON.stringify(decks));
+  } catch (error) {
+    console.error('Error backing up decks:', error);
+  }
+};
+
+export const restoreDecksFromBackup = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const existing = getAllDecks();
+  if (existing.length > 0) return false;
+  try {
+    const stored = localStorage.getItem(getDeckBackupStorageKey());
+    if (!stored) return false;
+    localStorage.setItem(getDeckStorageKey(), stored);
+    return true;
+  } catch (error) {
+    console.error('Error restoring decks:', error);
+    return false;
+  }
 };
 
 export const getProgress = (): UserProgress => {

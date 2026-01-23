@@ -19,7 +19,7 @@ import {
   setStoredHostKey,
   setStoredPlayerId,
 } from '@/lib/games/session-store';
-import { getAllDecks, getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass, getDeckById } from '@/lib/storage';
+import { backupDecks, getAllDecks, getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass, getDeckById, restoreDecksFromBackup } from '@/lib/storage';
 import type { ClassRoom, Deck } from '@/types/vocab';
 import type { DirectionSetting, GameMode } from '@/types/games';
 import { WORD_HEIST_MODE } from '@/lib/games/engines/word-heist';
@@ -54,11 +54,15 @@ export default function GamesPage() {
   const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (restoreDecksFromBackup()) {
+      // ensure state refresh after restore
+    }
     const loaded = getAllDecks();
     setDecks(loaded);
     if (!hostDeckId && loaded.length > 0) {
       setHostDeckId(loaded[0].id);
     }
+    backupDecks();
   }, [hostDeckId]);
 
   useEffect(() => {
