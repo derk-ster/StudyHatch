@@ -86,6 +86,12 @@ const hasRedisUrl = Boolean(process.env.REDIS_URL);
 const isVercel = Boolean(process.env.VERCEL);
 const sessionKey = (code: string) => `game:${code}`;
 
+const storageErrorMessage = (error: unknown) => {
+  const code = (error as { code?: string } | null)?.code;
+  const suffix = code ? ` (code: ${code})` : '';
+  return `Game server storage unavailable. Verify REDIS_URL and TLS.${suffix}`;
+};
+
 const redisClient = (() => {
   if (!hasRedisUrl) return null;
   const rawUrl = process.env.REDIS_URL as string;
@@ -111,7 +117,7 @@ const getSession = async (code: string, memoryStore: Map<string, GameSession>) =
       if (!value) return null;
       return JSON.parse(value) as GameSession;
     } catch (error) {
-      throw new Error('Redis unavailable');
+      throw error;
     }
   }
   return memoryStore.get(code) ?? null;
@@ -123,7 +129,7 @@ const setSession = async (code: string, session: GameSession, memoryStore: Map<s
       await redisClient.set(sessionKey(code), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
       return;
     } catch (error) {
-      throw new Error('Redis unavailable');
+      throw error;
     }
   }
   memoryStore.set(code, session);
@@ -662,8 +668,9 @@ export async function POST(req: NextRequest) {
     const message = await handleAction(type, payload, memoryStore);
     return NextResponse.json(message);
   } catch (error) {
+    console.error('Game storage error (POST)', error);
     return NextResponse.json(
-      { type: 'error', payload: { message: 'Game server storage unavailable.' } } as SocketMessage,
+      { type: 'error', payload: { message: storageErrorMessage(error) } } as SocketMessage,
       { status: 503 }
     );
   }
@@ -691,8 +698,9 @@ export async function GET(req: NextRequest) {
     await setSession(code, session, memoryStore);
     return NextResponse.json({ type: 'session_state', payload: serializeSession(session) } as SocketMessage);
   } catch (error) {
+    console.error('Game storage error (GET)', error);
     return NextResponse.json(
-      { type: 'error', payload: { message: 'Game server storage unavailable.' } } as SocketMessage,
+      { type: 'error', payload: { message: storageErrorMessage(error) } } as SocketMessage,
       { status: 503 }
     );
   }
