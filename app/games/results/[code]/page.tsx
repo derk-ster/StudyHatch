@@ -162,6 +162,14 @@ export default function GameResultsPage() {
   return (
     <GameShell title="Results" subtitle="Final standings and stats.">
       {error && <p className="text-red-300 mb-4">{error}</p>}
+      <div className="mb-4 flex justify-end">
+        <button
+          onClick={handleExit}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold"
+        >
+          Close
+        </button>
+      </div>
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Leaderboard session={session} />
         <div className="space-y-4">
