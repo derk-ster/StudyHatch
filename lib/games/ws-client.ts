@@ -104,7 +104,7 @@ export const createGameSocket = (options: GameSocketOptions) => {
     if (!shouldReconnect) return;
     if (currentIndex >= urls.length) {
       polling = true;
-      options.onOpen?.();
+      window.setTimeout(() => options.onOpen?.(), 0);
       return;
     }
     const url = urls[currentIndex];
