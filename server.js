@@ -605,11 +605,22 @@ setInterval(sweepSessions, 5 * 60 * 1000);
 
 app.prepare().then(() => {
   const server = http.createServer((req, res) => handle(req, res));
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocket.Server({ noServer: true });
+  const upgradeHandler = app.getUpgradeHandler();
 
   wss.on('connection', (ws) => {
     ws.on('message', (data) => handleMessage(ws, data));
     ws.on('close', () => handleDisconnect(ws));
+  });
+
+  server.on('upgrade', (req, socket, head) => {
+    if (req.url && req.url.startsWith('/games')) {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+      });
+      return;
+    }
+    upgradeHandler(req, socket, head);
   });
 
   server.listen(port, (err) => {

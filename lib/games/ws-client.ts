@@ -9,21 +9,26 @@ type GameSocketOptions = {
   onError?: (event: Event) => void;
 };
 
+const withGamesPath = (url: string) => {
+  const trimmed = url.replace(/\/$/, '');
+  return trimmed.endsWith('/games') ? trimmed : `${trimmed}/games`;
+};
+
 const getWebSocketUrls = () => {
   if (typeof window === 'undefined') return [];
   const urls = new Set<string>();
   const envUrl = process.env.NEXT_PUBLIC_WS_URL;
-  if (envUrl) urls.add(envUrl);
+  if (envUrl) urls.add(withGamesPath(envUrl));
 
   const origin = window.location.origin;
   if (origin.startsWith('http')) {
-    urls.add(origin.replace(/^http/, 'ws'));
+    urls.add(withGamesPath(origin.replace(/^http/, 'ws')));
   }
 
   const { hostname, protocol, port } = window.location;
   if ((hostname === 'localhost' || hostname === '127.0.0.1') && port !== '3001') {
     const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-    urls.add(`${wsProtocol}//${hostname}:3001`);
+    urls.add(withGamesPath(`${wsProtocol}//${hostname}:3001`));
   }
 
   return Array.from(urls);
@@ -98,12 +103,8 @@ export const createGameSocket = (options: GameSocketOptions) => {
   const connect = () => {
     if (!shouldReconnect) return;
     if (currentIndex >= urls.length) {
-      if (usePollingOnly) {
-        polling = true;
-        options.onOpen?.();
-        return;
-      }
-      options.onError?.(new Event('error'));
+      polling = true;
+      options.onOpen?.();
       return;
     }
     const url = urls[currentIndex];
