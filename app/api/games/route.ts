@@ -112,10 +112,27 @@ const redisClient = (() => {
   });
 })();
 
+let redisConnectPromise: Promise<void> | null = null;
+
+if (redisClient) {
+  redisClient.on('end', () => {
+    redisConnectPromise = null;
+  });
+}
+
 const ensureRedisConnected = async () => {
   if (!redisClient) return;
-  if (redisClient.status === 'ready' || redisClient.status === 'connecting') return;
-  await redisClient.connect();
+  if (redisClient.status === 'ready') return;
+  if (!redisConnectPromise) {
+    redisConnectPromise = redisClient.connect().catch((error) => {
+      redisConnectPromise = null;
+      throw error;
+    });
+  }
+  await redisConnectPromise;
+  if (redisClient.status !== 'ready') {
+    throw new Error('Redis not ready');
+  }
 };
 
 const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
