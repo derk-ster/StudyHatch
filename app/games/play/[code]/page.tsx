@@ -35,7 +35,10 @@ export default function GamePlayPage() {
   const [countdown, setCountdown] = useState<number>(0);
   const [stealMode, setStealMode] = useState(false);
   const [decisionLocked, setDecisionLocked] = useState(false);
+  const [decisionVisible, setDecisionVisible] = useState(false);
+  const [gameTimeLeft, setGameTimeLeft] = useState<string | null>(null);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
+  const decisionIndexRef = useRef<number | null>(null);
   const countdownSeconds = 3;
 
   useEffect(() => {
@@ -121,6 +124,21 @@ export default function GamePlayPage() {
     return () => clearInterval(interval);
   }, [session?.startedAt, countdownSeconds]);
 
+  useEffect(() => {
+    if (!session?.startedAt || !session.settings.gameDurationMinutes) {
+      setGameTimeLeft(null);
+      return;
+    }
+    const endAt = session.startedAt + session.settings.gameDurationMinutes * 60 * 1000;
+    const interval = setInterval(() => {
+      const remainingMs = Math.max(0, endAt - Date.now());
+      const minutes = Math.floor(remainingMs / 60000);
+      const seconds = Math.floor((remainingMs % 60000) / 1000);
+      setGameTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [session?.startedAt, session?.settings?.gameDurationMinutes]);
+
   const player = useMemo(
     () => session?.players.find(p => p.id === playerId) || null,
     [session, playerId]
@@ -133,22 +151,31 @@ export default function GamePlayPage() {
     }
   }, [player?.pendingDecision]);
 
+  useEffect(() => {
+    if (!player) return;
+    if (decisionIndexRef.current === null) {
+      decisionIndexRef.current = player.currentIndex;
+    }
+    if (player.pendingDecision) {
+      setDecisionVisible(true);
+    } else if (decisionVisible && player.currentIndex !== decisionIndexRef.current) {
+      setDecisionVisible(false);
+    }
+    decisionIndexRef.current = player.currentIndex;
+  }, [player?.pendingDecision, player?.currentIndex, decisionVisible]);
+
   const isHost = playerId === session?.hostId;
   const hasAnswered = session?.modeState?.answers?.[playerId || ''] || false;
   const timeRemaining = useMemo(() => {
     if (!session) return null;
     if (session.settings.gameDurationMinutes && session.startedAt) {
-      const endAt = session.startedAt + session.settings.gameDurationMinutes * 60 * 1000;
-      const remainingMs = Math.max(0, endAt - Date.now());
-      const minutes = Math.floor(remainingMs / 60000);
-      const seconds = Math.floor((remainingMs % 60000) / 1000);
-      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      return gameTimeLeft ?? '0:00';
     }
     if (session.mode !== 'word-heist') {
       return `${Math.max(0, timeLeft).toFixed(0)}s`;
     }
     return null;
-  }, [session, timeLeft]);
+  }, [session, timeLeft, gameTimeLeft]);
 
   const currentCard = useMemo(() => {
     if (!session) return null;
@@ -296,6 +323,7 @@ export default function GamePlayPage() {
               players={session.players}
               playerId={playerId}
               stealMode={stealMode}
+              decisionVisible={decisionVisible}
               decisionLocked={decisionLocked}
               onBank={handleBank}
               onRisk={handleRisk}

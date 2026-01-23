@@ -7,6 +7,7 @@ type WordHeistPanelProps = {
   players: GamePlayer[];
   playerId: string | null;
   stealMode: boolean;
+  decisionVisible: boolean;
   decisionLocked: boolean;
   onBank: () => void;
   onRisk: () => void;
@@ -20,6 +21,7 @@ export default function WordHeistPanel({
   players,
   playerId,
   stealMode,
+  decisionVisible,
   decisionLocked,
   onBank,
   onRisk,
@@ -49,7 +51,7 @@ export default function WordHeistPanel({
         </div>
       )}
 
-      {player.pendingDecision && !stealMode && (
+      {decisionVisible && !stealMode && (
         <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
           <p className="text-white/70 text-sm">Choose your next move:</p>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -78,7 +80,7 @@ export default function WordHeistPanel({
         </div>
       )}
 
-      {player.pendingDecision && stealMode && (
+      {decisionVisible && stealMode && (
         <div className="rounded-lg border border-blue-400/30 bg-blue-500/10 p-4 space-y-3">
           <p className="text-white/70 text-sm">Pick someone to steal from (50% chance):</p>
           <div className="grid gap-2 sm:grid-cols-2">
