@@ -54,7 +54,7 @@ const getPrimaryLabel = (mode: GameMode) => {
 };
 
 export default function Leaderboard({ session, title }: LeaderboardProps) {
-  const entries = buildLeaderboard(session);
+  const entries = buildLeaderboard(session).slice(0, 5);
   const primaryLabel = getPrimaryLabel(session.mode);
 
   return (

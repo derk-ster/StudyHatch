@@ -34,6 +34,7 @@ export default function GamePlayPage() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [countdown, setCountdown] = useState<number>(0);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
+  const countdownSeconds = 3;
 
   useEffect(() => {
     setPlayerId(getStoredPlayerId(code, storageScope));
@@ -109,14 +110,14 @@ export default function GamePlayPage() {
     }
     const interval = setInterval(() => {
       const elapsed = Date.now() - (session.startedAt || 0);
-      const remaining = Math.max(0, 3 - Math.floor(elapsed / 1000));
+      const remaining = Math.max(0, countdownSeconds - Math.floor(elapsed / 1000));
       setCountdown(remaining);
       if (remaining === 0) {
         clearInterval(interval);
       }
     }, 250);
     return () => clearInterval(interval);
-  }, [session?.startedAt]);
+  }, [session?.startedAt, countdownSeconds]);
 
   const player = useMemo(
     () => session?.players.find(p => p.id === playerId) || null,
@@ -125,6 +126,20 @@ export default function GamePlayPage() {
 
   const isHost = playerId === session?.hostId;
   const hasAnswered = session?.modeState?.answers?.[playerId || ''] || false;
+  const timeRemaining = useMemo(() => {
+    if (!session) return null;
+    if (session.settings.gameDurationMinutes && session.startedAt) {
+      const endAt = session.startedAt + session.settings.gameDurationMinutes * 60 * 1000;
+      const remainingMs = Math.max(0, endAt - Date.now());
+      const minutes = Math.floor(remainingMs / 60000);
+      const seconds = Math.floor((remainingMs % 60000) / 1000);
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    if (session.mode !== 'word-heist') {
+      return `${Math.max(0, timeLeft).toFixed(0)}s`;
+    }
+    return null;
+  }, [session, timeLeft]);
 
   const currentCard = useMemo(() => {
     if (!session) return null;
@@ -261,14 +276,19 @@ export default function GamePlayPage() {
 
         <div className="space-y-6">
           <Leaderboard session={session} />
-          {isHost && (
-            <button
-              onClick={handleEnd}
-              className="w-full py-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white font-semibold"
-            >
-              End Game
-            </button>
-          )}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+            <div className="text-white/80 text-sm">
+              Time Remaining: <span className="font-semibold">{timeRemaining ?? '—'}</span>
+            </div>
+            {isHost && (
+              <button
+                onClick={handleEnd}
+                className="w-full py-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white font-semibold"
+              >
+                End Game
+              </button>
+            )}
+          </div>
           {player?.lastEvent && (
             <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-white/80">
               {player.lastEvent}

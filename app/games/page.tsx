@@ -215,10 +215,11 @@ export default function GamesPage() {
     setHostError('');
     const scope = session?.userId || 'guest';
     const hostKey = getStoredHostKey(resumeHostCode, scope);
+    clearLastHostCode(scope);
+    clearLastGameCode(scope);
+    setResumeHostCode(null);
+    setResumeJoinCode(null);
     if (!hostKey) {
-      clearLastHostCode(scope);
-      clearLastGameCode(scope);
-      setResumeHostCode(null);
       return;
     }
     const socket = createGameSocket({
@@ -235,10 +236,6 @@ export default function GamesPage() {
         }
         if (message.type === 'session_state') {
           socket.close();
-          clearLastHostCode(scope);
-          clearLastGameCode(scope);
-          setResumeHostCode(null);
-          setResumeJoinCode(null);
         }
       },
       onOpen: () => {
@@ -250,10 +247,6 @@ export default function GamesPage() {
         });
       },
       onError: () => {
-        clearLastHostCode(scope);
-        clearLastGameCode(scope);
-        setResumeHostCode(null);
-        setResumeJoinCode(null);
       },
     });
   };
