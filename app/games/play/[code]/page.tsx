@@ -93,13 +93,6 @@ export default function GamePlayPage() {
   }, [session, router, storageScope]);
 
   useEffect(() => {
-    if (!player?.pendingDecision) {
-      setStealMode(false);
-      setDecisionLocked(false);
-    }
-  }, [player?.pendingDecision]);
-
-  useEffect(() => {
     if (!session?.modeState?.roundEndAt) {
       setTimeLeft(0);
       return;
@@ -132,6 +125,13 @@ export default function GamePlayPage() {
     () => session?.players.find(p => p.id === playerId) || null,
     [session, playerId]
   );
+
+  useEffect(() => {
+    if (!player?.pendingDecision) {
+      setStealMode(false);
+      setDecisionLocked(false);
+    }
+  }, [player?.pendingDecision]);
 
   const isHost = playerId === session?.hostId;
   const hasAnswered = session?.modeState?.answers?.[playerId || ''] || false;
