@@ -894,6 +894,14 @@ export const cancelAISubscription = (): void => {
 
 // Daily usage tracking
 const DAILY_USAGE_KEY = 'spanish-vocab-daily-usage';
+const getDailyUsageKey = (): string => {
+  if (typeof window === 'undefined') return DAILY_USAGE_KEY;
+  const session = getCurrentSession();
+  if (session?.userId && !session.isGuest) {
+    return `${DAILY_USAGE_KEY}-${session.userId}`;
+  }
+  return DAILY_USAGE_KEY;
+};
 const DAILY_RESET_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 export type DailyUsage = {
@@ -920,7 +928,7 @@ export const getDailyUsage = (): DailyUsage => {
   }
   
   try {
-    const stored = localStorage.getItem(DAILY_USAGE_KEY);
+    const stored = localStorage.getItem(getDailyUsageKey());
     if (stored) {
       const usage: DailyUsage = JSON.parse(stored);
       const now = Date.now();
@@ -937,7 +945,7 @@ export const getDailyUsage = (): DailyUsage => {
           editedDeckIdToday: null,
           deckSavesToday: 0,
         };
-        localStorage.setItem(DAILY_USAGE_KEY, JSON.stringify(resetUsage));
+        localStorage.setItem(getDailyUsageKey(), JSON.stringify(resetUsage));
         return resetUsage;
       }
       
@@ -979,7 +987,7 @@ export const saveDailyUsage = (usage: DailyUsage): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.setItem(DAILY_USAGE_KEY, JSON.stringify(usage));
+    localStorage.setItem(getDailyUsageKey(), JSON.stringify(usage));
   } catch (error) {
     console.error('Error saving daily usage:', error);
   }
