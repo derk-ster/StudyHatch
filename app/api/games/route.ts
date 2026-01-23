@@ -112,9 +112,16 @@ const redisClient = (() => {
   });
 })();
 
+const ensureRedisConnected = async () => {
+  if (!redisClient) return;
+  if (redisClient.status === 'ready' || redisClient.status === 'connecting') return;
+  await redisClient.connect();
+};
+
 const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
   if (redisClient) {
     try {
+      await ensureRedisConnected();
       const value = await redisClient.get(sessionKey(code));
       if (!value) return null;
       return JSON.parse(value) as GameSession;
@@ -128,6 +135,7 @@ const getSession = async (code: string, memoryStore: Map<string, GameSession>) =
 const setSession = async (code: string, session: GameSession, memoryStore: Map<string, GameSession>) => {
   if (redisClient) {
     try {
+      await ensureRedisConnected();
       await redisClient.set(sessionKey(code), JSON.stringify(session), 'EX', SESSION_TTL_SECONDS);
       return;
     } catch (error) {
