@@ -97,6 +97,7 @@ export default function GameResultsPage() {
           name,
           userId: authSession?.isGuest ? null : authSession?.userId,
           hostKey,
+          allowEnded: true,
         });
       },
     });

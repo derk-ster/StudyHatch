@@ -624,7 +624,7 @@ const joinSession = async (payload: any, memoryStore: Map<string, GameSession>):
   if (!session) {
     return { type: 'error', payload: { message: 'Game not found.' } };
   }
-  if (session.status === 'ended') {
+  if (session.status === 'ended' && !payload?.allowEnded) {
     return { type: 'error', payload: { message: 'Game has ended.' } };
   }
 

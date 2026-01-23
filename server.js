@@ -518,13 +518,13 @@ const createSession = (payload, ws) => {
 };
 
 const joinSession = (payload, ws) => {
-  const { code, name, userId, hostKey } = payload || {};
+  const { code, name, userId, hostKey, allowEnded } = payload || {};
   const session = sessions.get(code);
   if (!session) {
     sendMessage(ws, 'error', { message: 'Game not found.' });
     return;
   }
-  if (session.status === 'ended') {
+  if (session.status === 'ended' && !allowEnded) {
     sendMessage(ws, 'error', { message: 'Game has ended.' });
     return;
   }
