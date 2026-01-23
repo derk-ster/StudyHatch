@@ -122,7 +122,8 @@ if (redisClient) {
 
 const ensureRedisConnected = async () => {
   if (!redisClient) return;
-  if (redisClient.status === 'ready') return;
+  const status = redisClient.status as string;
+  if (status === 'ready') return;
   if (!redisConnectPromise) {
     redisConnectPromise = redisClient.connect().catch((error) => {
       redisConnectPromise = null;
@@ -130,7 +131,7 @@ const ensureRedisConnected = async () => {
     });
   }
   await redisConnectPromise;
-  if (redisClient.status !== 'ready') {
+  if ((redisClient.status as string) !== 'ready') {
     throw new Error('Redis not ready');
   }
 };
