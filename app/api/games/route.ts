@@ -104,36 +104,42 @@ const redisClient = (() => {
   return new Redis(url, {
     maxRetriesPerRequest: 1,
     enableReadyCheck: true,
-    enableOfflineQueue: false,
-    lazyConnect: true,
-    connectTimeout: 3000,
-    commandTimeout: 3000,
+    enableOfflineQueue: true,
+    lazyConnect: false,
+    connectTimeout: 5000,
+    commandTimeout: 5000,
     ...(useTls ? { tls: {} } : {}),
   });
 })();
 
-let redisConnectPromise: Promise<void> | null = null;
-
-if (redisClient) {
-  redisClient.on('end', () => {
-    redisConnectPromise = null;
+const waitForRedisReady = () =>
+  new Promise<void>((resolve, reject) => {
+    if (!redisClient) return resolve();
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (error: unknown) => {
+      cleanup();
+      reject(error);
+    };
+    const cleanup = () => {
+      redisClient.off('ready', onReady);
+      redisClient.off('error', onError);
+    };
+    redisClient.once('ready', onReady);
+    redisClient.once('error', onError);
   });
-}
 
 const ensureRedisConnected = async () => {
   if (!redisClient) return;
   const status = redisClient.status as string;
   if (status === 'ready') return;
-  if (!redisConnectPromise) {
-    redisConnectPromise = redisClient.connect().catch((error) => {
-      redisConnectPromise = null;
-      throw error;
-    });
+  if (status === 'connecting' || status === 'connect' || status === 'reconnecting') {
+    await waitForRedisReady();
+    return;
   }
-  await redisConnectPromise;
-  if ((redisClient.status as string) !== 'ready') {
-    throw new Error('Redis not ready');
-  }
+  await waitForRedisReady();
 };
 
 const getSession = async (code: string, memoryStore: Map<string, GameSession>) => {
