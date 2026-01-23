@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import GameShell from '@/components/games/GameShell';
 import Leaderboard from '@/components/games/Leaderboard';
@@ -14,6 +14,7 @@ import {
   clearLastHostCode,
   clearStoredGame,
   getStoredHostKey,
+  getStoredPlayerId,
   setStoredHostKey,
   setStoredPlayerId,
 } from '@/lib/games/session-store';
@@ -61,6 +62,7 @@ export default function GameResultsPage() {
   const storageScope = authSession?.userId || 'guest';
   const [session, setSession] = useState<GameSession | null>(null);
   const [error, setError] = useState('');
+  const [playerId, setPlayerId] = useState<string | null>(null);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
 
   useEffect(() => {
@@ -78,6 +80,7 @@ export default function GameResultsPage() {
         }
         if (message.type === 'session_joined') {
           setStoredPlayerId(message.payload.code, message.payload.playerId, storageScope);
+          setPlayerId(message.payload.playerId);
           if (message.payload.hostKey) {
             setStoredHostKey(message.payload.code, message.payload.hostKey, storageScope);
           }
@@ -100,6 +103,34 @@ export default function GameResultsPage() {
     socketRef.current = socket;
     return () => socket.close();
   }, [code, authSession?.userId, authSession?.username, authSession?.isGuest, storageScope]);
+
+  useEffect(() => {
+    setPlayerId(getStoredPlayerId(code, storageScope));
+  }, [code, storageScope]);
+
+  const player = useMemo(
+    () => session?.players.find(p => p.id === playerId) || null,
+    [session, playerId]
+  );
+
+  const totalClaps = useMemo(() => {
+    if (!session) return 0;
+    return session.players.reduce((sum, p) => sum + (p.claps || 0), 0);
+  }, [session]);
+
+  const timeRemaining = useMemo(() => {
+    if (!session?.settings?.gameDurationMinutes || !session.startedAt) return null;
+    const endAt = session.startedAt + session.settings.gameDurationMinutes * 60 * 1000;
+    const remainingMs = Math.max(0, endAt - (session.endedAt || Date.now()));
+    const minutes = Math.floor(remainingMs / 60000);
+    const seconds = Math.floor((remainingMs % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }, [session]);
+
+  const handleClap = () => {
+    if (!playerId) return;
+    socketRef.current?.send('clap', { code, playerId });
+  };
 
   const handleExport = () => {
     if (!session) return;
@@ -133,20 +164,54 @@ export default function GameResultsPage() {
       {error && <p className="text-red-300 mb-4">{error}</p>}
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Leaderboard session={session} />
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
-          <p className="text-white/70 text-sm uppercase tracking-wide">Actions</p>
-          <button
-            onClick={handleExport}
-            className="w-full py-2 rounded-lg bg-blue-500/80 hover:bg-blue-500 text-white font-semibold"
-          >
-            Export Leaderboard CSV
-          </button>
-          <button
-            onClick={handleExit}
-            className="w-full py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold"
-          >
-            Back to Games
-          </button>
+        <div className="space-y-4">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+            <p className="text-white/70 text-sm uppercase tracking-wide">Final Snapshot</p>
+            <div className="flex justify-between text-white/80 text-sm">
+              <span>Game Duration</span>
+              <span className="font-semibold">
+                {session.settings.gameDurationMinutes ? `${session.settings.gameDurationMinutes} min` : 'No limit'}
+              </span>
+            </div>
+            <div className="flex justify-between text-white/80 text-sm">
+              <span>Time Remaining</span>
+              <span className="font-semibold">{timeRemaining ?? '—'}</span>
+            </div>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+            <p className="text-white/70 text-sm uppercase tracking-wide">Claps</p>
+            <div className="flex items-center justify-between text-white/80 text-sm">
+              <span>Your Claps</span>
+              <span className="font-semibold">{player?.claps ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-white/80 text-sm">
+              <span>Total Claps</span>
+              <span className="font-semibold">{totalClaps}</span>
+            </div>
+            <button
+              onClick={handleClap}
+              className="w-full py-2 rounded-lg bg-emerald-500/90 hover:bg-emerald-500 text-white font-semibold"
+            >
+              👏 Clap
+            </button>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
+            <p className="text-white/70 text-sm uppercase tracking-wide">Actions</p>
+            <button
+              onClick={handleExport}
+              className="w-full py-2 rounded-lg bg-blue-500/80 hover:bg-blue-500 text-white font-semibold"
+            >
+              Export Leaderboard CSV
+            </button>
+            <button
+              onClick={handleExit}
+              className="w-full py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </GameShell>

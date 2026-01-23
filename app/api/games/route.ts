@@ -32,6 +32,7 @@ type GamePlayer = {
   currentIndex: number;
   pendingDecision: boolean;
   lastEvent: string | null;
+  claps: number;
 };
 
 type GameSession = {
@@ -245,6 +246,7 @@ const createPlayer = ({ name, userId, isHost }: { name?: string; userId?: string
   currentIndex: 0,
   pendingDecision: false,
   lastEvent: null,
+  claps: 0,
 });
 
 const serializeSession = (session: GameSession) => ({
@@ -381,6 +383,7 @@ const startGame = (session: GameSession) => {
     player.currentIndex = 0;
     player.pendingDecision = false;
     player.lastEvent = null;
+    player.claps = 0;
   });
   if (session.mode === 'word-heist') {
     session.modeState = {
@@ -653,6 +656,12 @@ const handleAction = async (type: string, payload: any, memoryStore: Map<string,
     if (player.id === session.hostId) {
       session.status = 'ended';
       session.endedAt = Date.now();
+    }
+  }
+
+  if (type === 'clap') {
+    if (session.status === 'ended') {
+      player.claps += 1;
     }
   }
 

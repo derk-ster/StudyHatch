@@ -94,6 +94,7 @@ const createPlayer = ({ name, userId, isHost }) => ({
   currentIndex: 0,
   pendingDecision: false,
   lastEvent: null,
+  claps: 0,
 });
 
 const serializeSession = (session) => {
@@ -122,6 +123,7 @@ const serializeSession = (session) => {
     currentIndex: player.currentIndex,
     pendingDecision: player.pendingDecision,
     lastEvent: player.lastEvent,
+    claps: player.claps,
   }));
   return {
     code: session.code,
@@ -135,6 +137,7 @@ const serializeSession = (session) => {
       direction: session.settings.direction,
       timePerQuestion: session.settings.timePerQuestion,
       maxPlayers: session.settings.maxPlayers,
+      gameDurationMinutes: session.settings.gameDurationMinutes,
       classroomOnly: session.settings.classroomOnly,
       classroomId: session.settings.classroomId,
     },
@@ -299,6 +302,7 @@ const startGame = (session) => {
     player.currentIndex = 0;
     player.pendingDecision = false;
     player.lastEvent = null;
+    player.claps = 0;
   });
   if (session.mode === 'word-heist') {
     session.modeState = { roundIndex: 0 };
@@ -567,6 +571,13 @@ const handleMessage = (ws, raw) => {
     session.status = 'ended';
     session.endedAt = Date.now();
     clearRoundTimer(session);
+    broadcastSession(session);
+    return;
+  }
+
+  if (type === 'clap') {
+    if (session.status !== 'ended') return;
+    player.claps += 1;
     broadcastSession(session);
     return;
   }

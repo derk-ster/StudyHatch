@@ -33,6 +33,7 @@ export type GamePlayer = {
   currentIndex: number;
   pendingDecision: boolean;
   lastEvent: string | null;
+  claps: number;
 };
 
 export type GameModeState = {
