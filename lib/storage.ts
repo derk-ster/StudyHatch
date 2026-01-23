@@ -278,6 +278,7 @@ export const saveDeck = (deck: Deck): void => {
   if (typeof window === 'undefined') return;
   
   try {
+    const session = getCurrentSession();
     const decks = getAllDecks();
     const existingIndex = decks.findIndex(d => d.id === deck.id);
     const existingDeck = existingIndex >= 0 ? decks[existingIndex] : undefined;
@@ -287,7 +288,7 @@ export const saveDeck = (deck: Deck): void => {
       ...deck,
       targetLanguage: deck.targetLanguage || 'es', // Default to Spanish for old decks
       visibility: deck.visibility || 'private',
-      ownerUserId: deck.ownerUserId ?? existingDeck?.ownerUserId,
+      ownerUserId: deck.ownerUserId ?? existingDeck?.ownerUserId ?? (session?.isGuest ? undefined : session?.userId),
       schoolId: deck.schoolId ?? existingDeck?.schoolId,
     };
     

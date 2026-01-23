@@ -34,6 +34,7 @@ export type GamePlayer = {
   pendingDecision: boolean;
   lastEvent: string | null;
   claps: number;
+  lastEventTone?: 'positive' | 'negative';
 };
 
 export type GameModeState = {

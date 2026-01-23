@@ -94,6 +94,7 @@ const createPlayer = ({ name, userId, isHost }) => ({
   currentIndex: 0,
   pendingDecision: false,
   lastEvent: null,
+  lastEventTone: undefined,
   claps: 0,
 });
 
@@ -123,6 +124,7 @@ const serializeSession = (session) => {
     currentIndex: player.currentIndex,
     pendingDecision: player.pendingDecision,
     lastEvent: player.lastEvent,
+    lastEventTone: player.lastEventTone,
     claps: player.claps,
   }));
   return {
@@ -244,6 +246,7 @@ const handleHeistChoice = (session, player, choice) => {
     player.bankedKeys += player.unbankedKeys;
     player.unbankedKeys = 0;
     player.lastEvent = 'Banked keys safely.';
+    player.lastEventTone = 'positive';
   } else if (choice === 'risk') {
     const outcomes = ['steal', 'double', 'lose-half', 'shield'];
     const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
@@ -253,29 +256,76 @@ const handleHeistChoice = (session, player, choice) => {
       );
       if (victims.length === 0) {
         player.lastEvent = 'Heist failed. No keys to steal.';
+        player.lastEventTone = 'negative';
       } else {
         const victim = victims[Math.floor(Math.random() * victims.length)];
         if (victim.shielded) {
           victim.shielded = false;
           player.lastEvent = `${victim.name} blocked your heist!`;
+          player.lastEventTone = 'negative';
           victim.lastEvent = 'Shield blocked a heist attempt.';
+          victim.lastEventTone = 'positive';
         } else {
           const stealAmount = Math.max(1, Math.min(2, victim.unbankedKeys));
           victim.unbankedKeys -= stealAmount;
           player.unbankedKeys += stealAmount;
           player.lastEvent = `Stole ${stealAmount} key${stealAmount === 1 ? '' : 's'} from ${victim.name}.`;
+          player.lastEventTone = 'positive';
           victim.lastEvent = `${player.name} stole ${stealAmount} key${stealAmount === 1 ? '' : 's'} from you.`;
+          victim.lastEventTone = 'negative';
         }
       }
     } else if (outcome === 'double') {
       player.unbankedKeys = Math.max(1, player.unbankedKeys) * 2;
       player.lastEvent = 'Doubled your unbanked keys!';
+      player.lastEventTone = 'positive';
     } else if (outcome === 'lose-half') {
       player.unbankedKeys = Math.floor(player.unbankedKeys / 2);
       player.lastEvent = 'Lost half your unbanked keys.';
+      player.lastEventTone = 'negative';
     } else if (outcome === 'shield') {
       player.shielded = true;
       player.lastEvent = 'Shield active: block one heist.';
+      player.lastEventTone = 'positive';
+    }
+  }
+  player.pendingDecision = false;
+  player.currentIndex += 1;
+  const cards = session.deck?.cards || [];
+  const finished = cards.length > 0 && Object.values(session.players).every(p => p.currentIndex >= cards.length);
+  if (finished) {
+    session.status = 'ended';
+    session.endedAt = Date.now();
+  }
+};
+
+const handleHeistSteal = (session, player, targetId) => {
+  if (!player.pendingDecision) return;
+  const target = targetId ? session.players[targetId] : null;
+  if (!target || target.id === player.id) {
+    player.lastEvent = 'Select a valid target to steal from.';
+    player.lastEventTone = 'negative';
+  } else if (target.shielded) {
+    target.shielded = false;
+    player.lastEvent = `${target.name} blocked your steal attempt.`;
+    player.lastEventTone = 'negative';
+    target.lastEvent = 'Shield blocked a steal attempt.';
+    target.lastEventTone = 'positive';
+  } else if (target.bankedKeys <= 0) {
+    player.lastEvent = `${target.name} has no banked keys to steal.`;
+    player.lastEventTone = 'negative';
+  } else {
+    const success = Math.random() < 0.5;
+    if (success) {
+      target.bankedKeys -= 1;
+      player.bankedKeys += 1;
+      player.lastEvent = `Stole 1 banked key from ${target.name}!`;
+      player.lastEventTone = 'positive';
+      target.lastEvent = `${player.name} stole 1 of your banked keys.`;
+      target.lastEventTone = 'negative';
+    } else {
+      player.lastEvent = `Steal failed against ${target.name}.`;
+      player.lastEventTone = 'negative';
     }
   }
   player.pendingDecision = false;
@@ -302,6 +352,7 @@ const startGame = (session) => {
     player.currentIndex = 0;
     player.pendingDecision = false;
     player.lastEvent = null;
+    player.lastEventTone = undefined;
     player.claps = 0;
   });
   if (session.mode === 'word-heist') {
@@ -335,10 +386,12 @@ const handleAnswer = (session, player, answer, answerTimeMs) => {
       player.stats.correct += 1;
       player.unbankedKeys += 1;
       player.pendingDecision = true;
-      player.lastEvent = 'Correct! Bank or risk your keys.';
+      player.lastEvent = 'Correct! Bank, risk, or steal.';
+      player.lastEventTone = 'positive';
     } else {
       player.stats.incorrect += 1;
       player.lastEvent = 'Incorrect. Next card.';
+      player.lastEventTone = 'negative';
       player.currentIndex += 1;
       const finished = Object.values(session.players).every(p => p.currentIndex >= cards.length);
       if (finished) {
@@ -369,6 +422,7 @@ const handleAnswer = (session, player, answer, answerTimeMs) => {
       const jump = 1 + speedBonus;
       player.ladderPosition = Math.min(LADDER_TOP, player.ladderPosition + jump);
       player.lastEvent = `+${jump} rung${jump === 1 ? '' : 's'}!`;
+      player.lastEventTone = 'positive';
       if (player.ladderPosition >= LADDER_TOP) {
         session.status = 'ended';
         session.endedAt = Date.now();
@@ -377,15 +431,18 @@ const handleAnswer = (session, player, answer, answerTimeMs) => {
     } else if (session.mode === 'survival-sprint') {
       player.score += 10 + speedBonus * 5;
       player.lastEvent = `Speed bonus +${speedBonus * 5} points!`;
+      player.lastEventTone = 'positive';
     }
   } else {
     player.stats.incorrect += 1;
     if (session.mode === 'lightning-ladder') {
       player.ladderPosition = Math.max(0, player.ladderPosition - 1);
       player.lastEvent = 'Dropped 1 rung.';
+      player.lastEventTone = 'negative';
     } else if (session.mode === 'survival-sprint') {
       player.hearts = Math.max(0, player.hearts - 1);
       player.lastEvent = player.hearts === 0 ? 'Eliminated.' : 'Lost a heart.';
+      player.lastEventTone = 'negative';
     }
   }
 
@@ -590,6 +647,13 @@ const handleMessage = (ws, raw) => {
   if (type === 'word_heist_choice') {
     if (session.mode !== 'word-heist') return;
     handleHeistChoice(session, player, payload?.choice);
+    broadcastSession(session);
+    return;
+  }
+
+  if (type === 'word_heist_steal') {
+    if (session.mode !== 'word-heist') return;
+    handleHeistSteal(session, player, payload?.targetId);
     broadcastSession(session);
     return;
   }

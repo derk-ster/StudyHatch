@@ -70,7 +70,7 @@ export default function ViewDecksPage() {
     const allDecks = getAllDecks();
     setDecks(allDecks);
     setPersonalDecks(allDecks);
-  }, []);
+  }, [session?.userId, session?.isGuest]);
 
   useEffect(() => {
     if (session?.userId) {

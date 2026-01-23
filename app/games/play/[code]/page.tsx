@@ -33,6 +33,8 @@ export default function GamePlayPage() {
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [countdown, setCountdown] = useState<number>(0);
+  const [stealMode, setStealMode] = useState(false);
+  const [decisionLocked, setDecisionLocked] = useState(false);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const countdownSeconds = 3;
 
@@ -89,6 +91,13 @@ export default function GamePlayPage() {
       router.push(`/games/results/${session.code}`);
     }
   }, [session, router, storageScope]);
+
+  useEffect(() => {
+    if (!player?.pendingDecision) {
+      setStealMode(false);
+      setDecisionLocked(false);
+    }
+  }, [player?.pendingDecision]);
 
   useEffect(() => {
     if (!session?.modeState?.roundEndAt) {
@@ -174,11 +183,26 @@ export default function GamePlayPage() {
 
   const handleBank = () => {
     if (!playerId) return;
+    setDecisionLocked(true);
     socketRef.current?.send('word_heist_choice', { code, playerId, choice: 'bank' });
   };
   const handleRisk = () => {
     if (!playerId) return;
+    setDecisionLocked(true);
     socketRef.current?.send('word_heist_choice', { code, playerId, choice: 'risk' });
+  };
+  const handleStealStart = () => {
+    if (!playerId) return;
+    setStealMode(true);
+  };
+  const handleStealCancel = () => {
+    setStealMode(false);
+  };
+  const handleStealTarget = (targetId: string) => {
+    if (!playerId) return;
+    setDecisionLocked(true);
+    setStealMode(false);
+    socketRef.current?.send('word_heist_steal', { code, playerId, targetId });
   };
   const handleResume = () => {
     if (!playerId) return;
@@ -267,7 +291,18 @@ export default function GamePlayPage() {
           </div>
 
           {session.mode === 'word-heist' && player && (
-            <WordHeistPanel player={player} onBank={handleBank} onRisk={handleRisk} />
+            <WordHeistPanel
+              player={player}
+              players={session.players}
+              playerId={playerId}
+              stealMode={stealMode}
+              decisionLocked={decisionLocked}
+              onBank={handleBank}
+              onRisk={handleRisk}
+              onStealStart={handleStealStart}
+              onStealTarget={handleStealTarget}
+              onStealCancel={handleStealCancel}
+            />
           )}
 
           {session.mode === 'lightning-ladder' && <LightningLadderPanel session={session} />}
@@ -290,7 +325,15 @@ export default function GamePlayPage() {
             )}
           </div>
           {player?.lastEvent && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-white/80">
+            <div
+              className={`rounded-xl p-4 border ${
+                player.lastEventTone === 'positive'
+                  ? 'text-emerald-100 bg-emerald-500/15 border-emerald-400/30'
+                  : player.lastEventTone === 'negative'
+                    ? 'text-rose-100 bg-rose-500/15 border-rose-400/30'
+                    : 'text-white/80 bg-white/5 border-white/10'
+              }`}
+            >
               {player.lastEvent}
             </div>
           )}
