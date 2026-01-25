@@ -150,7 +150,7 @@ export default function FlashcardsPage() {
   useEffect(() => {
     const indices = filteredCards.map((_, i) => i);
     setShuffledIndices(indices);
-  }, [filteredCards]);
+  }, [deckId, filteredCards.length]);
 
   const actualIndex = shuffledIndices.length > 0 && shuffledIndices[currentIndex] !== undefined 
     ? shuffledIndices[currentIndex] 
@@ -253,23 +253,23 @@ export default function FlashcardsPage() {
 
   const handleShuffle = () => {
     if (!deck || filteredCards.length === 0) return;
-    
-    const indices = Array.from({ length: filteredCards.length }, (_, i) => i);
-    // Fisher-Yates shuffle algorithm
-    for (let i = indices.length - 1; i > 0; i--) {
+
+    const currentOrder = shuffledIndices.length > 0
+      ? [...shuffledIndices]
+      : Array.from({ length: filteredCards.length }, (_, i) => i);
+
+    const remaining = currentOrder.slice(currentIndex);
+    for (let i = remaining.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
+      [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
     }
-    
-    setShuffledIndices(indices);
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setSessionStarredCards(new Set());
-    setMarkedCards(new Set());
-    setCardStates(new Map());
-    setFlashingCard(null);
-    setLastClickedCard(null);
-    setShowResults(false);
+
+    const nextOrder = [
+      ...currentOrder.slice(0, currentIndex),
+      ...remaining,
+    ];
+
+    setShuffledIndices(nextOrder);
   };
 
   const handleStar = () => {
@@ -362,7 +362,7 @@ export default function FlashcardsPage() {
       <Nav />
       <main className="max-w-4xl mx-auto px-4 py-12" style={{ position: 'relative', zIndex: 1 }}>
         {/* Header */}
-        <div className="mb-8 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20 relative" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="mb-8 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20 relative z-10">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold mb-2">Flashcards</h1>
@@ -383,7 +383,7 @@ export default function FlashcardsPage() {
               ← Back to Activities
             </button>
           </div>
-          <div className="flex flex-wrap gap-4 items-center" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="flex flex-wrap gap-4 items-center relative z-10">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -411,15 +411,7 @@ export default function FlashcardsPage() {
               <span className="text-sm cursor-pointer">{targetLanguageName} First</span>
             </label>
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleShuffle();
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
+              onClick={handleShuffle}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm cursor-pointer"
               type="button"
             >
@@ -429,7 +421,7 @@ export default function FlashcardsPage() {
         </div>
 
         {/* Card */}
-        <div className="relative mb-8 w-full max-w-2xl mx-auto" style={{ zIndex: 1 }}>
+        <div className="relative mb-8 w-full max-w-2xl mx-auto z-10">
           <div
             className={`flip-card bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow min-h-[500px] h-[500px] cursor-pointer ${
               isFlipped ? 'flipped' : ''
@@ -513,7 +505,7 @@ export default function FlashcardsPage() {
         </div>
 
         {/* Card Actions */}
-        <div className="flex flex-wrap gap-4 justify-center mb-6">
+        <div className="flex flex-wrap gap-4 justify-center mb-6 relative z-10">
           <button
             onClick={handleStar}
             disabled={isMarked}
@@ -556,7 +548,7 @@ export default function FlashcardsPage() {
         </div>
 
         {/* Actions */}
-        <div className="flex flex-wrap gap-4 justify-center">
+        <div className="flex flex-wrap gap-4 justify-center relative z-10">
           <button
             onClick={handlePrev}
             className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"

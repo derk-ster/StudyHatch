@@ -121,18 +121,22 @@ a[class*='rounded']:active {
   
   .flip-card-front {
     opacity: 1;
+    pointer-events: auto;
   }
   
   .flip-card-back {
     opacity: 0;
+    pointer-events: none;
   }
   
   .flip-card.flipped .flip-card-front {
     opacity: 0;
+    pointer-events: none;
   }
   
   .flip-card.flipped .flip-card-back {
     opacity: 1;
+    pointer-events: auto;
   }
   
   .animate-fade-in {
