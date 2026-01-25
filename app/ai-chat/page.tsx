@@ -266,12 +266,12 @@ export default function AIChatPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder={aiEnabled ? "Ask me anything about your vocabulary..." : "AI tutor disabled by your teacher"}
-              disabled={!canSend.allowed || isLoading || !aiEnabled}
+              disabled={!canSend.allowed || isLoading}
               className="flex-1 px-4 py-3 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               onClick={handleSend}
-              disabled={!canSend.allowed || isLoading || !input.trim() || !aiEnabled}
+              disabled={!canSend.allowed || isLoading || !input.trim()}
               className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? '...' : 'Send'}
