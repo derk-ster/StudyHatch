@@ -7,6 +7,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_APP_VERSION || `local-${Date.now()}`,
     NEXT_PUBLIC_BASE_PATH: basePath,
+    NEXT_PUBLIC_SCHOOL_MODE: process.env.SCHOOL_MODE || process.env.NEXT_PUBLIC_SCHOOL_MODE || 'false',
   },
   async redirects() {
     if (!basePath) {

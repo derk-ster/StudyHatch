@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 // Simple payment verification endpoint
 // In production, you'd verify against Cash App transactions
@@ -15,6 +16,9 @@ function generatePaymentCode(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    if (isSchoolModeEnabled()) {
+      return NextResponse.json({ error: 'Payments are disabled in School Edition.' }, { status: 403 });
+    }
     const body = await request.json();
     const { action, plan, code } = body;
 

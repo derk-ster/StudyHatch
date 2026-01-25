@@ -60,6 +60,15 @@ export type ClassMembership = {
   joinedAt: number;
 };
 
+export type ClassSettings = {
+  classId: string;
+  aiTutorEnabled: boolean;
+  studentDecksEnabled: boolean;
+  multiplayerEnabled: boolean;
+  updatedAt: number;
+  updatedBy?: string;
+};
+
 export type Language = {
   code: string;
   name: string;

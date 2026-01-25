@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { updatePassword } from '@/lib/auth';
 import { getSubscriptionInfo, isPremium } from '@/lib/storage';
 import { usePWA } from '@/components/PWAProvider';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function AccountPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [premiumStatus, setPremiumStatus] = useState(false);
   const [aiSubscription, setAiSubscription] = useState(getSubscriptionInfo());
+  const schoolMode = isSchoolModeEnabled();
 
   useEffect(() => {
     if (session?.isGuest) {
@@ -121,30 +123,36 @@ export default function AccountPage() {
           {/* Subscription Status */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
             <h2 className="text-2xl font-bold mb-6 text-white">Subscriptions</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
-                <div>
-                  <p className="text-white/90 font-medium">Premium</p>
-                  <p className="text-white/60 text-sm">
-                    {premiumStatus ? 'Active' : 'Not active'}
-                  </p>
+            {schoolMode ? (
+              <p className="text-white/70 text-sm">
+                School Edition disables payments and subscriptions. All classroom features are included.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
+                  <div>
+                    <p className="text-white/90 font-medium">Premium</p>
+                    <p className="text-white/60 text-sm">
+                      {premiumStatus ? 'Active' : 'Not active'}
+                    </p>
+                  </div>
+                  <span className={`text-sm font-semibold ${premiumStatus ? 'text-green-300' : 'text-white/40'}`}>
+                    {premiumStatus ? 'Enabled' : 'Inactive'}
+                  </span>
                 </div>
-                <span className={`text-sm font-semibold ${premiumStatus ? 'text-green-300' : 'text-white/40'}`}>
-                  {premiumStatus ? 'Enabled' : 'Inactive'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
-                <div>
-                  <p className="text-white/90 font-medium">AI Chat Monthly</p>
-                  <p className="text-white/60 text-sm">
-                    {aiSubscription.isActive ? `Active • ${aiSubscription.daysRemaining} day${aiSubscription.daysRemaining !== 1 ? 's' : ''} left` : 'Not active'}
-                  </p>
+                <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
+                  <div>
+                    <p className="text-white/90 font-medium">AI Chat Monthly</p>
+                    <p className="text-white/60 text-sm">
+                      {aiSubscription.isActive ? `Active • ${aiSubscription.daysRemaining} day${aiSubscription.daysRemaining !== 1 ? 's' : ''} left` : 'Not active'}
+                    </p>
+                  </div>
+                  <span className={`text-sm font-semibold ${aiSubscription.isActive ? 'text-green-300' : 'text-white/40'}`}>
+                    {aiSubscription.isActive ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
-                <span className={`text-sm font-semibold ${aiSubscription.isActive ? 'text-green-300' : 'text-white/40'}`}>
-                  {aiSubscription.isActive ? 'Active' : 'Inactive'}
-                </span>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Resources */}
@@ -167,6 +175,20 @@ export default function AccountPage() {
                 Public Decks
               </Link>
             </div>
+          </div>
+
+          {/* Data & Privacy */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
+            <h2 className="text-2xl font-bold mb-4 text-white">Data & Privacy</h2>
+            <p className="text-white/70 mb-4">
+              Request deletion of your account data or student records associated with your classroom.
+            </p>
+            <a
+              href="mailto:admin@studyhatch.org?subject=StudyHatch%20Data%20Deletion%20Request"
+              className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-all"
+            >
+              Request Data Deletion
+            </a>
           </div>
 
           {/* Install StudyHatch */}

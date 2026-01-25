@@ -599,7 +599,7 @@ export default function FlashcardsPage() {
               <h2 className="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
                 Session Complete!
               </h2>
-              <p className="text-white/70">Here's how you did</p>
+              <p className="text-white/70">Here&apos;s how you did</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-6">

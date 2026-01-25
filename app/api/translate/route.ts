@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMockTranslation } from '@/lib/mock-translations';
+import { sanitizeArray, sanitizeText } from '@/lib/sanitize';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { englishWords, targetLanguage } = body;
+    const safeWords = Array.isArray(englishWords) ? sanitizeArray(englishWords) : [];
+    const safeTargetLanguage = typeof targetLanguage === 'string' ? sanitizeText(targetLanguage).toLowerCase() : '';
 
-    if (!englishWords || !Array.isArray(englishWords) || englishWords.length === 0) {
+    if (!safeWords.length) {
       return NextResponse.json(
         { error: 'English words array is required' },
         { status: 400 }
       );
     }
 
-    if (!targetLanguage || typeof targetLanguage !== 'string') {
+    if (!safeTargetLanguage) {
       return NextResponse.json(
         { error: 'Target language is required' },
         { status: 400 }
@@ -21,8 +24,8 @@ export async function POST(request: NextRequest) {
     }
 
     // If target language is English, skip translation
-    if (targetLanguage === 'en') {
-      const noTranslation = englishWords.map((word: string) => ({
+    if (safeTargetLanguage === 'en') {
+      const noTranslation = safeWords.map((word: string) => ({
         english: word.trim(),
         translation: word.trim(),
       }));
@@ -41,14 +44,14 @@ export async function POST(request: NextRequest) {
     );
 
     // Get language code for mock translation
-    const langCode = targetLanguage.toLowerCase();
+    const langCode = safeTargetLanguage.toLowerCase();
 
     // If no API key, try LibreTranslate public API (free, no key required)
     if (!hasApiKey) {
       try {
         // Try LibreTranslate public API first (free, no API key needed)
         const translations = await Promise.all(
-          englishWords.map(async (word: string) => {
+          safeWords.map(async (word: string) => {
             const trimmedWord = word.trim();
             
             // First try dictionary lookup
@@ -162,7 +165,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.error('Translation error:', error);
         // Fallback to dictionary-only
-        const mockTranslations = englishWords.map((word: string) => {
+        const mockTranslations = safeWords.map((word: string) => {
           const trimmedWord = word.trim();
           const betterTranslation = getMockTranslation(trimmedWord, langCode);
           return {
@@ -243,7 +246,7 @@ export async function POST(request: NextRequest) {
     // Fallback: Try LibreTranslate if other APIs fail
     try {
       const translations = await Promise.all(
-        englishWords.map(async (word: string) => {
+      safeWords.map(async (word: string) => {
           const trimmedWord = word.trim();
           
           // Try dictionary first
@@ -333,7 +336,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('Translation fallback error:', error);
       // Final fallback
-      const mockTranslations = englishWords.map((word: string) => {
+      const mockTranslations = safeWords.map((word: string) => {
         const trimmedWord = word.trim();
         const betterTranslation = getMockTranslation(trimmedWord, langCode);
         return {

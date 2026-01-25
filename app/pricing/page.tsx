@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Nav from '@/components/Nav';
 import { isPremium, getUserLimits, getAllDecks, getDailyUsage, hasAISubscription, cancelAISubscription, getSubscriptionInfo } from '@/lib/storage';
 import PaymentMethodSelector from '@/components/PaymentMethodSelector';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 export default function PricingPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +21,7 @@ export default function PricingPage() {
   const dailyUsage = getDailyUsage();
   const hasAISub = hasAISubscription();
   const subscriptionInfo = getSubscriptionInfo();
+  const schoolMode = isSchoolModeEnabled();
 
   const handleUpgrade = async () => {
     setSelectedPlan('premium');
@@ -42,6 +44,18 @@ export default function PricingPage() {
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-6xl mx-auto px-4 py-12">
+        {schoolMode && (
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 card-glow text-center">
+            <h1 className="text-4xl font-bold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+              School Edition
+            </h1>
+            <p className="text-white/70">
+              Payments and subscriptions are disabled in School Edition. All learning features are included for classroom use.
+            </p>
+          </div>
+        )}
+        {!schoolMode && (
+          <>
         {/* Subscription Expiration Reminder */}
         {subscriptionInfo.isExpired && (
           <div className="mb-8 bg-red-500/20 border-2 border-red-500/50 rounded-xl p-6 backdrop-blur-md">
@@ -311,7 +325,7 @@ export default function PricingPage() {
           {limits.maxDecks !== Infinity && (decks.length >= limits.maxDecks || totalCards >= limits.maxCards) && (
             <div className="mt-6 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
               <p className="text-yellow-400 font-medium">
-                ⚠️ You've reached the free limit. Upgrade to Premium to create more decks and cards!
+                ⚠️ You&apos;ve reached the free limit. Upgrade to Premium to create more decks and cards!
               </p>
             </div>
           )}
@@ -339,7 +353,7 @@ export default function PricingPage() {
             <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-white/20 card-glow animate-slide-up">
               <h2 className="text-2xl font-bold mb-4">Cancel AI Chat Subscription?</h2>
               <p className="text-white/70 mb-6">
-                Your subscription will remain active until the end of your current billing period. After that, you'll have access to 5 free AI messages per day.
+                Your subscription will remain active until the end of your current billing period. After that, you&apos;ll have access to 5 free AI messages per day.
               </p>
               <div className="flex gap-4">
                 <button
@@ -357,6 +371,8 @@ export default function PricingPage() {
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
     </div>

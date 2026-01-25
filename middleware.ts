@@ -27,8 +27,11 @@ export function middleware(request: NextRequest) {
     // Fail open to avoid blocking requests if middleware throws.
     return NextResponse.next();
   }
-
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if ((process.env.SCHOOL_MODE || '').toLowerCase() === 'true') {
+    response.headers.set('x-school-mode', 'true');
+  }
+  return response;
 }
 
 export const config = {

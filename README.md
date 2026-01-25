@@ -13,6 +13,15 @@ A modern, interactive vocabulary study application inspired by StudyStack, featu
 - **Word Scramble**: Unscramble words with hints
 - **AI Chat**: Chat with AI assistant for study help, explanations, and practice (5 free messages/day, unlimited with subscription)
 
+### School Edition (FERPA/COPPA)
+- **School Mode Flag**: Enable School Edition with `SCHOOL_MODE=true`
+- **No Ads / No Data Sales**: No advertising or data selling
+- **Teacher Controls**: Per-class toggles for AI tutor, student deck creation, and multiplayer games
+- **AI Tutor Safety**: Hints-only responses when enabled by teachers
+- **Private Multiplayer**: Teacher-hosted, classroom-only sessions
+- **Activity Logs**: View student activity logs in the Teacher Dashboard
+- **Request Data Deletion**: Built-in data deletion request link
+
 ### User-Generated Decks
 - **Create Custom Decks**: Paste English words (comma or newline separated) and automatically generate translations in your chosen language
 - **Multiple Languages**: Support for 10+ languages (Spanish, French, Mandarin, Hindi, Arabic, and more)
@@ -25,6 +34,7 @@ A modern, interactive vocabulary study application inspired by StudyStack, featu
 - **Free Tier**: 5 AI messages per day
 - **Subscription**: $1.99/month for unlimited AI chat access
 - **Context-Aware**: AI can reference your decks and provide personalized study assistance
+  - **School Edition**: AI tutor provides hints only (no direct answers)
 
 ### Progress Tracking
 - Track learned words, starred favorites, and learning status per deck
@@ -45,6 +55,12 @@ A modern, interactive vocabulary study application inspired by StudyStack, featu
 - **TypeScript**
 - **Tailwind CSS**
 - **React 18**
+
+## Security Notes
+
+- Passwords are hashed with PBKDF2 in the local demo store (no plaintext passwords).
+- For production school deployments, replace the demo auth with a managed provider
+  (Supabase/Firebase/NextAuth) and server-side JWT/session enforcement.
 
 ## Getting Started
 
@@ -138,6 +154,19 @@ Spanish_Project_Website/
 
 ### Environment Variables
 
+#### School Edition Mode
+
+Enable School Edition (FERPA/COPPA-safe classroom mode):
+
+```env
+SCHOOL_MODE=true
+```
+
+Vercel instructions:
+1. Go to your project settings → Environment Variables
+2. Add `SCHOOL_MODE` with value `true`
+3. Redeploy to apply changes
+
 #### Optional: Translation API Keys
 
 To enable real Spanish translations (instead of mock translations), add one of the following to `.env.local`:
@@ -223,6 +252,16 @@ ANTHROPIC_API_KEY=sk-ant-your_anthropic_api_key_here
 - Vocabulary quizzes & practice
 - Learning tips & strategies
 - Cancel anytime
+
+### School Edition Compliance
+
+When `SCHOOL_MODE=true`:
+- Payments and subscriptions are disabled
+- AI tutor is off by default and must be enabled per class
+- AI tutor provides hints only
+- Multiplayer is classroom-only and teacher hosted
+- Privacy and Terms pages are available at `/privacy` and `/terms`
+- Data deletion requests can be submitted via `admin@studyhatch.org`
 
 To upgrade, visit the Pricing page. Stripe integration is scaffolded but requires API keys to be configured.
 

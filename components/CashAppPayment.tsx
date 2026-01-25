@@ -135,7 +135,7 @@ export default function CashAppPayment({ plan, amount, cashAppTag, onSuccess, on
             <div className="bg-white/5 rounded-lg p-4">
               <h3 className="font-bold mb-3">How to pay:</h3>
               <ol className="list-decimal list-inside space-y-2 text-white/80 text-sm">
-                <li>Click "Generate Payment Code" below</li>
+                <li>Click &quot;Generate Payment Code&quot; below</li>
                 <li>Open Cash App on your phone</li>
                 <li>Send ${amount.toFixed(2)} to <span className="font-bold text-green-400">{cashAppTagFromAPI || '$StudyHatch01'}</span></li>
                 <li>Include the payment code in the note/memo</li>

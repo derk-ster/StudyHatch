@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 // Mock Stripe checkout session creation
 // In production, uncomment and configure Stripe:
@@ -12,6 +13,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    if (isSchoolModeEnabled()) {
+      return NextResponse.json({ error: 'Payments are disabled in School Edition.' }, { status: 403 });
+    }
     // In production, create a Stripe checkout session:
     /*
     const session = await stripe.checkout.sessions.create({

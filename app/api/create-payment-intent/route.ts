@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 export async function POST(request: NextRequest) {
   try {
+    if (isSchoolModeEnabled()) {
+      return NextResponse.json({ error: 'Payments are disabled in School Edition.' }, { status: 403 });
+    }
     // Check if Stripe is configured
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     

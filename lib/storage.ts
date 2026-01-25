@@ -1,5 +1,6 @@
-import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership } from '@/types/vocab';
+import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership, ClassSettings } from '@/types/vocab';
 import { addUserClassroom, getCurrentSession, getUserById, removeClassroomFromAllUsers, setUserSchool } from './auth';
+import { isSchoolModeEnabled } from './school-mode';
 
 const STORAGE_KEY = 'spanish-vocab-progress';
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
@@ -10,6 +11,7 @@ const SCHOOLS_STORAGE_KEY = 'studyhatch-schools';
 const CLASSES_STORAGE_KEY = 'studyhatch-classes';
 const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
 const CLASS_DECKS_STORAGE_KEY = 'studyhatch-class-decks';
+const CLASS_SETTINGS_STORAGE_KEY = 'studyhatch-class-settings';
 
 const getDeckStorageKey = (): string => {
   if (typeof window === 'undefined') return DECKS_STORAGE_KEY;
@@ -508,6 +510,76 @@ export const getStudentsForClass = (classId: string): { userId: string; username
     .filter(Boolean) as { userId: string; username: string }[];
 };
 
+const getDefaultClassSettings = (classId: string): ClassSettings => ({
+  classId,
+  aiTutorEnabled: false,
+  studentDecksEnabled: false,
+  multiplayerEnabled: false,
+  updatedAt: Date.now(),
+});
+
+const getAllClassSettings = (): Record<string, ClassSettings> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem(CLASS_SETTINGS_STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as Record<string, ClassSettings>) : {};
+  } catch (error) {
+    return {};
+  }
+};
+
+const saveAllClassSettings = (settings: Record<string, ClassSettings>): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(CLASS_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error('Error saving class settings:', error);
+  }
+};
+
+export const getClassSettings = (classId: string): ClassSettings => {
+  const all = getAllClassSettings();
+  return all[classId] || getDefaultClassSettings(classId);
+};
+
+export const setClassSettings = (classId: string, updates: Partial<ClassSettings>, updatedBy?: string): ClassSettings => {
+  const all = getAllClassSettings();
+  const current = all[classId] || getDefaultClassSettings(classId);
+  const updated: ClassSettings = {
+    ...current,
+    ...updates,
+    classId,
+    updatedAt: Date.now(),
+    updatedBy: updatedBy ?? current.updatedBy,
+  };
+  all[classId] = updated;
+  saveAllClassSettings(all);
+  return updated;
+};
+
+export const getEffectiveClassSettingsForUser = (userId: string, role: 'teacher' | 'student' | 'guest'): ClassSettings => {
+  if (role === 'guest') {
+    return getDefaultClassSettings('guest');
+  }
+  const classes = role === 'teacher'
+    ? (() => {
+      const school = getSchoolForUser(userId);
+      return school ? getClassesForSchool(school.id) : [];
+    })()
+    : getClassesForStudent(userId);
+  if (classes.length === 0) {
+    return getDefaultClassSettings('none');
+  }
+  const settings = classes.map(cls => getClassSettings(cls.id));
+  return {
+    classId: 'aggregate',
+    aiTutorEnabled: settings.some(entry => entry.aiTutorEnabled),
+    studentDecksEnabled: settings.some(entry => entry.studentDecksEnabled),
+    multiplayerEnabled: settings.some(entry => entry.multiplayerEnabled),
+    updatedAt: Date.now(),
+  };
+};
+
 export type ClassPublishedDeck = {
   deckId: string;
   classId: string;
@@ -765,6 +837,7 @@ export const isPremium = (): boolean => {
   if (typeof window === 'undefined') return false;
   
   try {
+    if (isSchoolModeEnabled()) return true;
     const session = getCurrentSession();
     if (session?.role === 'teacher') return true;
     const premium = localStorage.getItem('spanish-vocab-premium');
@@ -779,6 +852,7 @@ export const setPremium = (isPremium: boolean): void => {
   if (typeof window === 'undefined') return;
   
   try {
+    if (isSchoolModeEnabled()) return;
     if (isPremium) {
       localStorage.setItem('spanish-vocab-premium', 'true');
     } else {
@@ -794,6 +868,7 @@ export const hasAISubscription = (): boolean => {
   if (typeof window === 'undefined') return false;
   
   try {
+    if (isSchoolModeEnabled()) return true;
     const subscription = localStorage.getItem('ai-chat-subscription');
     if (!subscription) return false;
     
@@ -826,6 +901,9 @@ export const getSubscriptionInfo = (): {
   }
   
   try {
+    if (isSchoolModeEnabled()) {
+      return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
+    }
     const subscription = localStorage.getItem('ai-chat-subscription');
     if (!subscription) {
       return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
@@ -865,6 +943,7 @@ export const setAISubscription = (status: 'active' | 'cancelled', expiresAt: num
   if (typeof window === 'undefined') return;
   
   try {
+    if (isSchoolModeEnabled()) return;
     localStorage.setItem('ai-chat-subscription', JSON.stringify({
       status,
       expiresAt,
@@ -880,6 +959,7 @@ export const cancelAISubscription = (): void => {
   if (typeof window === 'undefined') return;
   
   try {
+    if (isSchoolModeEnabled()) return;
     const subscription = localStorage.getItem('ai-chat-subscription');
     if (subscription) {
       const subData = JSON.parse(subscription);
@@ -1068,6 +1148,16 @@ export const getTimeUntilReset = (): number => {
 
 // Get user limits
 export const getUserLimits = () => {
+  if (isSchoolModeEnabled()) {
+    return {
+      maxDecks: Infinity,
+      maxCards: Infinity,
+      dailyTranslationLimit: Infinity,
+      dailyDeckLimit: Infinity,
+      dailyAILimit: Infinity,
+      dailySearchLimit: Infinity,
+    };
+  }
   const premium = isPremium();
   return {
     maxDecks: premium ? Infinity : 10, // Free users: 10 decks

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 // Mock Stripe subscription cancellation
 // In production, uncomment and configure Stripe:
@@ -12,6 +13,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    if (isSchoolModeEnabled()) {
+      return NextResponse.json({ error: 'Subscriptions are disabled in School Edition.' }, { status: 403 });
+    }
     const body = await request.json();
     const { subscriptionId } = body;
 

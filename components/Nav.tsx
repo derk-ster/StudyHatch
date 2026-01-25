@@ -6,8 +6,9 @@ import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import LanguageBadge from '@/components/LanguageBadge';
 import { ActivityType } from '@/types/vocab';
-import { getAllDecks, getDeckById, getProgress, updateProgress, hasAISubscription, getDailyUsage, getUserLimits } from '@/lib/storage';
+import { getAllDecks, getDeckById, getProgress, updateProgress, hasAISubscription, getDailyUsage, getUserLimits, getEffectiveClassSettingsForUser } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 export default function Nav() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -15,10 +16,13 @@ export default function Nav() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { session } = useAuth();
+  const schoolMode = isSchoolModeEnabled();
   const [showProgress, setShowProgress] = useState(false);
   const [currentDeck, setCurrentDeck] = useState<string | null>(null);
   const [decks, setDecks] = useState(getAllDecks());
   const progress = getProgress();
+  const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
+  const aiEnabled = !schoolMode || (effectiveSettings?.aiTutorEnabled ?? false);
 
   useEffect(() => {
     const loadedDecks = getAllDecks();
@@ -193,24 +197,30 @@ export default function Nav() {
                   )}
 
                   {/* AI Chat Link */}
-                  <Link
-                    href="/ai-chat"
-                    className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block relative"
-                    style={{ 
-                      position: 'relative', 
-                      zIndex: 99999, 
-                      pointerEvents: 'auto', 
-                      cursor: 'pointer', 
-                      display: 'inline-block',
-                    }}
-                  >
-                    🤖 AI Chat
-                    {!hasAISubscription() && (
-                      <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
-                        {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
-                      </span>
-                    )}
-                  </Link>
+                  {aiEnabled ? (
+                    <Link
+                      href="/ai-chat"
+                      className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block relative"
+                      style={{ 
+                        position: 'relative', 
+                        zIndex: 99999, 
+                        pointerEvents: 'auto', 
+                        cursor: 'pointer', 
+                        display: 'inline-block',
+                      }}
+                    >
+                      🤖 AI Chat
+                      {!schoolMode && !hasAISubscription() && (
+                        <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                          {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
+                        </span>
+                      )}
+                    </Link>
+                  ) : (
+                    <span className="px-4 py-1 rounded-lg bg-white/5 text-white/50 text-sm">
+                      🤖 AI Chat (disabled)
+                    </span>
+                  )}
 
 
                   {/* Login/Account Links */}

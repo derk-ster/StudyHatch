@@ -6,16 +6,21 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { Deck, VocabCard } from '@/types/vocab';
-import { saveDeck, canCreateDeck, canAddCards, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks, getClassesForSchool, getSchoolForUser, publishDeckToClass } from '@/lib/storage';
+import { saveDeck, canCreateDeck, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks, getClassesForSchool, getSchoolForUser, publishDeckToClass, getEffectiveClassSettingsForUser } from '@/lib/storage';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom } from '@/types/vocab';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
+import { checkClientRateLimit, recordClientRateLimit } from '@/lib/client-rate-limit';
+import { sanitizeText } from '@/lib/sanitize';
+import { recordStudentActivityForClasses } from '@/lib/activity-log';
 
 export default function CreateDeckPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { session } = useAuth();
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const schoolMode = isSchoolModeEnabled();
   const [deckName, setDeckName] = useState('');
   const [deckDescription, setDeckDescription] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('es'); // Default to Spanish
@@ -35,6 +40,8 @@ export default function CreateDeckPage() {
   const selectedLanguage = getLanguageByCode(targetLanguage);
   const dailyUsage = getDailyUsage();
   const presetClassId = searchParams.get('classId');
+  const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
+  const studentDecksAllowed = !schoolMode || session?.role === 'teacher' || (effectiveSettings?.studentDecksEnabled ?? false);
 
   useEffect(() => {
     if (session?.role !== 'teacher' || !session.userId) return;
@@ -86,6 +93,10 @@ export default function CreateDeckPage() {
   };
 
   const handleTranslate = async () => {
+    if (!studentDecksAllowed) {
+      setError('Student deck creation is disabled by your teacher.');
+      return;
+    }
     if (!wordsInput.trim()) {
       setError('Please enter at least one word');
       return;
@@ -182,6 +193,17 @@ export default function CreateDeckPage() {
     if (isSavingDeck) {
       return;
     }
+    if (!studentDecksAllowed) {
+      setError('Student deck creation is disabled by your teacher.');
+      return;
+    }
+
+    const rateCheck = checkClientRateLimit('deck-create', 3, 10 * 60 * 1000);
+    if (!rateCheck.allowed) {
+      const minutes = Math.ceil(rateCheck.retryAfterMs / 60000);
+      setError(`Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} before creating another deck.`);
+      return;
+    }
 
     // Validate all required fields (description is optional)
     if (!deckName || !deckName.trim()) {
@@ -206,20 +228,21 @@ export default function CreateDeckPage() {
     // Create deck
     const cards: VocabCard[] = translations.map((trans, index) => ({
       id: `card-${Date.now()}-${index}`,
-      translation: trans.translation.trim(),
-      english: trans.english.trim(),
-      definition: trans.definition?.trim() || undefined,
+      translation: sanitizeText(trans.translation),
+      english: sanitizeText(trans.english),
+      definition: trans.definition ? sanitizeText(trans.definition) : undefined,
       example: undefined,
       category: undefined,
       notes: undefined,
     }));
 
     // Description is optional - use undefined if empty
-    const deckDescriptionValue = deckDescription.trim() || undefined;
+    const deckDescriptionValue = deckDescription.trim() ? sanitizeText(deckDescription) : undefined;
+    const safeDeckName = sanitizeText(deckName);
     
     const deck: Deck = {
       id: `deck-${Date.now()}`,
-      name: deckName.trim(),
+      name: safeDeckName,
       description: deckDescriptionValue, // Can be undefined
       cards,
       createdDate: Date.now(),
@@ -275,6 +298,10 @@ export default function CreateDeckPage() {
       if (entryMode === 'manual') {
         incrementDailyTranslations(translations.length);
       }
+      recordClientRateLimit('deck-create', 10 * 60 * 1000);
+      if (session?.userId) {
+        recordStudentActivityForClasses(session.userId, 'deck_created', `Created deck "${safeDeckName}".`);
+      }
       
       // Show success message
       setShowSuccess(true);
@@ -313,7 +340,7 @@ export default function CreateDeckPage() {
             Create New Deck
           </h1>
           <p className="text-white/70 mb-8">
-            Paste your English words and we'll automatically generate translations
+            Paste your English words and we&apos;ll automatically generate translations
           </p>
 
           {/* Limits Info */}
@@ -340,6 +367,11 @@ export default function CreateDeckPage() {
               </p>
             )}
           </div>
+          {!studentDecksAllowed && (
+            <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-200">
+              Student deck creation is disabled by your teacher.
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg animate-fade-in">
@@ -509,7 +541,7 @@ export default function CreateDeckPage() {
 
                 <button
                   onClick={handleTranslate}
-                  disabled={isCreating || !wordsInput.trim()}
+                  disabled={isCreating || !wordsInput.trim() || !studentDecksAllowed}
                   className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isCreating
@@ -599,7 +631,7 @@ export default function CreateDeckPage() {
                 </button>
                 <button
                   onClick={handleCreateDeck}
-                  disabled={!deckName.trim() || isSavingDeck}
+                  disabled={!deckName.trim() || isSavingDeck || !studentDecksAllowed}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSavingDeck ? 'Creating Deck...' : 'Create Deck'}

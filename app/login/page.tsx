@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { createSchool, getClassByJoinCode, joinClassByCode } from '@/lib/storage';
+import { recordActivity } from '@/lib/activity-log';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,6 +35,9 @@ export default function LoginPage() {
       if (isLogin) {
         const result = await signIn(email, password);
         if (result.success) {
+          if (result.userId) {
+            recordActivity(result.userId, 'login', 'User logged in.');
+          }
           router.push('/');
         } else {
           setError(result.error || 'Login failed');
@@ -62,6 +66,9 @@ export default function LoginPage() {
           if (role === 'teacher') {
             createSchool(schoolName, schoolDescription || undefined, result.userId || '');
             await signIn(email, password);
+            if (result.userId) {
+              recordActivity(result.userId, 'signup', 'Teacher account created.');
+            }
             router.push('/teacher-dashboard');
             return;
           }
@@ -69,6 +76,9 @@ export default function LoginPage() {
             const classCode = extractClassCode(classCodeInput);
             if (result.userId && classCode.trim()) {
               joinClassByCode(result.userId, classCode);
+            }
+            if (result.userId) {
+              recordActivity(result.userId, 'signup', 'Student account created.');
             }
           }
           router.push('/');

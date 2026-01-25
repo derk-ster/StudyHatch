@@ -3,7 +3,6 @@
  * 
  * TODO: Replace with real backend (Supabase/Firebase/NextAuth)
  * - Replace localStorage-based user store with real database
- * - Implement secure password hashing (bcrypt, argon2)
  * - Add JWT tokens or session management
  * - Add email verification
  * - Add password reset flow
@@ -12,12 +11,16 @@
 import { User, AuthSession, AccountData } from '@/types/auth';
 import { UserProgress, Deck } from '@/types/vocab';
 import { getDefaultProgress } from './storage';
+import { checkClientRateLimit, recordClientRateLimit } from './client-rate-limit';
+import { sanitizeText } from './sanitize';
 
 const USERS_STORAGE_KEY = 'studyhatch-users'; // Mock user database
 const CURRENT_SESSION_KEY = 'studyhatch-session';
 const LAST_SESSION_KEY = 'studyhatch-session-last';
+const LOGIN_RATE_LIMIT_WINDOW = 15 * 60 * 1000;
+const LOGIN_RATE_LIMIT_COUNT = 5;
 
-// Simple password hashing (NOT SECURE - replace with bcrypt in production)
+// Legacy simple hash (kept for backward compatibility)
 function simpleHash(password: string): string {
   // TODO: Use bcrypt or similar in production
   let hash = 0;
@@ -29,8 +32,79 @@ function simpleHash(password: string): string {
   return hash.toString();
 }
 
+type PasswordHashV2 = {
+  algorithm: 'pbkdf2-sha256';
+  salt: string;
+  iterations: number;
+  hash: string;
+};
+
+type StoredPassword = string | PasswordHashV2;
+
+const toBase64 = (bytes: Uint8Array): string => {
+  let binary = '';
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+};
+
+const fromBase64 = (value: string): Uint8Array => {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+};
+
+const hashPassword = async (password: string, salt?: Uint8Array): Promise<PasswordHashV2> => {
+  const encoder = new TextEncoder();
+  const usedSalt = salt ?? crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
+  const iterations = 120000;
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: toArrayBuffer(usedSalt), iterations, hash: 'SHA-256' },
+    key,
+    256
+  );
+  return {
+    algorithm: 'pbkdf2-sha256',
+    salt: toBase64(usedSalt),
+    iterations,
+    hash: toBase64(new Uint8Array(derivedBits)),
+  };
+};
+
+const verifyPassword = async (password: string, stored: StoredPassword): Promise<{ valid: boolean; upgradeHash?: PasswordHashV2 }> => {
+  if (typeof stored === 'string') {
+    const legacyMatch = simpleHash(password) === stored;
+    if (!legacyMatch) {
+      return { valid: false };
+    }
+    const upgraded = await hashPassword(password);
+    return { valid: true, upgradeHash: upgraded };
+  }
+  const encoder = new TextEncoder();
+  const saltBytes = fromBase64(stored.salt);
+  const key = await crypto.subtle.importKey('raw', encoder.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: toArrayBuffer(saltBytes), iterations: stored.iterations, hash: 'SHA-256' },
+    key,
+    256
+  );
+  const hash = toBase64(new Uint8Array(derivedBits));
+  return { valid: hash === stored.hash };
+};
+
 // Mock user database (localStorage)
-function getUsers(): Record<string, { user: User; passwordHash: string; accountData: AccountData }> {
+function getUsers(): Record<string, { user: User; passwordHash: StoredPassword; accountData: AccountData }> {
   if (typeof window === 'undefined') return {};
   
   try {
@@ -45,7 +119,7 @@ function getUsers(): Record<string, { user: User; passwordHash: string; accountD
   return {};
 }
 
-function saveUsers(users: Record<string, { user: User; passwordHash: string; accountData: AccountData }>): void {
+function saveUsers(users: Record<string, { user: User; passwordHash: StoredPassword; accountData: AccountData }>): void {
   if (typeof window === 'undefined') return;
   
   try {
@@ -61,14 +135,16 @@ export function signUp(
   password: string,
   role: 'teacher' | 'student' = 'student'
 ): Promise<{ success: boolean; error?: string; user?: User }> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     // Validation
-    if (!email || !email.includes('@')) {
+    const safeEmail = sanitizeText(email);
+    const safeUsername = sanitizeText(username);
+    if (!safeEmail || !safeEmail.includes('@')) {
       resolve({ success: false, error: 'Invalid email address' });
       return;
     }
     
-    if (!username || username.length < 3) {
+    if (!safeUsername || safeUsername.length < 3) {
       resolve({ success: false, error: 'Username must be at least 3 characters' });
       return;
     }
@@ -79,7 +155,7 @@ export function signUp(
     }
     
     const users = getUsers();
-    const emailLower = email.toLowerCase().trim();
+    const emailLower = safeEmail.toLowerCase().trim();
     
     // Check if user exists
     const existingUser = Object.values(users).find(u => u.user.email.toLowerCase() === emailLower);
@@ -88,7 +164,7 @@ export function signUp(
       return;
     }
     
-    const existingUsername = Object.values(users).find(u => u.user.username.toLowerCase() === username.toLowerCase().trim());
+    const existingUsername = Object.values(users).find(u => u.user.username.toLowerCase() === safeUsername.toLowerCase().trim());
     if (existingUsername) {
       resolve({ success: false, error: 'Username already taken' });
       return;
@@ -99,14 +175,14 @@ export function signUp(
     const newUser: User = {
       id: userId,
       email: emailLower,
-      username: username.trim(),
+      username: safeUsername.trim(),
       createdAt: Date.now(),
       lastLoginAt: Date.now(),
       classroomIds: [],
       role,
     };
     
-    const passwordHash = simpleHash(password);
+    const passwordHash = await hashPassword(password);
     
     // Initialize account data
     const accountData: AccountData = {
@@ -136,17 +212,30 @@ export function signUp(
 }
 
 export function signIn(emailOrUsername: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const users = getUsers();
-    const input = emailOrUsername.toLowerCase().trim();
-    const passwordHash = simpleHash(password);
+    const input = sanitizeText(emailOrUsername).toLowerCase().trim();
+    const rateLimit = checkClientRateLimit(`login-${input}`, LOGIN_RATE_LIMIT_COUNT, LOGIN_RATE_LIMIT_WINDOW);
+    if (!rateLimit.allowed) {
+      const minutes = Math.ceil(rateLimit.retryAfterMs / 60000);
+      resolve({ success: false, error: `Too many login attempts. Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.` });
+      return;
+    }
     
     // Try to find user by email OR username
     const userEntry = Object.values(users).find(
-      u => (u.user.email.toLowerCase() === input || u.user.username.toLowerCase() === input) && u.passwordHash === passwordHash
+      u => (u.user.email.toLowerCase() === input || u.user.username.toLowerCase() === input)
     );
     
     if (!userEntry) {
+      recordClientRateLimit(`login-${input}`, LOGIN_RATE_LIMIT_WINDOW);
+      resolve({ success: false, error: 'Invalid email/username or password' });
+      return;
+    }
+
+    const passwordCheck = await verifyPassword(password, userEntry.passwordHash);
+    if (!passwordCheck.valid) {
+      recordClientRateLimit(`login-${input}`, LOGIN_RATE_LIMIT_WINDOW);
       resolve({ success: false, error: 'Invalid email/username or password' });
       return;
     }
@@ -158,6 +247,9 @@ export function signIn(emailOrUsername: string, password: string): Promise<{ suc
     }
     if (userEntry.user.role === 'teacher' && !userEntry.accountData.premium) {
       userEntry.accountData.premium = true;
+    }
+    if (passwordCheck.upgradeHash) {
+      userEntry.passwordHash = passwordCheck.upgradeHash;
     }
     users[userEntry.user.id] = userEntry;
     saveUsers(users);
@@ -283,7 +375,7 @@ export function saveAccountData(userId: string, accountData: AccountData): void 
 }
 
 export function updatePassword(userId: string, oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     if (!newPassword || newPassword.length < 6) {
       resolve({ success: false, error: 'Password must be at least 6 characters' });
       return;
@@ -297,13 +389,13 @@ export function updatePassword(userId: string, oldPassword: string, newPassword:
       return;
     }
     
-    const oldPasswordHash = simpleHash(oldPassword);
-    if (userEntry.passwordHash !== oldPasswordHash) {
+    const passwordCheck = await verifyPassword(oldPassword, userEntry.passwordHash);
+    if (!passwordCheck.valid) {
       resolve({ success: false, error: 'Current password is incorrect' });
       return;
     }
     
-    userEntry.passwordHash = simpleHash(newPassword);
+    userEntry.passwordHash = await hashPassword(newPassword);
     saveUsers(users);
     
     resolve({ success: true });

@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom, Deck, School } from '@/types/vocab';
-import { createClassRoom, getAllDecks, getClassesForSchool, getSchoolForUser, getStudentsForClass, publishDeckToClass } from '@/lib/storage';
+import { createClassRoom, getAllDecks, getClassesForSchool, getSchoolForUser, getStudentsForClass, publishDeckToClass, getClassSettings, setClassSettings } from '@/lib/storage';
+import { getActivityLogForClasses } from '@/lib/activity-log';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 const expirationOptions = [
   { value: '1d', label: '24 hours' },
@@ -44,6 +46,9 @@ export default function TeacherDashboardPage() {
   const [publishSelections, setPublishSelections] = useState<Record<string, { classId: string; expiration: string }>>({});
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [classSettings, setClassSettingsState] = useState<Record<string, ReturnType<typeof getClassSettings>>>({});
+  const [activityLogs, setActivityLogs] = useState(getActivityLogForClasses([]));
+  const schoolMode = isSchoolModeEnabled();
 
   useEffect(() => {
     if (!session?.userId || session.role !== 'teacher') return;
@@ -55,6 +60,29 @@ export default function TeacherDashboardPage() {
     const allDecks = getAllDecks().filter(deck => deck.ownerUserId === session.userId);
     setDecks(allDecks);
   }, [session?.userId, session?.role]);
+
+  useEffect(() => {
+    if (classes.length === 0) {
+      setClassSettingsState({});
+      setActivityLogs(getActivityLogForClasses([]));
+      return;
+    }
+    const updated: Record<string, ReturnType<typeof getClassSettings>> = {};
+    classes.forEach((classroom) => {
+      updated[classroom.id] = getClassSettings(classroom.id);
+    });
+    setClassSettingsState(updated);
+    setActivityLogs(getActivityLogForClasses(classes.map(cls => cls.id)));
+  }, [classes]);
+
+  const handleUpdateClassSetting = (classId: string, key: 'aiTutorEnabled' | 'studentDecksEnabled' | 'multiplayerEnabled', value: boolean) => {
+    const updated = setClassSettings(classId, { [key]: value }, session?.userId);
+    setClassSettingsState(prev => ({ ...prev, [classId]: updated }));
+  };
+
+  const handleRefreshLogs = () => {
+    setActivityLogs(getActivityLogForClasses(classes.map(cls => cls.id)));
+  };
 
   const handleCreateClass = () => {
     if (!school) {
@@ -223,6 +251,63 @@ export default function TeacherDashboardPage() {
             </div>
           </div>
 
+          {schoolMode && (
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10 mb-10">
+              <h2 className="text-xl font-semibold mb-4">School Edition Controls</h2>
+              <p className="text-white/60 text-sm mb-6">
+                Toggle AI tutor, student deck creation, and multiplayer availability for each class.
+              </p>
+              {classes.length === 0 ? (
+                <p className="text-white/50 text-sm">Create a class to configure school settings.</p>
+              ) : (
+                <div className="space-y-4">
+                  {classes.map(classroom => {
+                    const settings = classSettings[classroom.id] || getClassSettings(classroom.id);
+                    return (
+                      <div key={classroom.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="text-white/80 font-medium">{classroom.name}</p>
+                            <p className="text-white/50 text-xs">Join code: {classroom.joinCode}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-white/80">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.aiTutorEnabled}
+                              onChange={(e) => handleUpdateClassSetting(classroom.id, 'aiTutorEnabled', e.target.checked)}
+                              className="h-4 w-4 rounded border-white/20 bg-white/10"
+                            />
+                            Enable AI tutor
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.studentDecksEnabled}
+                              onChange={(e) => handleUpdateClassSetting(classroom.id, 'studentDecksEnabled', e.target.checked)}
+                              className="h-4 w-4 rounded border-white/20 bg-white/10"
+                            />
+                            Allow student deck creation
+                          </label>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={settings.multiplayerEnabled}
+                              onChange={(e) => handleUpdateClassSetting(classroom.id, 'multiplayerEnabled', e.target.checked)}
+                              className="h-4 w-4 rounded border-white/20 bg-white/10"
+                            />
+                            Enable multiplayer games
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="bg-white/5 rounded-xl p-6 border border-white/10">
             <h2 className="text-xl font-semibold mb-4">Classrooms & Students</h2>
             {classes.length === 0 ? (
@@ -254,6 +339,36 @@ export default function TeacherDashboardPage() {
               </div>
             )}
           </div>
+
+          {schoolMode && (
+            <div className="bg-white/5 rounded-xl p-6 border border-white/10 mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Student Activity Logs</h2>
+                <button
+                  onClick={handleRefreshLogs}
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm"
+                >
+                  Refresh
+                </button>
+              </div>
+              {activityLogs.length === 0 ? (
+                <p className="text-white/60 text-sm">No activity logged yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {activityLogs.slice(0, 50).map(log => (
+                    <div key={log.id} className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/80 font-medium">@{log.username}</span>
+                        <span className="text-white/50 text-xs">{new Date(log.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className="text-white/70 mt-1">{log.action}</p>
+                      {log.details && <p className="text-white/50 text-xs mt-1">{log.details}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

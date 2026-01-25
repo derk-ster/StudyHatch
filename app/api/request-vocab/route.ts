@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
+import { sanitizeText } from '@/lib/sanitize';
 
 export async function POST(request: NextRequest) {
   try {
+    if (isSchoolModeEnabled()) {
+      return NextResponse.json({ error: 'Payments are disabled in School Edition.' }, { status: 403 });
+    }
     const body = await request.json();
     const { name, email, vocabRequest, paymentIntentId } = body;
+    const safeName = sanitizeText(String(name || ''));
+    const safeEmail = sanitizeText(String(email || ''));
+    const safeRequest = sanitizeText(String(vocabRequest || ''));
+    const safePaymentIntent = sanitizeText(String(paymentIntentId || ''));
 
     // Validate required fields
-    if (!name || !email || !vocabRequest || !paymentIntentId) {
+    if (!safeName || !safeEmail || !safeRequest || !safePaymentIntent) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -18,14 +27,14 @@ export async function POST(request: NextRequest) {
 New Vocabulary Request - $5 Payment Processed
 
 Customer Information:
-Name: ${name}
-Email: ${email}
+Name: ${safeName}
+Email: ${safeEmail}
 
 Vocabulary Request Details:
-${vocabRequest}
+${safeRequest}
 
 Payment Information:
-Payment Intent ID: ${paymentIntentId}
+Payment Intent ID: ${safePaymentIntent}
 Amount: $5.00 USD
 Status: Payment processed successfully
 

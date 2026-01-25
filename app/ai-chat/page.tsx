@@ -6,8 +6,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDailyAIMessages, canSendAIMessage, getUserLimits, hasAISubscription, getSubscriptionInfo } from '@/lib/storage';
-import { getLanguageName, SUPPORTED_LANGUAGES } from '@/lib/languages';
+import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDailyAIMessages, canSendAIMessage, getUserLimits, hasAISubscription, getSubscriptionInfo, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { useAuth } from '@/lib/auth-context';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
+import { recordStudentActivityForClasses } from '@/lib/activity-log';
 
 type Message = {
   id: string;
@@ -18,7 +20,9 @@ type Message = {
 
 export default function AIChatPage() {
   const router = useRouter();
+  const { session } = useAuth();
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const schoolMode = isSchoolModeEnabled();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +36,8 @@ export default function AIChatPage() {
   const subscriptionInfo = getSubscriptionInfo();
   const canSend = canSendAIMessage();
   const selectedDeck = selectedDeckId ? getDeckById(selectedDeckId) : null;
+  const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
+  const aiEnabled = !schoolMode || (effectiveSettings?.aiTutorEnabled ?? false);
 
   // Load messages from localStorage
   useEffect(() => {
@@ -60,7 +66,7 @@ export default function AIChatPage() {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !canSend.allowed) return;
+    if (!input.trim() || isLoading || !canSend.allowed || !aiEnabled) return;
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -76,7 +82,7 @@ export default function AIChatPage() {
     // Track usage
     incrementDailyAIMessages();
 
-    // Generate AI response using OpenAI API
+    // Generate AI response using Groq API
     try {
       const response = await fetch(`${apiBase}/api/ai-chat`, {
         method: 'POST',
@@ -85,6 +91,7 @@ export default function AIChatPage() {
           message: userMessage.content,
           deckId: selectedDeckId,
           conversationHistory: messages.slice(-10), // Last 10 messages for context
+          allowAI: aiEnabled,
         }),
       });
       
@@ -98,6 +105,9 @@ export default function AIChatPage() {
           timestamp: Date.now(),
         };
         setMessages(prev => [...prev, aiResponse]);
+        if (session?.userId) {
+          recordStudentActivityForClasses(session.userId, 'ai_chat', 'Sent an AI tutor message.');
+        }
         setIsLoading(false);
         return;
       } else {
@@ -147,7 +157,7 @@ export default function AIChatPage() {
       <Nav />
       <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 py-8">
         {/* Subscription Reminder Banner */}
-        {subscriptionInfo.isExpired && (
+        {!schoolMode && subscriptionInfo.isExpired && (
           <div className="mb-6 bg-red-500/20 border-2 border-red-500/50 rounded-xl p-4 backdrop-blur-md">
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -165,7 +175,7 @@ export default function AIChatPage() {
             </div>
           </div>
         )}
-        {subscriptionInfo.isExpiringSoon && !subscriptionInfo.isExpired && (
+        {!schoolMode && subscriptionInfo.isExpiringSoon && !subscriptionInfo.isExpired && (
           <div className="mb-6 bg-yellow-500/20 border-2 border-yellow-500/50 rounded-xl p-4 backdrop-blur-md">
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -195,13 +205,20 @@ export default function AIChatPage() {
               <div className="text-2xl font-bold text-purple-400">
                 {hasSubscription ? '∞' : `${remainingMessages} / ${limits.dailyAILimit}`}
               </div>
-              {!hasSubscription && dailyUsage.aiMessagesToday >= limits.dailyAILimit && (
+              {!schoolMode && !hasSubscription && dailyUsage.aiMessagesToday >= limits.dailyAILimit && (
                 <div className="text-xs text-yellow-400 mt-1">
                   Resets in {Math.ceil(getTimeUntilReset() / (60 * 60 * 1000))}h
                 </div>
               )}
             </div>
           </div>
+          {schoolMode && !aiEnabled && (
+            <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+              {session?.role === 'teacher'
+                ? 'AI tutor is currently disabled. Enable it in the Teacher Dashboard.'
+                : 'AI tutor is currently disabled for your class. Ask your teacher to enable it.'}
+            </div>
+          )}
 
           {/* Deck Selector */}
           {decks.length > 0 && (
@@ -234,7 +251,7 @@ export default function AIChatPage() {
             <div className="text-center text-white/60 py-12">
               <div className="text-6xl mb-4">🤖</div>
               <p className="text-lg">Start a conversation with your AI study assistant!</p>
-              <p className="text-sm mt-2">Try asking: "Quiz me on my deck" or "Explain the word 'hello'"</p>
+              <p className="text-sm mt-2">Try asking: &quot;Quiz me on my deck&quot; or &quot;Explain the word &apos;hello&apos;&quot;</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -275,7 +292,7 @@ export default function AIChatPage() {
 
         {/* Input Area */}
         <div className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20">
-          {!canSend.allowed && (
+          {!canSend.allowed && !schoolMode && (
             <div className="mb-4 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg">
               <p className="text-yellow-400 font-medium mb-2">
                 {canSend.reason}
@@ -294,13 +311,13 @@ export default function AIChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder={canSend.allowed ? "Ask me anything about your vocabulary..." : "Subscribe to continue chatting"}
-              disabled={!canSend.allowed || isLoading}
+              placeholder={aiEnabled ? "Ask me anything about your vocabulary..." : "AI tutor disabled by your teacher"}
+              disabled={!canSend.allowed || isLoading || !aiEnabled}
               className="flex-1 px-4 py-3 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               onClick={handleSend}
-              disabled={!canSend.allowed || isLoading || !input.trim()}
+              disabled={!canSend.allowed || isLoading || !input.trim() || !aiEnabled}
               className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? '...' : 'Send'}

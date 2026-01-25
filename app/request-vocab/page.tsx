@@ -6,14 +6,18 @@ import { useState, FormEvent } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Nav from '@/components/Nav';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 
 // Initialize Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 function RequestVocabForm() {
   const stripe = useStripe();
   const elements = useElements();
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const schoolMode = isSchoolModeEnabled();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -32,6 +36,10 @@ function RequestVocabForm() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (schoolMode) {
+      setErrorMessage('Payments are disabled in School Edition.');
+      return;
+    }
     if (!stripe || !elements) {
       return;
     }
@@ -145,12 +153,17 @@ function RequestVocabForm() {
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-4xl mx-auto px-4 py-12">
+        {schoolMode && (
+          <div className="mb-6 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-6 text-yellow-200">
+            Payments are disabled in School Edition. This feature is not available.
+          </div>
+        )}
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow p-8">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-2">
             Request Your Own Vocab
           </h1>
           <p className="text-white/70 mb-8">
-            Need a custom vocabulary deck? Request one for $5. Your request will be sent to our team, and you'll receive your custom deck within 3 days or your money back.
+            Need a custom vocabulary deck? Request one for $5. Your request will be sent to our team, and you&apos;ll receive your custom deck within 3 days or your money back.
           </p>
 
           {submitStatus === 'success' && (
@@ -242,7 +255,7 @@ function RequestVocabForm() {
 
             <button
               type="submit"
-              disabled={isSubmitting || !stripe}
+              disabled={isSubmitting || !stripe || schoolMode}
               className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Processing Payment...' : 'Submit Request & Pay $5.00'}
@@ -255,6 +268,19 @@ function RequestVocabForm() {
 }
 
 export default function RequestVocabPage() {
+  if (!stripePromise) {
+    return (
+      <div className="min-h-screen bg-noise">
+        <Nav />
+        <main className="max-w-4xl mx-auto px-4 py-12">
+          <div className="rounded-2xl border border-white/15 bg-white/5 p-8 text-white/70">
+            Payments are not configured for this deployment.
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <Elements stripe={stripePromise}>
       <RequestVocabForm />

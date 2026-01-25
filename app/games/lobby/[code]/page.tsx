@@ -9,6 +9,7 @@ import LobbyPanel from '@/components/games/LobbyPanel';
 import type { GameSession } from '@/types/games';
 import { createGameSocket } from '@/lib/games/ws-client';
 import { useAuth } from '@/lib/auth-context';
+import { isSchoolModeEnabled } from '@/lib/school-mode';
 import {
   clearLastHostCode,
   clearLastGameCode,
@@ -38,6 +39,10 @@ export default function GameLobbyPage() {
 
   useEffect(() => {
     if (!code) return;
+    if (isSchoolModeEnabled() && authSession?.isGuest) {
+      setError('Please log in to join a teacher-hosted game.');
+      return;
+    }
     const name =
       localStorage.getItem('studyhatch-game-display-name') ||
       authSession?.username ||

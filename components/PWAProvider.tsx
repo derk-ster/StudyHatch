@@ -293,7 +293,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
           <div className="max-w-md w-full rounded-2xl bg-gray-900 border border-white/10 p-6 animate-slide-up">
             <div className="text-lg font-semibold mb-2">Install StudyHatch on iOS</div>
             <div className="text-sm text-white/70 mb-4">
-              Tap the Share button in Safari, then choose "Add to Home Screen."
+              Tap the Share button in Safari, then choose &quot;Add to Home Screen.&quot;
             </div>
             <button
               onClick={() => setShowIosHelp(false)}
@@ -311,7 +311,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
             <div className="text-lg font-semibold mb-2">Install StudyHatch</div>
             <div className="text-sm text-white/70 mb-4">
               If the install prompt doesn&apos;t appear, use your browser menu to install the app.
-              In Chrome or Edge, click the install icon in the address bar or open the menu and select "Install StudyHatch."
+              In Chrome or Edge, click the install icon in the address bar or open the menu and select &quot;Install StudyHatch.&quot;
             </div>
             <button
               onClick={() => setShowBrowserInstallHelp(false)}
