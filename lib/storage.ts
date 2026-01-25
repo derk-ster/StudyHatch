@@ -865,27 +865,7 @@ export const setPremium = (isPremium: boolean): void => {
 
 // Check if user has AI subscription
 export const hasAISubscription = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  
-  try {
-    if (isSchoolModeEnabled()) return true;
-    const subscription = localStorage.getItem('ai-chat-subscription');
-    if (!subscription) return false;
-    
-    const subData = JSON.parse(subscription);
-    // Check if subscription is active and not expired
-    if (subData.status === 'active' && subData.expiresAt > Date.now()) {
-      return true;
-    }
-    // If expired, clear it
-    if (subData.expiresAt <= Date.now()) {
-      localStorage.removeItem('ai-chat-subscription');
-      return false;
-    }
-    return false;
-  } catch (error) {
-    return false;
-  }
+  return false;
 };
 
 // Get subscription expiration info
@@ -896,46 +876,7 @@ export const getSubscriptionInfo = (): {
   isExpired: boolean;
   isExpiringSoon: boolean; // Expires in 7 days or less
 } => {
-  if (typeof window === 'undefined') {
-    return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
-  }
-  
-  try {
-    if (isSchoolModeEnabled()) {
-      return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
-    }
-    const subscription = localStorage.getItem('ai-chat-subscription');
-    if (!subscription) {
-      return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
-    }
-    
-    const subData = JSON.parse(subscription);
-    const now = Date.now();
-    const expiresAt = subData.expiresAt;
-    
-    if (subData.status !== 'active' || !expiresAt) {
-      return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: true, isExpiringSoon: false };
-    }
-    
-    if (expiresAt <= now) {
-      // Expired - clear it
-      localStorage.removeItem('ai-chat-subscription');
-      return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: true, isExpiringSoon: false };
-    }
-    
-    const daysRemaining = Math.ceil((expiresAt - now) / (24 * 60 * 60 * 1000));
-    const isExpiringSoon = daysRemaining <= 7;
-    
-    return {
-      isActive: true,
-      daysRemaining,
-      expiresAt,
-      isExpired: false,
-      isExpiringSoon,
-    };
-  } catch (error) {
-    return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
-  }
+  return { isActive: false, daysRemaining: 0, expiresAt: null, isExpired: false, isExpiringSoon: false };
 };
 
 // Set AI subscription status
@@ -1148,24 +1089,14 @@ export const getTimeUntilReset = (): number => {
 
 // Get user limits
 export const getUserLimits = () => {
-  if (isSchoolModeEnabled()) {
-    return {
-      maxDecks: Infinity,
-      maxCards: Infinity,
-      dailyTranslationLimit: Infinity,
-      dailyDeckLimit: Infinity,
-      dailyAILimit: Infinity,
-      dailySearchLimit: Infinity,
-    };
-  }
-  const premium = isPremium();
+  const aiLimit = 20;
   return {
-    maxDecks: premium ? Infinity : 10, // Free users: 10 decks
-    maxCards: premium ? Infinity : 100,
-    dailyTranslationLimit: premium ? Infinity : 50, // Free users: 50 words per day
-    dailyDeckLimit: premium ? Infinity : 1, // Free users: 1 deck per day
-    dailyAILimit: hasAISubscription() ? Infinity : 5, // Free users: 5 AI messages per day
-    dailySearchLimit: premium ? Infinity : 3,
+    maxDecks: Infinity,
+    maxCards: Infinity,
+    dailyTranslationLimit: Infinity,
+    dailyDeckLimit: Infinity,
+    dailyAILimit: aiLimit,
+    dailySearchLimit: Infinity,
   };
 };
 

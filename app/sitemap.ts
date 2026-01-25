@@ -11,8 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/translation-practice',
     '/language-learning',
     '/public-decks',
-    '/pricing',
     '/login',
+    '/resources/getting-started',
   ];
 
   return routes.map((route) => ({

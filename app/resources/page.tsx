@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export default function PricingPage() {
+export default function ResourcesIndexPage() {
   redirect('/resources/getting-started');
 }

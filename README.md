@@ -11,7 +11,7 @@ A modern, interactive vocabulary study application inspired by StudyStack, featu
 - **Quiz Mode**: Multiple choice questions with scoring and streak tracking
 - **Write Mode**: Type translations with accent-insensitive input checking
 - **Word Scramble**: Unscramble words with hints
-- **AI Chat**: Chat with AI assistant for study help, explanations, and practice (5 free messages/day, unlimited with subscription)
+- **AI Chat**: Chat with AI assistant for study help, explanations, and practice (20 messages/day, teacher-controlled in School Edition)
 
 ### School Edition (FERPA/COPPA)
 - **School Mode Flag**: Enable School Edition with `SCHOOL_MODE=true`
@@ -31,8 +31,7 @@ A modern, interactive vocabulary study application inspired by StudyStack, featu
 
 ### AI Chat Assistant
 - **Study Help**: Ask questions about vocabulary, get explanations, and receive learning tips
-- **Free Tier**: 5 AI messages per day
-- **Subscription**: $1.99/month for unlimited AI chat access
+- **Daily Limit**: 20 AI messages per day (teacher-controlled in School Edition)
 - **Context-Aware**: AI can reference your decks and provide personalized study assistance
   - **School Edition**: AI tutor provides hints only (no direct answers)
 
@@ -117,10 +116,8 @@ Spanish_Project_Website/
 │   └── vocab.old.ts     # Archived static vocabulary data (deprecated)
 ├── app/
 │   ├── create/          # Create new deck page
-│   ├── pricing/          # Premium pricing page
 │   └── api/
-│       ├── translate/   # Translation API endpoint
-│       └── create-checkout-session/  # Stripe checkout (scaffolded)
+│       └── translate/   # Translation API endpoint
 ├── lib/
 │   └── storage.ts       # localStorage utilities
 ├── types/
@@ -189,17 +186,6 @@ LIBRETRANSLATE_API_KEY=your_api_key_here  # Optional
 
 **Note**: If no API key is provided, the app will use mock translations (e.g., "hello" → "hello (es)"). This is fine for testing, but you'll want to add a real API key for production.
 
-#### Optional: Stripe Integration (Premium & Subscription Features)
-
-To enable payment processing, add to `.env.local`:
-
-```env
-STRIPE_SECRET_KEY=sk_test_your_secret_key_here
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
-STRIPE_AI_CHAT_PRICE_ID=price_xxx  # Price ID for $1.99/month AI chat subscription
-```
-
-**Note**: The app works without Stripe keys. Premium and subscription features are scaffolded but not required. Free users have limited daily usage.
 
 #### Optional: AI Chat Integration
 
@@ -227,43 +213,22 @@ ANTHROPIC_API_KEY=sk-ant-your_anthropic_api_key_here
 4. Click "Translate" to generate Spanish translations
 5. Review the preview and click "Create Deck"
 
-### Free vs Premium Limits
+### Usage Limits
 
-**Free Users:**
-- Maximum 2 decks
-- Maximum 100 total cards across all decks
-- 50 words translated per day
-- 1 deck created per day
-- 5 AI chat messages per day
-- All study modes available
-
-**Premium Users ($12.99 one-time payment):**
-- Unlimited decks
-- Unlimited cards
-- Unlimited daily translations
-- Unlimited daily deck creation
-- 5 AI chat messages per day
-- All study modes
-- Priority support
-
-**AI Chat Subscription ($1.99/month):**
-- Unlimited AI chat messages
-- Study assistance & explanations
-- Vocabulary quizzes & practice
-- Learning tips & strategies
-- Cancel anytime
+- Unlimited decks and cards
+- Unlimited daily translations and deck creation
+- 20 AI chat messages per day (teacher-controlled in School Edition)
 
 ### School Edition Compliance
 
 When `SCHOOL_MODE=true`:
-- Payments and subscriptions are disabled
+- AI tutor access is controlled by teachers
 - AI tutor is off by default and must be enabled per class
 - AI tutor provides hints only
 - Multiplayer is classroom-only and teacher hosted
 - Privacy and Terms pages are available at `/privacy` and `/terms`
 - Data deletion requests can be submitted via `admin@studyhatch.org`
 
-To upgrade, visit the Pricing page. Stripe integration is scaffolded but requires API keys to be configured.
 
 ### Styling
 

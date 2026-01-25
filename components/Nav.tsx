@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import LanguageBadge from '@/components/LanguageBadge';
-import { ActivityType } from '@/types/vocab';
-import { getAllDecks, getDeckById, getProgress, updateProgress, hasAISubscription, getDailyUsage, getUserLimits, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { getAllDecks, getDeckById, getProgress, updateProgress, getDailyUsage, getUserLimits, getEffectiveClassSettingsForUser } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
+import { RESOURCES } from '@/app/resources/resources';
 
 export default function Nav() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -20,9 +20,15 @@ export default function Nav() {
   const [showProgress, setShowProgress] = useState(false);
   const [currentDeck, setCurrentDeck] = useState<string | null>(null);
   const [decks, setDecks] = useState(getAllDecks());
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesRef = useRef<HTMLDivElement>(null);
   const progress = getProgress();
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
   const aiEnabled = !schoolMode || (effectiveSettings?.aiTutorEnabled ?? false);
+  const limits = getUserLimits();
+  const aiLimit = limits.dailyAILimit;
+  const aiRemaining = Math.max(0, aiLimit - (getDailyUsage().aiMessagesToday || 0));
+  const isResourcesRoute = pathname?.startsWith('/resources');
 
   useEffect(() => {
     const loadedDecks = getAllDecks();
@@ -35,6 +41,19 @@ export default function Nav() {
       setCurrentDeck(loadedDecks[0].id);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!isResourcesRoute) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!resourcesOpen) return;
+      if (resourcesRef.current && !resourcesRef.current.contains(event.target as Node)) {
+        setResourcesOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isResourcesRoute, resourcesOpen]);
+
 
   const handleDeckChange = (deckId: string) => {
     setCurrentDeck(deckId);
@@ -104,7 +123,40 @@ export default function Nav() {
               </span>
             </Link>
 
-            {!session ? (
+            {isResourcesRoute ? (
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+                >
+                  Home
+                </Link>
+                <div ref={resourcesRef} className="relative">
+                  <button
+                    onClick={() => setResourcesOpen((prev) => !prev)}
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+                  >
+                    Resources
+                  </button>
+                  {resourcesOpen && (
+                    <div className="absolute right-0 top-11 z-[99999] w-72 rounded-xl border border-white/15 bg-gray-900/95 p-3 shadow-2xl backdrop-blur">
+                      <div className="max-h-80 overflow-y-auto">
+                        {RESOURCES.map((entry) => (
+                          <Link
+                            key={entry.id}
+                            href={`/resources/${entry.id}`}
+                            onClick={() => setResourcesOpen(false)}
+                            className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                          >
+                            {entry.title}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : !session ? (
               <div className="flex items-center gap-3">
                 <Link
                   href="/games"
@@ -210,18 +262,22 @@ export default function Nav() {
                       }}
                     >
                       🤖 AI Chat
-                      {!schoolMode && !hasAISubscription() && (
+                      {schoolMode && (
+                        <span className="absolute -top-1 -right-1 bg-emerald-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                          {aiRemaining}/{aiLimit}
+                        </span>
+                      )}
+                      {!schoolMode && (
                         <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
-                          {Math.max(0, getUserLimits().dailyAILimit - (getDailyUsage().aiMessagesToday || 0))}
+                          {aiRemaining}
                         </span>
                       )}
                     </Link>
                   ) : (
                     <span className="px-4 py-1 rounded-lg bg-white/5 text-white/50 text-sm">
-                      🤖 AI Chat (disabled)
+                      🤖 AI Chat {schoolMode ? `0/${aiLimit}` : '(disabled)'}
                     </span>
                   )}
-
 
                   {/* Login/Account Links */}
                   {session && !session.isGuest ? (

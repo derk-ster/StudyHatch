@@ -6,11 +6,10 @@ import { useState, FormEvent, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { Deck, VocabCard } from '@/types/vocab';
-import { saveDeck, canCreateDeck, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks, getClassesForSchool, getSchoolForUser, publishDeckToClass, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { saveDeck, canCreateDeck, getUserLimits, incrementDailyTranslations, incrementDailyDecks, getDailyUsage, getTimeUntilReset, getAllDecks, getClassesForSchool, getSchoolForUser, publishDeckToClass } from '@/lib/storage';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom } from '@/types/vocab';
-import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { checkClientRateLimit, recordClientRateLimit } from '@/lib/client-rate-limit';
 import { sanitizeText } from '@/lib/sanitize';
 import { recordStudentActivityForClasses } from '@/lib/activity-log';
@@ -20,7 +19,6 @@ export default function CreateDeckPage() {
   const searchParams = useSearchParams();
   const { session } = useAuth();
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
-  const schoolMode = isSchoolModeEnabled();
   const [deckName, setDeckName] = useState('');
   const [deckDescription, setDeckDescription] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('es'); // Default to Spanish
@@ -40,8 +38,6 @@ export default function CreateDeckPage() {
   const selectedLanguage = getLanguageByCode(targetLanguage);
   const dailyUsage = getDailyUsage();
   const presetClassId = searchParams.get('classId');
-  const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
-  const studentDecksAllowed = !schoolMode || session?.role === 'teacher' || (effectiveSettings?.studentDecksEnabled ?? false);
 
   useEffect(() => {
     if (session?.role !== 'teacher' || !session.userId) return;
@@ -93,10 +89,6 @@ export default function CreateDeckPage() {
   };
 
   const handleTranslate = async () => {
-    if (!studentDecksAllowed) {
-      setError('Student deck creation is disabled by your teacher.');
-      return;
-    }
     if (!wordsInput.trim()) {
       setError('Please enter at least one word');
       return;
@@ -124,7 +116,7 @@ export default function CreateDeckPage() {
     const newTotal = totalCards + words.length;
 
     if (newTotal > limits.maxCards) {
-      setError(`Free users can only have ${limits.maxCards} total cards. You currently have ${totalCards} cards. Upgrade to Premium for unlimited cards.`);
+      setError(`You currently have ${totalCards} cards, which exceeds the card limit.`);
       return;
     }
 
@@ -134,7 +126,7 @@ export default function CreateDeckPage() {
       const remaining = limits.dailyTranslationLimit - dailyUsage.translationsToday;
       const timeUntilReset = getTimeUntilReset();
       const hoursUntilReset = Math.ceil(timeUntilReset / (60 * 60 * 1000));
-      setError(`Free users can only create ${limits.dailyTranslationLimit} cards per day. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}. Upgrade to Premium for unlimited daily creation.`);
+      setError(`Daily card creation limit reached. You have ${remaining} remaining today. Daily limit resets in ${hoursUntilReset} hour${hoursUntilReset !== 1 ? 's' : ''}.`);
       return;
     }
 
@@ -191,10 +183,6 @@ export default function CreateDeckPage() {
   const handleCreateDeck = async () => {
     // Prevent multiple submissions
     if (isSavingDeck) {
-      return;
-    }
-    if (!studentDecksAllowed) {
-      setError('Student deck creation is disabled by your teacher.');
       return;
     }
 
@@ -346,7 +334,7 @@ export default function CreateDeckPage() {
           {/* Limits Info */}
           <div className="bg-white/5 rounded-lg p-4 border border-white/10 mb-6 space-y-2">
             <p className="text-white/80 text-sm">
-              <strong className="text-white">Free Pass:</strong> {dailyUsage.decksCreatedToday} / {limits.dailyDeckLimit === Infinity ? '∞' : limits.dailyDeckLimit} decks today
+              <strong className="text-white">Decks Created Today:</strong> {dailyUsage.decksCreatedToday} / {limits.dailyDeckLimit === Infinity ? '∞' : limits.dailyDeckLimit}
               {limits.dailyDeckLimit !== Infinity && dailyUsage.decksCreatedToday >= limits.dailyDeckLimit && (
                 <span className="text-yellow-400 ml-2">
                   (Resets in {Math.ceil(getTimeUntilReset() / (60 * 60 * 1000))} hour{Math.ceil(getTimeUntilReset() / (60 * 60 * 1000)) !== 1 ? 's' : ''})
@@ -367,11 +355,6 @@ export default function CreateDeckPage() {
               </p>
             )}
           </div>
-          {!studentDecksAllowed && (
-            <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-yellow-200">
-              Student deck creation is disabled by your teacher.
-            </div>
-          )}
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg animate-fade-in">
@@ -541,7 +524,7 @@ export default function CreateDeckPage() {
 
                 <button
                   onClick={handleTranslate}
-                  disabled={isCreating || !wordsInput.trim() || !studentDecksAllowed}
+                  disabled={isCreating || !wordsInput.trim()}
                   className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isCreating
@@ -631,7 +614,7 @@ export default function CreateDeckPage() {
                 </button>
                 <button
                   onClick={handleCreateDeck}
-                  disabled={!deckName.trim() || isSavingDeck || !studentDecksAllowed}
+                  disabled={!deckName.trim() || isSavingDeck}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSavingDeck ? 'Creating Deck...' : 'Create Deck'}

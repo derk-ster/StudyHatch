@@ -43,11 +43,51 @@ export async function POST(request: NextRequest) {
       process.env.LIBRETRANSLATE_API_KEY
     );
 
+    const googleApiKey = process.env.GOOGLE_TRANSLATE_API_KEY;
+    let googleFailed = false;
+    const googleLanguage = (code: string) => {
+      if (code === 'zh') return 'zh-CN';
+      return code;
+    };
+
     // Get language code for mock translation
     const langCode = safeTargetLanguage.toLowerCase();
 
+    if (googleApiKey) {
+      try {
+        const response = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${googleApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            q: safeWords,
+            source: 'en',
+            target: googleLanguage(langCode),
+            format: 'text',
+          }),
+        });
+
+        if (!response.ok) {
+          googleFailed = true;
+          throw new Error('Google Translate API error');
+        }
+
+        const data = await response.json();
+        const translations = (data?.data?.translations || []).map((entry: { translatedText: string }, index: number) => ({
+          english: safeWords[index],
+          translation: entry.translatedText,
+        }));
+
+        if (translations.length === safeWords.length) {
+          return NextResponse.json({ translations, mock: false });
+        }
+      } catch (error) {
+        googleFailed = true;
+        console.error('Google Translate API error:', error);
+      }
+    }
+
     // If no API key, try LibreTranslate public API (free, no key required)
-    if (!hasApiKey) {
+    if (!hasApiKey || googleFailed) {
       try {
         // Try LibreTranslate public API first (free, no API key needed)
         const translations = await Promise.all(
@@ -160,7 +200,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
           translations,
-          mock: !hasApiKey,
+          mock: !hasApiKey || googleFailed,
         });
       } catch (error) {
         console.error('Translation error:', error);

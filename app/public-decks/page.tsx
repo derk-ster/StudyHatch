@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import { Deck } from '@/types/vocab';
-import { duplicateDeck, getAllDecks, getDailyUsage, getPublicDecks, getUserLimits, incrementDailyPublicSearches, isPremium, setDeckVisibility } from '@/lib/storage';
+import { duplicateDeck, getAllDecks, getDailyUsage, getPublicDecks, getUserLimits, incrementDailyPublicSearches, setDeckVisibility } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 
 export default function PublicDecksPage() {
@@ -20,7 +20,6 @@ export default function PublicDecksPage() {
   const [error, setError] = useState('');
   const [dailyUsage, setDailyUsage] = useState(getDailyUsage());
   const limits = getUserLimits();
-  const premium = isPremium();
 
   useEffect(() => {
     const decks = getPublicDecks();
@@ -34,11 +33,6 @@ export default function PublicDecksPage() {
   }, [session?.userId]);
 
   const handleCopyDeck = (deckId: string) => {
-    if (!premium) {
-      setError('Upgrade to Premium to save public decks.');
-      setMessage('');
-      return;
-    }
     const copied = duplicateDeck(deckId, session?.userId);
     if (copied) {
       setMessage(`Copied "${copied.name}" to My Decks.`);
@@ -71,7 +65,7 @@ export default function PublicDecksPage() {
     }
 
     if (limits.dailySearchLimit !== Infinity && (dailyUsage.publicSearchesToday || 0) >= limits.dailySearchLimit) {
-      setError('Daily search limit reached. Upgrade to Premium for unlimited searches.');
+      setError('Daily search limit reached. Try again later.');
       setMessage('');
       return;
     }
@@ -128,11 +122,11 @@ export default function PublicDecksPage() {
               </div>
               <p className="text-white/60 text-sm mt-2">
                 {limits.dailySearchLimit === Infinity
-                  ? 'Unlimited searches with Premium.'
+                  ? 'Unlimited searches available.'
                   : `${Math.max(0, limits.dailySearchLimit - (dailyUsage.publicSearchesToday || 0))} searches remaining today.`}
               </p>
               <p className="text-white/50 text-sm mt-1">
-                Free users can study public decks. Saving requires Premium.
+                Save any public deck to your library for personalized study.
               </p>
             </div>
 
@@ -182,12 +176,9 @@ export default function PublicDecksPage() {
                     </Link>
                     <button
                       onClick={() => handleCopyDeck(deck.id)}
-                      disabled={!premium}
-                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        premium ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/40 cursor-not-allowed'
-                      }`}
+                      className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 hover:bg-white/20"
                     >
-                      {premium ? 'Copy to My Decks' : 'Premium to Save'}
+                      Copy to My Decks
                     </button>
                   </div>
                 </div>

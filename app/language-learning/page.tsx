@@ -32,8 +32,8 @@ export default function LanguageLearningPage() {
             <Link className="rounded-lg bg-purple-600 px-5 py-2 font-semibold text-white hover:bg-purple-500" href="/login">
               Start Learning
             </Link>
-            <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/pricing">
-              View Plans
+            <Link className="rounded-lg border border-white/20 px-5 py-2 font-semibold text-white hover:bg-white/10" href="/resources/getting-started">
+              View Resources
             </Link>
           </div>
         </section>

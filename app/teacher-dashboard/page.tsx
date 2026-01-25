@@ -75,7 +75,7 @@ export default function TeacherDashboardPage() {
     setActivityLogs(getActivityLogForClasses(classes.map(cls => cls.id)));
   }, [classes]);
 
-  const handleUpdateClassSetting = (classId: string, key: 'aiTutorEnabled' | 'studentDecksEnabled' | 'multiplayerEnabled', value: boolean) => {
+  const handleUpdateClassSetting = (classId: string, key: 'aiTutorEnabled' | 'multiplayerEnabled', value: boolean) => {
     const updated = setClassSettings(classId, { [key]: value }, session?.userId);
     setClassSettingsState(prev => ({ ...prev, [classId]: updated }));
   };
@@ -255,7 +255,7 @@ export default function TeacherDashboardPage() {
             <div className="bg-white/5 rounded-xl p-6 border border-white/10 mb-10">
               <h2 className="text-xl font-semibold mb-4">School Edition Controls</h2>
               <p className="text-white/60 text-sm mb-6">
-                Toggle AI tutor, student deck creation, and multiplayer availability for each class.
+                Toggle AI tutor and multiplayer availability for each class.
               </p>
               {classes.length === 0 ? (
                 <p className="text-white/50 text-sm">Create a class to configure school settings.</p>
@@ -271,7 +271,7 @@ export default function TeacherDashboardPage() {
                             <p className="text-white/50 text-xs">Join code: {classroom.joinCode}</p>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-white/80">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-white/80">
                           <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
@@ -280,15 +280,6 @@ export default function TeacherDashboardPage() {
                               className="h-4 w-4 rounded border-white/20 bg-white/10"
                             />
                             Enable AI tutor
-                          </label>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={settings.studentDecksEnabled}
-                              onChange={(e) => handleUpdateClassSetting(classroom.id, 'studentDecksEnabled', e.target.checked)}
-                              className="h-4 w-4 rounded border-white/20 bg-white/10"
-                            />
-                            Allow student deck creation
                           </label>
                           <label className="flex items-center gap-2">
                             <input

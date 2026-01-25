@@ -3,12 +3,11 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, FormEvent } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { updatePassword } from '@/lib/auth';
-import { getSubscriptionInfo, isPremium } from '@/lib/storage';
 import { usePWA } from '@/components/PWAProvider';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 
@@ -22,8 +21,6 @@ export default function AccountPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [premiumStatus, setPremiumStatus] = useState(false);
-  const [aiSubscription, setAiSubscription] = useState(getSubscriptionInfo());
   const schoolMode = isSchoolModeEnabled();
 
   useEffect(() => {
@@ -31,11 +28,6 @@ export default function AccountPage() {
       router.push('/');
     }
   }, [session, router]);
-
-  useEffect(() => {
-    setPremiumStatus(isPremium());
-    setAiSubscription(getSubscriptionInfo());
-  }, []);
 
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
@@ -120,61 +112,28 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Subscription Status */}
+          {/* School Edition */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
-            <h2 className="text-2xl font-bold mb-6 text-white">Subscriptions</h2>
-            {schoolMode ? (
-              <p className="text-white/70 text-sm">
-                School Edition disables payments and subscriptions. All classroom features are included.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
-                  <div>
-                    <p className="text-white/90 font-medium">Premium</p>
-                    <p className="text-white/60 text-sm">
-                      {premiumStatus ? 'Active' : 'Not active'}
-                    </p>
-                  </div>
-                  <span className={`text-sm font-semibold ${premiumStatus ? 'text-green-300' : 'text-white/40'}`}>
-                    {premiumStatus ? 'Enabled' : 'Inactive'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-3">
-                  <div>
-                    <p className="text-white/90 font-medium">AI Chat Monthly</p>
-                    <p className="text-white/60 text-sm">
-                      {aiSubscription.isActive ? `Active • ${aiSubscription.daysRemaining} day${aiSubscription.daysRemaining !== 1 ? 's' : ''} left` : 'Not active'}
-                    </p>
-                  </div>
-                  <span className={`text-sm font-semibold ${aiSubscription.isActive ? 'text-green-300' : 'text-white/40'}`}>
-                    {aiSubscription.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-            )}
+            <h2 className="text-2xl font-bold mb-4 text-white">School Edition</h2>
+            <p className="text-white/70 text-sm">
+              {schoolMode
+                ? 'Teachers control AI and multiplayer access for classroom sessions.'
+                : 'Teachers control AI and multiplayer access for classroom sessions.'}
+            </p>
           </div>
 
           {/* Resources */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
             <h2 className="text-2xl font-bold mb-4 text-white">Resources</h2>
             <p className="text-white/70 mb-4">
-              Explore learning paths, flashcards, and translation practice to level up quickly.
+              Access the StudyHatch resource library from the top navigation bar.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/spanish-flashcards">
-                Spanish Flashcards
-              </Link>
-              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/translation-practice">
-                Translation Practice
-              </Link>
-              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/language-learning">
-                Language Learning
-              </Link>
-              <Link className="rounded-lg border border-white/20 px-4 py-2 text-sm hover:bg-white/10" href="/public-decks">
-                Public Decks
-              </Link>
-            </div>
+            <Link
+              href="/resources/getting-started"
+              className="inline-flex items-center px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-medium"
+            >
+              View Resources
+            </Link>
           </div>
 
           {/* Data & Privacy */}

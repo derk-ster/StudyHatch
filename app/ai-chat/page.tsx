@@ -3,10 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDailyAIMessages, canSendAIMessage, getUserLimits, hasAISubscription, getSubscriptionInfo, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDailyAIMessages, canSendAIMessage, getUserLimits, getEffectiveClassSettingsForUser } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { recordStudentActivityForClasses } from '@/lib/activity-log';
@@ -19,7 +18,6 @@ type Message = {
 };
 
 export default function AIChatPage() {
-  const router = useRouter();
   const { session } = useAuth();
   const apiBase = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const schoolMode = isSchoolModeEnabled();
@@ -32,8 +30,6 @@ export default function AIChatPage() {
   const decks = getAllDecks();
   const dailyUsage = getDailyUsage();
   const limits = getUserLimits();
-  const hasSubscription = hasAISubscription();
-  const subscriptionInfo = getSubscriptionInfo();
   const canSend = canSendAIMessage();
   const selectedDeck = selectedDeckId ? getDeckById(selectedDeckId) : null;
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
@@ -148,51 +144,15 @@ export default function AIChatPage() {
     }
   };
 
-  const remainingMessages = hasSubscription 
-    ? 'Unlimited' 
-    : Math.max(0, limits.dailyAILimit - dailyUsage.aiMessagesToday);
+  const aiLimit = limits.dailyAILimit;
+  const aiUsed = dailyUsage.aiMessagesToday || 0;
+  const remainingMessages = Math.max(0, aiLimit - aiUsed);
+  const displayRemaining = aiEnabled ? remainingMessages : 0;
 
   return (
     <div className="min-h-screen bg-noise flex flex-col">
       <Nav />
       <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 py-8">
-        {/* Subscription Reminder Banner */}
-        {!schoolMode && subscriptionInfo.isExpired && (
-          <div className="mb-6 bg-red-500/20 border-2 border-red-500/50 rounded-xl p-4 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-red-400 mb-1">⚠️ Subscription Expired</h3>
-                <p className="text-white/80 text-sm">
-                  Your AI Chat subscription has expired. Renew now to continue enjoying unlimited AI messages!
-                </p>
-              </div>
-              <button
-                onClick={() => router.push('/pricing')}
-                className="ml-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all"
-              >
-                Renew Now
-              </button>
-            </div>
-          </div>
-        )}
-        {!schoolMode && subscriptionInfo.isExpiringSoon && !subscriptionInfo.isExpired && (
-          <div className="mb-6 bg-yellow-500/20 border-2 border-yellow-500/50 rounded-xl p-4 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-yellow-400 mb-1">⏰ Subscription Expiring Soon</h3>
-                <p className="text-white/80 text-sm">
-                  Your AI Chat subscription expires in <strong>{subscriptionInfo.daysRemaining} day{subscriptionInfo.daysRemaining !== 1 ? 's' : ''}</strong>. Renew now to keep unlimited access!
-                </p>
-              </div>
-              <button
-                onClick={() => router.push('/pricing')}
-                className="ml-4 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg transition-all"
-              >
-                Renew Now
-              </button>
-            </div>
-          </div>
-        )}
         {/* Header */}
         <div className="mb-6 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20">
           <div className="flex items-center justify-between mb-4">
@@ -203,9 +163,9 @@ export default function AIChatPage() {
             <div className="text-right">
               <div className="text-sm text-white/70 mb-1">Messages Today</div>
               <div className="text-2xl font-bold text-purple-400">
-                {hasSubscription ? '∞' : `${remainingMessages} / ${limits.dailyAILimit}`}
+                {`${displayRemaining} / ${aiLimit}`}
               </div>
-              {!schoolMode && !hasSubscription && dailyUsage.aiMessagesToday >= limits.dailyAILimit && (
+              {!schoolMode && dailyUsage.aiMessagesToday >= limits.dailyAILimit && (
                 <div className="text-xs text-yellow-400 mt-1">
                   Resets in {Math.ceil(getTimeUntilReset() / (60 * 60 * 1000))}h
                 </div>
@@ -216,7 +176,7 @@ export default function AIChatPage() {
             <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
               {session?.role === 'teacher'
                 ? 'AI tutor is currently disabled. Enable it in the Teacher Dashboard.'
-                : 'AI tutor is currently disabled for your class. Ask your teacher to enable it.'}
+                : `AI tutor is currently disabled for your class. You have 0/${aiLimit} messages until your teacher enables access.`}
             </div>
           )}
 
@@ -297,12 +257,6 @@ export default function AIChatPage() {
               <p className="text-yellow-400 font-medium mb-2">
                 {canSend.reason}
               </p>
-              <button
-                onClick={() => router.push('/pricing')}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all"
-              >
-                Subscribe for Unlimited AI Chat
-              </button>
             </div>
           )}
           <div className="flex gap-2">
