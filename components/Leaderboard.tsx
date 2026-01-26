@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 type LeaderboardEntry = {
   rank: number;
   userId: string;
@@ -59,9 +61,11 @@ export default function Leaderboard({
                   <td className="py-2 px-2">
                     <div className="flex items-center gap-2">
                       {entry.avatar ? (
-                        <img
+                        <Image
                           src={entry.avatar}
                           alt={`${entry.username} avatar`}
+                          width={24}
+                          height={24}
                           className="h-6 w-6 rounded-full object-cover"
                         />
                       ) : (
