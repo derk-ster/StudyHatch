@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { ClassroomLeaderboard, User } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { getSessionUser } from '@/lib/auth-server';
 import { getRateLimitKey, rateLimit } from '@/lib/rate-limit';
 
@@ -56,14 +56,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const orderField = leaderboardFields[type as keyof typeof leaderboardFields];
   const orderBy = { [orderField]: 'desc' } as Record<string, 'desc'>;
-  const entries: Array<ClassroomLeaderboard & { user: User }> = await prisma.classroomLeaderboard.findMany({
+  type LeaderboardRow = Prisma.ClassroomLeaderboardGetPayload<{ include: { user: true } }>;
+  const entries: LeaderboardRow[] = await prisma.classroomLeaderboard.findMany({
     where: { classroomId: params.id },
     include: { user: true },
     orderBy: [orderBy, { updatedAt: 'desc' }],
     take: 50,
   });
 
-  const formatted = entries.map((entry: ClassroomLeaderboard & { user: User }, index) => ({
+  const formatted = entries.map((entry: LeaderboardRow, index) => ({
     rank: index + 1,
     userId: entry.userId,
     username: entry.user.username,
