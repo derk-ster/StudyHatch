@@ -54,7 +54,7 @@ export default function MatchPage() {
   // Helper to update per-deck progress
   const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
     if (!deckId) return;
-    const newProgress = { ...progress };
+    const newProgress = { ...getProgress() };
     if (!newProgress.deckProgress) {
       newProgress.deckProgress = {};
     }
@@ -74,6 +74,21 @@ export default function MatchPage() {
       ...updates,
     };
     updateProgress(newProgress);
+  };
+
+  const getCurrentDeckProgress = () => {
+    const currentProgress = getProgress();
+    return deckId && currentProgress.deckProgress?.[deckId]
+      ? currentProgress.deckProgress[deckId]
+      : {
+          starredCards: [],
+          knownCards: [],
+          learningCards: [],
+          cardStats: {},
+          matchBestTime: undefined,
+          quizHighScore: undefined,
+          quizStreak: 0,
+        };
   };
 
   const setupRound = (roundIndex: number, resetTimer: boolean) => {
@@ -168,7 +183,8 @@ export default function MatchPage() {
           if (isLastRound) {
             setGameComplete(true);
             const finalTime = Math.floor((Date.now() - (startTime || Date.now())) / 1000);
-            if (!deckProgress.matchBestTime || finalTime < deckProgress.matchBestTime) {
+            const currentDeckProgress = getCurrentDeckProgress();
+            if (!currentDeckProgress.matchBestTime || finalTime < currentDeckProgress.matchBestTime) {
               updateDeckProgress({ matchBestTime: finalTime });
             }
           } else {

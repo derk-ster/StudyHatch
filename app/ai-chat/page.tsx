@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef } from 'react';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDailyAIMessages, canSendAIMessage, getUserLimits, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDailyAIMessages, canSendAIMessage, getUserLimits, getEffectiveClassSettingsForUser, getClassesForStudent } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { recordStudentActivityForClasses } from '@/lib/activity-log';
@@ -33,7 +33,13 @@ export default function AIChatPage() {
   const canSend = canSendAIMessage();
   const selectedDeck = selectedDeckId ? getDeckById(selectedDeckId) : null;
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
-  const aiEnabled = !schoolMode || (effectiveSettings?.aiTutorEnabled ?? false);
+  const hasClassMembership = session?.role === 'student' && session?.userId
+    ? getClassesForStudent(session.userId).length > 0
+    : false;
+  const aiEnabled = !schoolMode
+    || session?.role === 'teacher'
+    || !hasClassMembership
+    || (effectiveSettings?.aiTutorEnabled ?? false);
 
   // Load messages from localStorage
   useEffect(() => {

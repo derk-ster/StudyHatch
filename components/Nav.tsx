@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getAllDecks, getDeckById, getProgress, updateProgress, getDailyUsage, getUserLimits, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { getAllDecks, getDeckById, getProgress, updateProgress, getDailyUsage, getUserLimits, getEffectiveClassSettingsForUser, getClassesForStudent } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { RESOURCES } from '@/app/resources/resources';
@@ -24,7 +24,13 @@ export default function Nav() {
   const resourcesRef = useRef<HTMLDivElement>(null);
   const progress = getProgress();
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
-  const aiEnabled = !schoolMode || (effectiveSettings?.aiTutorEnabled ?? false);
+  const hasClassMembership = session?.role === 'student' && session?.userId
+    ? getClassesForStudent(session.userId).length > 0
+    : false;
+  const aiEnabled = !schoolMode
+    || session?.role === 'teacher'
+    || !hasClassMembership
+    || (effectiveSettings?.aiTutorEnabled ?? false);
   const limits = getUserLimits();
   const aiLimit = limits.dailyAILimit;
   const aiRemaining = Math.max(0, aiLimit - (getDailyUsage().aiMessagesToday || 0));
@@ -249,35 +255,33 @@ export default function Nav() {
                   )}
 
                   {/* AI Chat Link */}
-                  {aiEnabled ? (
-                    <Link
-                      href="/ai-chat"
-                      className="px-4 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium inline-block relative"
-                      style={{ 
-                        position: 'relative', 
-                        zIndex: 99999, 
-                        pointerEvents: 'auto', 
-                        cursor: 'pointer', 
-                        display: 'inline-block',
-                      }}
-                    >
-                      🤖 AI Chat
-                      {schoolMode && (
-                        <span className="absolute -top-1 -right-1 bg-emerald-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
-                          {aiRemaining}/{aiLimit}
-                        </span>
-                      )}
-                      {!schoolMode && (
-                        <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
-                          {aiRemaining}
-                        </span>
-                      )}
-                    </Link>
-                  ) : (
-                    <span className="px-4 py-1 rounded-lg bg-white/5 text-white/50 text-sm">
-                      🤖 AI Chat {schoolMode ? `0/${aiLimit}` : '(disabled)'}
-                    </span>
-                  )}
+                  <Link
+                    href="/ai-chat"
+                    aria-disabled={!aiEnabled}
+                    className={`px-4 py-1 rounded-lg transition-all text-sm font-medium inline-block relative ${
+                      aiEnabled ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/60'
+                    }`}
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 99999, 
+                      pointerEvents: 'auto', 
+                      cursor: 'pointer', 
+                      display: 'inline-block',
+                    }}
+                  >
+                    🤖 AI Chat
+                    {schoolMode ? (
+                      <span className={`absolute -top-1 -right-1 text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                        aiEnabled ? 'bg-emerald-500 text-black' : 'bg-white/30 text-white'
+                      }`}>
+                        {aiRemaining}/{aiLimit}
+                      </span>
+                    ) : (
+                      <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                        {aiRemaining}
+                      </span>
+                    )}
+                  </Link>
 
                   {/* Login/Account Links */}
                   {session && !session.isGuest ? (

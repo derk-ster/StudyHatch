@@ -42,7 +42,7 @@ export default function ScramblePage() {
   // Helper to update per-deck progress
   const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
     if (!deckId) return;
-    const newProgress = { ...progress };
+    const newProgress = { ...getProgress() };
     if (!newProgress.deckProgress) {
       newProgress.deckProgress = {};
     }
@@ -62,6 +62,21 @@ export default function ScramblePage() {
       ...updates,
     };
     updateProgress(newProgress);
+  };
+
+  const getCurrentDeckProgress = () => {
+    const currentProgress = getProgress();
+    return deckId && currentProgress.deckProgress?.[deckId]
+      ? currentProgress.deckProgress[deckId]
+      : {
+          starredCards: [],
+          knownCards: [],
+          learningCards: [],
+          cardStats: {},
+          matchBestTime: undefined,
+          quizHighScore: undefined,
+          quizStreak: 0,
+        };
   };
 
   // Shuffle cards
@@ -111,7 +126,8 @@ export default function ScramblePage() {
     }
     
     // Update per-deck card stats
-    const newStats = { ...deckProgress.cardStats };
+    const currentDeckProgress = getCurrentDeckProgress();
+    const newStats = { ...currentDeckProgress.cardStats };
     if (!newStats[currentCard.id]) {
       newStats[currentCard.id] = { correct: 0, incorrect: 0 };
     }

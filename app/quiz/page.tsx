@@ -45,7 +45,7 @@ export default function QuizPage() {
   // Helper to update per-deck progress
   const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
     if (!deckId) return;
-    const newProgress = { ...progress };
+    const newProgress = { ...getProgress() };
     if (!newProgress.deckProgress) {
       newProgress.deckProgress = {};
     }
@@ -65,6 +65,21 @@ export default function QuizPage() {
       ...updates,
     };
     updateProgress(newProgress);
+  };
+
+  const getCurrentDeckProgress = () => {
+    const currentProgress = getProgress();
+    return deckId && currentProgress.deckProgress?.[deckId]
+      ? currentProgress.deckProgress[deckId]
+      : {
+          starredCards: [],
+          knownCards: [],
+          learningCards: [],
+          cardStats: {},
+          matchBestTime: undefined,
+          quizHighScore: undefined,
+          quizStreak: 0,
+        };
   };
 
   // Shuffle and select 10 cards for quiz
@@ -117,7 +132,8 @@ export default function QuizPage() {
       setScore(prev => prev + 1);
       setStreak(prev => prev + 1);
       // Update per-deck card stats
-      const newStats = { ...deckProgress.cardStats };
+      const currentDeckProgress = getCurrentDeckProgress();
+      const newStats = { ...currentDeckProgress.cardStats };
       if (!newStats[currentCard.id]) {
         newStats[currentCard.id] = { correct: 0, incorrect: 0 };
       }
@@ -128,7 +144,8 @@ export default function QuizPage() {
       setStreak(0);
       setMissedWords(prev => [...prev, currentCard]);
       // Update per-deck card stats
-      const newStats = { ...deckProgress.cardStats };
+      const currentDeckProgress = getCurrentDeckProgress();
+      const newStats = { ...currentDeckProgress.cardStats };
       if (!newStats[currentCard.id]) {
         newStats[currentCard.id] = { correct: 0, incorrect: 0 };
       }
@@ -146,11 +163,12 @@ export default function QuizPage() {
       setQuizComplete(true);
       const finalScore = score + (selectedAnswer === (showTranslationFirst ? currentCard?.english : currentCard?.translation) ? 1 : 0);
       
-      if (!deckProgress.quizHighScore || finalScore > deckProgress.quizHighScore) {
+      const currentDeckProgress = getCurrentDeckProgress();
+      if (!currentDeckProgress.quizHighScore || finalScore > currentDeckProgress.quizHighScore) {
         updateDeckProgress({ quizHighScore: finalScore });
       }
       
-      if (streak > (deckProgress.quizStreak || 0)) {
+      if (streak > (currentDeckProgress.quizStreak || 0)) {
         updateDeckProgress({ quizStreak: streak });
       }
     }

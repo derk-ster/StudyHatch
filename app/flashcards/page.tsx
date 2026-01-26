@@ -119,7 +119,7 @@ export default function FlashcardsPage() {
 
   const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
     if (!deckId) return;
-    const newProgress = { ...progress };
+    const newProgress = { ...getProgress() };
     if (!newProgress.deckProgress) {
       newProgress.deckProgress = {};
     }
@@ -140,6 +140,22 @@ export default function FlashcardsPage() {
     };
     updateProgress(newProgress);
     setProgress(newProgress);
+  };
+
+  const getCurrentDeckProgress = () => {
+    const currentProgress = getProgress();
+    const currentDeckProgress = deckId && currentProgress.deckProgress?.[deckId]
+      ? currentProgress.deckProgress[deckId]
+      : {
+          starredCards: [],
+          knownCards: [],
+          learningCards: [],
+          cardStats: {},
+          matchBestTime: undefined,
+          quizHighScore: undefined,
+          quizStreak: 0,
+        };
+    return { currentProgress, currentDeckProgress };
   };
 
   const filteredCards = useMemo(() => {
@@ -284,7 +300,13 @@ export default function FlashcardsPage() {
       }
       return newSet;
     });
-    
+
+    const { currentDeckProgress } = getCurrentDeckProgress();
+    const starredCards = currentDeckProgress.starredCards.includes(currentCard.id)
+      ? currentDeckProgress.starredCards.filter(id => id !== currentCard.id)
+      : [...currentDeckProgress.starredCards, currentCard.id];
+    updateDeckProgress({ starredCards });
+
     setMarkedCards(prev => new Set(prev).add(currentCard.id));
     
     setTimeout(() => {
@@ -298,7 +320,20 @@ export default function FlashcardsPage() {
 
   const handleKnown = () => {
     if (!currentCard || isMarked) return;
-    
+
+    const { currentDeckProgress } = getCurrentDeckProgress();
+    const knownCards = currentDeckProgress.knownCards.includes(currentCard.id)
+      ? currentDeckProgress.knownCards
+      : [...currentDeckProgress.knownCards, currentCard.id];
+    const learningCards = currentDeckProgress.learningCards.filter(id => id !== currentCard.id);
+    const newStats = { ...currentDeckProgress.cardStats };
+    if (!newStats[currentCard.id]) {
+      newStats[currentCard.id] = { correct: 0, incorrect: 0 };
+    }
+    newStats[currentCard.id].correct++;
+    newStats[currentCard.id].lastSeen = Date.now();
+    updateDeckProgress({ knownCards, learningCards, cardStats: newStats });
+
     setCardStates(prev => new Map(prev).set(currentCard.id, 'known'));
     setMarkedCards(prev => new Set(prev).add(currentCard.id));
     setFlashingCard({ id: currentCard.id, type: 'known' });
@@ -319,7 +354,20 @@ export default function FlashcardsPage() {
 
   const handleNotKnown = () => {
     if (!currentCard || isMarked) return;
-    
+
+    const { currentDeckProgress } = getCurrentDeckProgress();
+    const learningCards = currentDeckProgress.learningCards.includes(currentCard.id)
+      ? currentDeckProgress.learningCards
+      : [...currentDeckProgress.learningCards, currentCard.id];
+    const knownCards = currentDeckProgress.knownCards.filter(id => id !== currentCard.id);
+    const newStats = { ...currentDeckProgress.cardStats };
+    if (!newStats[currentCard.id]) {
+      newStats[currentCard.id] = { correct: 0, incorrect: 0 };
+    }
+    newStats[currentCard.id].incorrect++;
+    newStats[currentCard.id].lastSeen = Date.now();
+    updateDeckProgress({ knownCards, learningCards, cardStats: newStats });
+
     setCardStates(prev => new Map(prev).set(currentCard.id, 'not-known'));
     setMarkedCards(prev => new Set(prev).add(currentCard.id));
     setFlashingCard({ id: currentCard.id, type: 'not-known' });
