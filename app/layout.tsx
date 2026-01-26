@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import PWAProvider from '@/components/PWAProvider';
 import BackgroundMusic from '@/components/BackgroundMusic';
 import ComplianceBanner from '@/components/ComplianceBanner';
+import ScrollRevealProvider from '@/components/ScrollRevealProvider';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -106,6 +107,7 @@ export default function RootLayout({
         <PWAProvider>
           <AuthProvider>
             <BackgroundMusic />
+            <ScrollRevealProvider />
             <ComplianceBanner />
             {children}
           </AuthProvider>

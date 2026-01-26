@@ -130,40 +130,52 @@ export default function Nav() {
             </Link>
 
             {isResourcesRoute ? (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/"
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
-                >
-                  Home
-                </Link>
-                <div ref={resourcesRef} className="relative">
-                  <button
-                    onClick={() => setResourcesOpen((prev) => !prev)}
+              <div className="flex items-center flex-1">
+                <div className="flex-1 flex justify-center">
+                  <div ref={resourcesRef} className="relative">
+                    <button
+                      onClick={() => setResourcesOpen((prev) => !prev)}
+                      className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+                    >
+                      Resources
+                    </button>
+                    {resourcesOpen && (
+                      <div className="absolute right-0 top-11 z-[99999] w-72 rounded-xl border border-white/15 bg-gray-900/95 p-3 shadow-2xl backdrop-blur">
+                        <div className="max-h-80 overflow-y-auto">
+                          {RESOURCES.map((entry) => (
+                            <Link
+                              key={entry.id}
+                              href={`/resources/${entry.id}`}
+                              onClick={() => setResourcesOpen(false)}
+                              className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                            >
+                              {entry.title}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/"
                     className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
                   >
-                    Resources
-                  </button>
-                  {resourcesOpen && (
-                    <div className="absolute right-0 top-11 z-[99999] w-72 rounded-xl border border-white/15 bg-gray-900/95 p-3 shadow-2xl backdrop-blur">
-                      <div className="max-h-80 overflow-y-auto">
-                        {RESOURCES.map((entry) => (
-                          <Link
-                            key={entry.id}
-                            href={`/resources/${entry.id}`}
-                            onClick={() => setResourcesOpen(false)}
-                            className="block rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
-                          >
-                            {entry.title}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    Home
+                  </Link>
                 </div>
               </div>
             ) : !session ? (
               <div className="flex items-center gap-3">
+                {pathname?.startsWith('/games') && (
+                  <Link
+                    href="/"
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+                  >
+                    ← Go Back
+                  </Link>
+                )}
                 <Link
                   href="/games"
                   className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
@@ -219,6 +231,21 @@ export default function Nav() {
                     Home
                   </Link>
 
+                  {pathname?.startsWith('/games') && (
+                    <Link
+                      href="/"
+                      className="px-4 py-1 rounded-lg transition-all inline-block text-sm bg-white/10 hover:bg-white/20"
+                      style={{ 
+                        position: 'relative', 
+                        zIndex: 99999, 
+                        pointerEvents: 'auto', 
+                        cursor: 'pointer', 
+                        display: 'inline-block',
+                      }}
+                    >
+                      ← Go Back
+                    </Link>
+                  )}
                   <Link
                     href="/games"
                     className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${

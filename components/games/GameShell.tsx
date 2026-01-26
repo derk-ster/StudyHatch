@@ -2,6 +2,7 @@
 
 import Nav from '@/components/Nav';
 import { ReactNode } from 'react';
+import Link from 'next/link';
 
 type GameShellProps = {
   title: string;
@@ -16,7 +17,7 @@ export default function GameShell({ title, subtitle, children }: GameShellProps)
       <main className="max-w-6xl mx-auto px-4 py-10">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow p-6 sm:p-10">
           <div className="mb-6">
-            <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+            <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 pb-2 leading-tight">
               {title}
             </h1>
             {subtitle && <p className="text-white/70 mt-2 text-lg">{subtitle}</p>}

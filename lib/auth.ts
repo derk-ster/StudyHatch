@@ -17,6 +17,13 @@ import { sanitizeText } from './sanitize';
 const USERS_STORAGE_KEY = 'studyhatch-users'; // Mock user database
 const CURRENT_SESSION_KEY = 'studyhatch-session';
 const LAST_SESSION_KEY = 'studyhatch-session-last';
+const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
+const DECKS_BACKUP_STORAGE_KEY = 'spanish-vocab-decks-backup';
+const PUBLIC_DECKS_STORAGE_KEY = 'spanish-vocab-public-decks';
+const DAILY_USAGE_KEY = 'spanish-vocab-daily-usage';
+const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
+const PROGRESS_STORAGE_KEY = 'spanish-vocab-progress';
+const FLASHCARD_POSITION_KEY = 'spanish-vocab-flashcard-positions';
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const LOGIN_RATE_LIMIT_COUNT = 5;
 
@@ -317,6 +324,46 @@ export function continueAsGuest(): AuthSession {
   
   setCurrentSession(guestSession);
   return guestSession;
+}
+
+export function deleteAccount(userId: string): { success: boolean; error?: string } {
+  if (typeof window === 'undefined') return { success: false, error: 'Unavailable on server.' };
+  const users = getUsers();
+  if (!users[userId]) {
+    return { success: false, error: 'Account not found.' };
+  }
+
+  delete users[userId];
+  saveUsers(users);
+
+  try {
+    localStorage.removeItem(`${DECKS_STORAGE_KEY}-${userId}`);
+    localStorage.removeItem(`${DECKS_BACKUP_STORAGE_KEY}-${userId}`);
+    localStorage.removeItem(`${DAILY_USAGE_KEY}-${userId}`);
+    localStorage.removeItem(`${PROGRESS_STORAGE_KEY}-${userId}`);
+    localStorage.removeItem(`${FLASHCARD_POSITION_KEY}-${userId}`);
+    localStorage.removeItem(PROGRESS_STORAGE_KEY);
+    localStorage.removeItem(FLASHCARD_POSITION_KEY);
+
+    const publicDecksRaw = localStorage.getItem(PUBLIC_DECKS_STORAGE_KEY);
+    if (publicDecksRaw) {
+      const publicDecks = JSON.parse(publicDecksRaw) as Array<{ ownerUserId?: string }>;
+      const filtered = publicDecks.filter(deck => deck.ownerUserId !== userId);
+      localStorage.setItem(PUBLIC_DECKS_STORAGE_KEY, JSON.stringify(filtered));
+    }
+
+    const membershipsRaw = localStorage.getItem(CLASS_MEMBERSHIPS_STORAGE_KEY);
+    if (membershipsRaw) {
+      const memberships = JSON.parse(membershipsRaw) as Array<{ userId: string }>;
+      const filtered = memberships.filter(entry => entry.userId !== userId);
+      localStorage.setItem(CLASS_MEMBERSHIPS_STORAGE_KEY, JSON.stringify(filtered));
+    }
+  } catch (error) {
+    console.error('Error deleting account data:', error);
+  }
+
+  signOut();
+  return { success: true };
 }
 
 export function getAccountData(userId: string): AccountData | null {

@@ -107,6 +107,7 @@ export type UserProgress = {
     matchBestTime?: number;
     quizHighScore?: number;
     quizStreak?: number;
+    xpEarned?: number;
   }>;
   // Streak and pet system
   dailyStreak?: number; // Current consecutive days streak

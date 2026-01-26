@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import { Deck } from '@/types/vocab';
-import { duplicateDeck, getAllDecks, getDailyUsage, getPublicDecks, getUserLimits, incrementDailyPublicSearches, setDeckVisibility } from '@/lib/storage';
+import { duplicateDeck, getAllDecks, getDailyUsage, getDeckOwnerName, getPublicDecks, getUserLimits, incrementDailyPublicSearches, setDeckVisibility } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 
 export default function PublicDecksPage() {
@@ -19,8 +19,10 @@ export default function PublicDecksPage() {
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showMyPublished, setShowMyPublished] = useState(false);
   const [dailyUsage, setDailyUsage] = useState(getDailyUsage());
   const limits = getUserLimits();
+  const visibleDecks = filteredDecks.slice(0, 100);
 
   useEffect(() => {
     const decks = getPublicDecks();
@@ -57,9 +59,40 @@ export default function PublicDecksPage() {
     }
   };
 
+  const filterDecks = (items: Deck[], searchQuery: string, onlyMine: boolean) => {
+    let result = items;
+    if (onlyMine) {
+      result = result.filter(deck => {
+        if (session?.userId) {
+          return deck.ownerUserId === session.userId;
+        }
+        return !deck.ownerUserId;
+      });
+    }
+
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      return result;
+    }
+
+    const lower = trimmed.toLowerCase();
+    return result.filter(deck => {
+      const ownerName = getDeckOwnerName(deck).toLowerCase();
+      return deck.name.toLowerCase().includes(lower) ||
+        (deck.description || '').toLowerCase().includes(lower) ||
+        ownerName.includes(lower);
+    });
+  };
+
+  const refreshDecks = () => {
+    const decks = getPublicDecks();
+    setPublicDecks(decks);
+    setFilteredDecks(filterDecks(decks, query, showMyPublished));
+  };
+
   const handleSearch = () => {
     const trimmed = query.trim();
-    if (!trimmed) {
+    if (!trimmed && !showMyPublished) {
       setFilteredDecks(publicDecks);
       setError('');
       return;
@@ -71,12 +104,7 @@ export default function PublicDecksPage() {
       return;
     }
 
-    const lower = trimmed.toLowerCase();
-    const results = publicDecks.filter(deck =>
-      deck.name.toLowerCase().includes(lower) ||
-      (deck.description || '').toLowerCase().includes(lower)
-    );
-    setFilteredDecks(results);
+    setFilteredDecks(filterDecks(publicDecks, query, showMyPublished));
     setError('');
     if (limits.dailySearchLimit !== Infinity) {
       incrementDailyPublicSearches();
@@ -84,14 +112,36 @@ export default function PublicDecksPage() {
     }
   };
 
+  const handleRemovePublished = (deckId: string) => {
+    const updated = setDeckVisibility(deckId, 'private');
+    if (updated) {
+      refreshDecks();
+      setMessage('Deck removed from Public Decks.');
+      setError('');
+    }
+  };
+
+  useEffect(() => {
+    if (query.trim()) return;
+    setFilteredDecks(filterDecks(publicDecks, '', showMyPublished));
+  }, [publicDecks, query, showMyPublished]);
+
   return (
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-6xl mx-auto px-4 py-12">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow p-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-2">
-            Public Decks
-          </h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+              Public Decks
+            </h1>
+            <button
+              onClick={refreshDecks}
+              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
+            >
+              Refresh
+            </button>
+          </div>
           <p className="text-white/70 mb-8">
             Explore shared decks and add them to your library.
           </p>
@@ -112,7 +162,7 @@ export default function PublicDecksPage() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="Search by deck name or description"
+                  placeholder="Search by deck name, description, or username"
                 />
                 <button
                   onClick={handleSearch}
@@ -121,6 +171,15 @@ export default function PublicDecksPage() {
                   Search
                 </button>
               </div>
+              <label className="mt-3 flex items-center gap-2 text-sm text-white/70">
+                <input
+                  type="checkbox"
+                  checked={showMyPublished}
+                  onChange={(e) => setShowMyPublished(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Show only my published decks
+              </label>
               <p className="text-white/60 text-sm mt-2">
                 {limits.dailySearchLimit === Infinity
                   ? 'Unlimited searches available.'
@@ -153,7 +212,7 @@ export default function PublicDecksPage() {
             </div>
           </div>
 
-          {filteredDecks.length === 0 ? (
+          {visibleDecks.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">🌍</div>
               <h2 className="text-2xl font-bold mb-2 text-white/90">No public decks yet</h2>
@@ -161,9 +220,19 @@ export default function PublicDecksPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDecks.map(deck => (
-                <div key={deck.id} className="bg-white/10 rounded-2xl p-6 border border-white/20 card-glow">
+              {visibleDecks.map(deck => (
+                <div key={deck.id} className="bg-white/10 rounded-2xl p-6 border border-white/20 card-glow relative">
+                  {(session?.userId ? deck.ownerUserId === session.userId : !deck.ownerUserId) && (
+                    <button
+                      onClick={() => handleRemovePublished(deck.id)}
+                      className="absolute right-4 top-4 text-white/60 hover:text-white text-sm"
+                      title="Remove from Public Decks"
+                    >
+                      Remove
+                    </button>
+                  )}
                   <h3 className="text-2xl font-bold text-white mb-2">{deck.name}</h3>
+                  <p className="text-white/60 text-sm mb-2">Created by: {getDeckOwnerName(deck)}</p>
                   {deck.description && (
                     <p className="text-white/70 text-sm mb-3">{deck.description}</p>
                   )}

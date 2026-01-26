@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, FormEvent, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { createSchool, getClassByJoinCode, joinClassByCode } from '@/lib/storage';
 import { recordActivity } from '@/lib/activity-log';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signIn, signUp, continueAsGuest, isLoading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -19,6 +20,14 @@ export default function LoginPage() {
   const [schoolName, setSchoolName] = useState('');
   const [schoolDescription, setSchoolDescription] = useState('');
   const [classCodeInput, setClassCodeInput] = useState('');
+
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    const signup = searchParams.get('signup');
+    if (mode === 'signup' || signup === '1') {
+      setIsLogin(false);
+    }
+  }, [searchParams]);
 
   const extractClassCode = (value: string) => {
     const trimmed = value.trim();

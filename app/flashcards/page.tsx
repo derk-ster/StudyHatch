@@ -12,6 +12,7 @@ import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
+import { addXP, XP_REWARDS } from '@/lib/xp';
 
 export default function FlashcardsPage() {
   const searchParams = useSearchParams();
@@ -42,6 +43,7 @@ export default function FlashcardsPage() {
   const [sessionStarredCards, setSessionStarredCards] = useState<Set<string>>(new Set());
   const [definitions, setDefinitions] = useState<Map<string, string>>(new Map());
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set());
+  const [sessionXp, setSessionXp] = useState(0);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -197,6 +199,7 @@ export default function FlashcardsPage() {
     setLastClickedCard(null);
     setShowResults(false);
     setSessionStarredCards(new Set());
+    setSessionXp(0);
   }, [deckId]);
 
   // Fetch definition when current card changes (always fetch for English word)
@@ -339,6 +342,8 @@ export default function FlashcardsPage() {
     newStats[currentCard.id].correct++;
     newStats[currentCard.id].lastSeen = Date.now();
     updateDeckProgress({ knownCards, learningCards, cardStats: newStats });
+    addXP(XP_REWARDS.CORRECT_ANSWER, deckId || undefined);
+    setSessionXp(prev => prev + XP_REWARDS.CORRECT_ANSWER);
 
     playSfx('correct');
     setCardStates(prev => new Map(prev).set(currentCard.id, 'known'));
@@ -679,6 +684,12 @@ export default function FlashcardsPage() {
                   {calculateResults.accuracy}%
                 </div>
               </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <div className="text-white/70 text-sm mb-2">XP Gained</div>
+                <div className="text-3xl font-bold text-emerald-400">
+                  {sessionXp}
+                </div>
+              </div>
               <div className="bg-green-500/20 rounded-lg p-4 border border-green-500/30">
                 <div className="text-white/70 text-sm mb-2">Known (Correct)</div>
                 <div className="text-3xl font-bold text-green-400">
@@ -737,6 +748,7 @@ export default function FlashcardsPage() {
                   setFlashingCard(null);
                   setLastClickedCard(null);
                   setSessionStarredCards(new Set());
+                  setSessionXp(0);
                 }}
                 className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
               >

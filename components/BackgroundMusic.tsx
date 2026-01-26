@@ -6,8 +6,8 @@ import { useAudioSettings } from '@/lib/audio-settings';
 
  const MIN_PAUSE_MS = 30_000;
  const MAX_PAUSE_MS = 60_000;
-const FADE_IN_MS = 1500;
-const FADE_OUT_MS = 1500;
+const FADE_IN_MS = 400;
+const FADE_OUT_MS = 400;
 
  const multiplayerPathSegments = ['/games/play', '/games/lobby', '/games/results'];
 
@@ -159,9 +159,23 @@ const FADE_OUT_MS = 1500;
       });
       return;
     }
-    if (!audio.paused) {
-      audio.volume = targetVolume;
+
+    const resumePlayback = () => {
+      fadeOutRef.current = false;
+      audio.play().then(() => {
+        const startVolume = Math.min(audio.volume || 0, targetVolume);
+        fadeTo(audio, startVolume, targetVolume, FADE_IN_MS);
+      }).catch(() => {
+        // Ignore autoplay errors; user interaction will allow playback.
+      });
+    };
+
+    if (audio.paused) {
+      resumePlayback();
+      return;
     }
+
+    audio.volume = targetVolume;
   }, [isMuted, targetVolume]);
 
    return null;

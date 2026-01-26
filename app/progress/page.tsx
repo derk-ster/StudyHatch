@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { getProgress, resetProgress, getAllDecks, getDeckById } from '@/lib/storage';
+import { getXPInfo } from '@/lib/xp';
 
 export default function ProgressPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function ProgressPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const decks = getAllDecks();
+  const { xp, level, xpForNextLevel, xpToday } = getXPInfo();
 
   useEffect(() => {
     const deckParam = searchParams.get('deck');
@@ -134,6 +136,28 @@ export default function ProgressPage() {
                 </div>
                 <div className="text-sm text-white/60">
                   Consecutive correct
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 card-glow mb-8">
+              <h2 className="text-2xl font-bold mb-4">XP Summary</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-white/70 text-sm mb-1">Current Level</div>
+                  <div className="text-2xl font-bold text-purple-400">{level}</div>
+                </div>
+                <div>
+                  <div className="text-white/70 text-sm mb-1">XP Gained Today</div>
+                  <div className="text-2xl font-bold text-blue-400">{xpToday}</div>
+                </div>
+                <div>
+                  <div className="text-white/70 text-sm mb-1">XP Gained Forever</div>
+                  <div className="text-2xl font-bold text-green-400">{xp}</div>
+                </div>
+                <div>
+                  <div className="text-white/70 text-sm mb-1">XP to Next Level</div>
+                  <div className="text-2xl font-bold text-yellow-400">{xpForNextLevel}</div>
                 </div>
               </div>
             </div>

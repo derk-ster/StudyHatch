@@ -12,6 +12,7 @@ import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
+import { addXP, XP_REWARDS } from '@/lib/xp';
 
 export default function ScramblePage() {
   const searchParams = useSearchParams();
@@ -24,6 +25,7 @@ export default function ScramblePage() {
   const [score, setScore] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [showHint, setShowHint] = useState(false);
+  const [sessionXp, setSessionXp] = useState(0);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -32,6 +34,9 @@ export default function ScramblePage() {
     if (deckId) {
       updateStreakOnStudy();
     }
+  }, [deckId]);
+  useEffect(() => {
+    setSessionXp(0);
   }, [deckId]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
@@ -127,6 +132,8 @@ export default function ScramblePage() {
     if (correct) {
       const points = 10 - (hintsUsed * 2);
       setScore(prev => prev + Math.max(1, points));
+      addXP(XP_REWARDS.CORRECT_ANSWER, deckId || undefined);
+      setSessionXp(prev => prev + XP_REWARDS.CORRECT_ANSWER);
     }
     
     // Update per-deck card stats
@@ -200,6 +207,7 @@ export default function ScramblePage() {
             <div className="text-right">
               <div className="text-2xl font-bold text-purple-400">Score: {score}</div>
               <div className="text-sm text-white/70">Card {currentIndex + 1} of {shuffledCards.length}</div>
+              <div className="text-sm text-white/60 mt-1">XP gained: {sessionXp}</div>
             </div>
           </div>
         </div>
@@ -255,6 +263,9 @@ export default function ScramblePage() {
                   isCorrect ? 'text-green-400' : 'text-red-400'
                 }`}>
                   {isCorrect ? '¡Correcto! 🎉' : 'Incorrecto'}
+                </div>
+                <div className="text-white/70 text-sm mt-2">
+                  XP gained: <span className="text-emerald-400 font-semibold">{sessionXp}</span>
                 </div>
                 {!isCorrect && (
                   <div className="text-xl text-white/90 mt-4">

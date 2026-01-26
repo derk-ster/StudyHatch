@@ -12,6 +12,7 @@ import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
+import { addXP, XP_REWARDS } from '@/lib/xp';
 
 export default function QuizPage() {
   const searchParams = useSearchParams();
@@ -25,6 +26,7 @@ export default function QuizPage() {
   const [quizComplete, setQuizComplete] = useState(false);
   const [showTranslationFirst, setShowTranslationFirst] = useState(true);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
+  const [sessionXp, setSessionXp] = useState(0);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -33,6 +35,9 @@ export default function QuizPage() {
     if (deckId) {
       updateStreakOnStudy();
     }
+  }, [deckId]);
+  useEffect(() => {
+    setSessionXp(0);
   }, [deckId]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
@@ -144,6 +149,8 @@ export default function QuizPage() {
       newStats[currentCard.id].correct++;
       newStats[currentCard.id].lastSeen = Date.now();
       updateDeckProgress({ cardStats: newStats });
+      addXP(XP_REWARDS.CORRECT_ANSWER, deckId || undefined);
+      setSessionXp(prev => prev + XP_REWARDS.CORRECT_ANSWER);
     } else {
       playSfx('incorrect');
       setStreak(0);
@@ -241,6 +248,9 @@ export default function QuizPage() {
                 <p className="text-white/70">
                   Accuracy: {Math.round((score / quizCards.length) * 100)}%
                 </p>
+                <p className="text-white/70 mt-2">
+                  XP gained: <span className="text-emerald-400 font-semibold">{sessionXp}</span>
+                </p>
               </div>
 
               {missedWords.length > 0 && (
@@ -267,6 +277,7 @@ export default function QuizPage() {
                     setQuizComplete(false);
                     setSelectedAnswer(null);
                     setShowResult(false);
+                    setSessionXp(0);
                   }}
                   className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
                 >

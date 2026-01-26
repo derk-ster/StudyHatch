@@ -10,8 +10,9 @@ import { useAuth } from '@/lib/auth-context';
 import { getAllUsers } from '@/lib/auth';
 import { getClassesForStudent, getClassesForSchool, getSchoolForUser, getStudentsForClass } from '@/lib/storage';
 import { getWeekRangeLabel, getWeeklyStatsSnapshot, WeeklyUserStats } from '@/lib/leaderboards';
+import { getLevelFromXP } from '@/lib/xp';
 
-type Scope = 'public' | 'classroom';
+type Scope = 'public' | 'classroom' | 'levels';
 
 type LeaderboardRow = {
   userId: string;
@@ -104,12 +105,66 @@ const LeaderboardCard = ({
   );
 };
 
+type LevelRow = {
+  userId: string;
+  username: string;
+  level: number;
+  xp: number;
+  isCurrentUser: boolean;
+};
+
+const LevelLeaderboardCard = ({ rows }: { rows: LevelRow[] }) => {
+  if (rows.length === 0) {
+    return (
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div className="text-white/80 text-lg font-semibold">Top Levels</div>
+        <p className="mt-2 text-white/60 text-sm">Earn XP to climb the level ranks.</p>
+        <div className="mt-6 text-white/50 text-sm">
+          No results yet. Start studying to claim the first spot.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+      <div className="text-white/80 text-lg font-semibold">Top Levels</div>
+      <p className="mt-2 text-white/60 text-sm">The highest-level learners in StudyHatch.</p>
+      <div className="mt-4 space-y-2">
+        {rows.map((row, index) => (
+          <div
+            key={`${row.userId}-level`}
+            className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+              index === 0 ? 'bg-purple-500/20 text-purple-100' : 'bg-white/5 text-white/90'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold w-6 text-right">{index + 1}</span>
+              <span className="font-semibold">
+                {row.username}
+                {row.isCurrentUser ? ' (you)' : ''}
+              </span>
+            </div>
+            <div className="text-sm text-white/70">
+              Level: <strong className="text-white">{row.level}</strong> • XP: {row.xp}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function LeaderboardsPage() {
   const { session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const scope = (searchParams.get('scope') === 'classroom' ? 'classroom' : 'public') as Scope;
+  const scope = (searchParams.get('scope') === 'classroom'
+    ? 'classroom'
+    : searchParams.get('scope') === 'levels'
+    ? 'levels'
+    : 'public') as Scope;
 
   const weekRange = getWeekRangeLabel();
   const weeklyStats = getWeeklyStatsSnapshot();
@@ -178,24 +233,64 @@ export default function LeaderboardsPage() {
   const activityRows = getRowsForMetric('activities');
   const accuracyRows = getRowsForMetric('accuracy');
 
+  const levelRows = useMemo(() => {
+    const users = getAllUsers().map(entry => ({
+      userId: entry.user.id,
+      username: entry.user.username,
+      progress: entry.accountData?.progress,
+    }));
+    if (session?.isGuest || (session?.userId && !users.some(user => user.userId === session.userId))) {
+      users.push({
+        userId: session?.userId || 'guest',
+        username: session?.username || 'Guest',
+        progress: session?.userId ? undefined : undefined,
+      });
+    }
+    const mapped: LevelRow[] = users.map(user => {
+      const xp = user.progress?.xp || 0;
+      const level = user.progress?.level || getLevelFromXP(xp);
+      return {
+        userId: user.userId,
+        username: user.username,
+        level,
+        xp,
+        isCurrentUser: session?.userId === user.userId,
+      };
+    });
+    return mapped
+      .sort((a, b) => {
+        if (b.level !== a.level) return b.level - a.level;
+        return b.xp - a.xp;
+      })
+      .slice(0, 10);
+  }, [session?.userId, session?.username, session?.isGuest]);
+
   return (
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-6xl mx-auto px-4 py-12">
         <div className="text-center mb-10">
           <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-            Weekly Leaderboards
+            {scope === 'levels' ? 'Level Leaderboards' : 'Weekly Leaderboards'}
           </h1>
-          <p className="text-white/70 text-lg">
-            Fresh rankings every week ({weekRange.start} - {weekRange.end}).
-          </p>
-          <div className="mt-4 inline-flex flex-col sm:flex-row gap-3 items-center justify-center text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
-            <span className="font-semibold text-white">Streak Skip Reward</span>
-            <span>Top 10 earn 1 Streak Skip Day. #1 earns 3.</span>
-            <span className="text-white/60">
-              Streak Skip Day: keep your streak alive on a day you miss.
-            </span>
-          </div>
+          {scope === 'levels' ? (
+            <p className="text-white/70 text-lg">
+              See the highest-level StudyHatch learners.
+            </p>
+          ) : (
+            <>
+              <p className="text-white/70 text-lg">
+                Fresh rankings every week ({weekRange.start} - {weekRange.end}).
+              </p>
+              <div className="mt-4 inline-flex flex-col sm:flex-row gap-3 items-center justify-center text-sm text-white/80 bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                <span className="font-semibold text-white">Streak Skip Reward</span>
+                <span>Top 10 earn 1 Streak Skip Day. #1 earns 3.</span>
+                <span className="text-white/60">
+                  Streak Skip Day: keep your streak alive on a day you miss.
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -218,6 +313,16 @@ export default function LeaderboardsPage() {
             }`}
           >
             Classroom Leaderboards
+          </Link>
+          <Link
+            href="/leaderboards?scope=levels"
+            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
+              scope === 'levels'
+                ? 'bg-blue-500/20 border-blue-400/50 text-blue-100'
+                : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+            }`}
+          >
+            Level Leaderboards
           </Link>
         </div>
 
@@ -248,29 +353,35 @@ export default function LeaderboardsPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <LeaderboardCard
-            title="Momentum Champions"
-            description="A blend of consistency and accuracy over the week."
-            rows={momentumRows}
-            valueLabel="Score"
-            valueFormatter={(row) => `${row.activities + Math.round(row.accuracyRate)}`}
-          />
-          <LeaderboardCard
-            title="Most Activities Completed"
-            description="Every study action counts toward the leaderboard."
-            rows={activityRows}
-            valueLabel="Actions"
-            valueFormatter={(row) => `${row.activities}`}
-          />
-          <LeaderboardCard
-            title="Highest Accuracy"
-            description="Precision leaders with the sharpest answers."
-            rows={accuracyRows}
-            valueLabel="Accuracy"
-            valueFormatter={(row) => `${formatAccuracy(row.accuracyRate)}`}
-          />
-        </div>
+        {scope === 'levels' ? (
+          <div className="grid grid-cols-1 gap-6">
+            <LevelLeaderboardCard rows={levelRows} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <LeaderboardCard
+              title="Momentum Champions"
+              description="A blend of consistency and accuracy over the week."
+              rows={momentumRows}
+              valueLabel="Score"
+              valueFormatter={(row) => `${row.activities + Math.round(row.accuracyRate)}`}
+            />
+            <LeaderboardCard
+              title="Most Activities Completed"
+              description="Every study action counts toward the leaderboard."
+              rows={activityRows}
+              valueLabel="Actions"
+              valueFormatter={(row) => `${row.activities}`}
+            />
+            <LeaderboardCard
+              title="Highest Accuracy"
+              description="Precision leaders with the sharpest answers."
+              rows={accuracyRows}
+              valueLabel="Accuracy"
+              valueFormatter={(row) => `${formatAccuracy(row.accuracyRate)}`}
+            />
+          </div>
+        )}
       </main>
     </div>
   );

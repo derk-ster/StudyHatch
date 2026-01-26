@@ -18,7 +18,7 @@ const CLASS_SETTINGS_STORAGE_KEY = 'studyhatch-class-settings';
 const getDeckStorageKey = (): string => {
   if (typeof window === 'undefined') return DECKS_STORAGE_KEY;
   const session = getCurrentSession();
-  if (session?.userId && !session.isGuest) {
+  if (session?.userId) {
     return `${DECKS_STORAGE_KEY}-${session.userId}`;
   }
   return DECKS_STORAGE_KEY;
@@ -27,10 +27,19 @@ const getDeckStorageKey = (): string => {
 const getDeckBackupStorageKey = (): string => {
   if (typeof window === 'undefined') return DECKS_BACKUP_STORAGE_KEY;
   const session = getCurrentSession();
-  if (session?.userId && !session.isGuest) {
+  if (session?.userId) {
     return `${DECKS_BACKUP_STORAGE_KEY}-${session.userId}`;
   }
   return DECKS_BACKUP_STORAGE_KEY;
+};
+
+const getProgressStorageKey = (): string => {
+  if (typeof window === 'undefined') return STORAGE_KEY;
+  const session = getCurrentSession();
+  if (session?.userId) {
+    return `${STORAGE_KEY}-${session.userId}`;
+  }
+  return STORAGE_KEY;
 };
 
 export const backupDecks = (): void => {
@@ -65,7 +74,7 @@ export const getProgress = (): UserProgress => {
   }
   
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(getProgressStorageKey());
     if (stored) {
       return JSON.parse(stored);
     }
@@ -80,7 +89,7 @@ export const saveProgress = (progress: UserProgress): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    localStorage.setItem(getProgressStorageKey(), JSON.stringify(progress));
     const session = getCurrentSession();
     if (session?.userId && !session.isGuest) {
       const accountData = getAccountData(session.userId);
@@ -115,15 +124,26 @@ export const getDefaultProgress = (): UserProgress => ({
   lastMode: 'general',
   lastDeck: undefined,
   lastActivity: undefined,
+  xp: 0,
+  level: 1,
 });
 
 const FLASHCARD_POSITION_KEY = 'spanish-vocab-flashcard-positions';
+
+const getFlashcardPositionKey = (): string => {
+  if (typeof window === 'undefined') return FLASHCARD_POSITION_KEY;
+  const session = getCurrentSession();
+  if (session?.userId) {
+    return `${FLASHCARD_POSITION_KEY}-${session.userId}`;
+  }
+  return FLASHCARD_POSITION_KEY;
+};
 
 export const getFlashcardPosition = (deckId: string): number => {
   if (typeof window === 'undefined') return 0;
   
   try {
-    const stored = localStorage.getItem(FLASHCARD_POSITION_KEY);
+    const stored = localStorage.getItem(getFlashcardPositionKey());
     if (stored) {
       const positions = JSON.parse(stored);
       return positions[deckId] ?? 0;
@@ -139,10 +159,10 @@ export const saveFlashcardPosition = (deckId: string, index: number): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    const stored = localStorage.getItem(FLASHCARD_POSITION_KEY);
+    const stored = localStorage.getItem(getFlashcardPositionKey());
     const positions = stored ? JSON.parse(stored) : {};
     positions[deckId] = index;
-    localStorage.setItem(FLASHCARD_POSITION_KEY, JSON.stringify(positions));
+    localStorage.setItem(getFlashcardPositionKey(), JSON.stringify(positions));
   } catch (error) {
     console.error('Error saving flashcard position:', error);
   }
@@ -309,7 +329,7 @@ export const saveDeck = (deck: Deck): void => {
       ...deck,
       targetLanguage: deck.targetLanguage || 'es', // Default to Spanish for old decks
       visibility: deck.visibility || 'private',
-      ownerUserId: deck.ownerUserId ?? existingDeck?.ownerUserId ?? (session?.isGuest ? undefined : session?.userId),
+      ownerUserId: deck.ownerUserId ?? existingDeck?.ownerUserId ?? session?.userId,
       schoolId: deck.schoolId ?? existingDeck?.schoolId,
     };
     
@@ -338,11 +358,25 @@ export const setDeckVisibility = (deckId: string, visibility: 'private' | 'publi
   return true;
 };
 
+const dedupeDecksById = (decks: Deck[]): Deck[] => {
+  const seen = new Set<string>();
+  return decks.filter(deck => {
+    if (seen.has(deck.id)) return false;
+    seen.add(deck.id);
+    return true;
+  });
+};
+
 function getStoredPublicDecks(): Deck[] {
   if (typeof window === 'undefined') return [];
   try {
     const stored = localStorage.getItem(PUBLIC_DECKS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? (JSON.parse(stored) as Deck[]) : [];
+    const deduped = dedupeDecksById(parsed);
+    if (deduped.length !== parsed.length) {
+      saveStoredPublicDecks(deduped);
+    }
+    return deduped;
   } catch (error) {
     console.error('Error loading public decks:', error);
     return [];
@@ -359,14 +393,9 @@ function saveStoredPublicDecks(decks: Deck[]): void {
 }
 
 function upsertPublicDeck(deck: Deck): void {
-  const publicDecks = getStoredPublicDecks();
-  const existingIndex = publicDecks.findIndex(entry => entry.id === deck.id);
+  const publicDecks = getStoredPublicDecks().filter(entry => entry.id !== deck.id);
   const deckEntry = { ...deck, visibility: 'public' as const };
-  if (existingIndex >= 0) {
-    publicDecks[existingIndex] = deckEntry;
-  } else {
-    publicDecks.push(deckEntry);
-  }
+  publicDecks.push(deckEntry);
   saveStoredPublicDecks(publicDecks);
 }
 
@@ -392,6 +421,14 @@ export const getPublicDecks = (): Deck[] => {
     saveStoredPublicDecks(merged);
   }
   return merged;
+};
+
+export const getDeckOwnerName = (deck: Deck): string => {
+  if (deck.ownerUserId) {
+    const user = getUserById(deck.ownerUserId);
+    if (user?.username) return user.username;
+  }
+  return 'Guest';
 };
 
 export const duplicateDeck = (deckId: string, ownerUserId?: string): Deck | null => {
@@ -1005,7 +1042,7 @@ const DAILY_USAGE_KEY = 'spanish-vocab-daily-usage';
 const getDailyUsageKey = (): string => {
   if (typeof window === 'undefined') return DAILY_USAGE_KEY;
   const session = getCurrentSession();
-  if (session?.userId && !session.isGuest) {
+  if (session?.userId) {
     return `${DAILY_USAGE_KEY}-${session.userId}`;
   }
   return DAILY_USAGE_KEY;
@@ -1020,6 +1057,7 @@ export type DailyUsage = {
   publicSearchesToday?: number; // number of public deck searches
   editedDeckIdToday?: string | null; // deck edited today (students/guests)
   deckSavesToday?: number; // number of deck saves today (students/guests)
+  xpToday?: number; // XP earned today
 };
 
 export const getDailyUsage = (): DailyUsage => {
@@ -1032,6 +1070,7 @@ export const getDailyUsage = (): DailyUsage => {
       publicSearchesToday: 0,
       editedDeckIdToday: null,
       deckSavesToday: 0,
+      xpToday: 0,
     };
   }
   
@@ -1052,6 +1091,7 @@ export const getDailyUsage = (): DailyUsage => {
           publicSearchesToday: 0,
           editedDeckIdToday: null,
           deckSavesToday: 0,
+          xpToday: 0,
         };
         localStorage.setItem(getDailyUsageKey(), JSON.stringify(resetUsage));
         return resetUsage;
@@ -1073,6 +1113,10 @@ export const getDailyUsage = (): DailyUsage => {
       if (usage.deckSavesToday === undefined) {
         usage.deckSavesToday = 0;
       }
+
+      if (usage.xpToday === undefined) {
+        usage.xpToday = 0;
+      }
       
       return usage;
     }
@@ -1088,6 +1132,7 @@ export const getDailyUsage = (): DailyUsage => {
     publicSearchesToday: 0,
     editedDeckIdToday: null,
     deckSavesToday: 0,
+    xpToday: 0,
   };
 };
 

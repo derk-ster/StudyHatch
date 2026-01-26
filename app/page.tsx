@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
@@ -11,6 +12,7 @@ import { StreakPetWidget } from '@/components/StreakPet';
 import { Deck, ActivityType } from '@/types/vocab';
 import { getAllDecks, deleteDeck, getUserLimits, reorderDecksByIds } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
+import { getDeckXP, getXPInfo } from '@/lib/xp';
 
 const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; description: string }[] = [
   {
@@ -93,21 +95,47 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-noise">
         <Nav />
-        <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center shadow-xl">
-            <h1 className="text-4xl font-bold leading-tight pb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 sm:text-5xl">
+      <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center shadow-xl opacity-0 animate-slide-up">
+            <h1 className="text-4xl font-bold leading-tight pb-3 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 sm:text-5xl">
               StudyHatch makes language learning simpler
             </h1>
             <p className="mt-4 text-lg text-white/80">
               Build custom vocabulary decks, practice translations, and study with interactive games.
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link
-                className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-5 py-2 font-semibold text-white shadow-[0_0_18px_rgba(168,85,247,0.6)] transition-all hover:from-purple-500 hover:to-blue-500"
-                href="/login"
-              >
-                Log In or Sign Up
-              </Link>
+            <div className="mt-6 flex items-center justify-center">
+              <div className="relative inline-flex items-center gap-3">
+                <div className="absolute -left-44 -top-10 flex flex-col items-center">
+                  <Image
+                    src="/ClickHereText.png"
+                    alt=""
+                    width={160}
+                    height={80}
+                    className="h-auto w-[140px]"
+                    priority
+                  />
+                  <Image
+                    src="/ClickHereArrow.png"
+                    alt=""
+                    width={180}
+                    height={120}
+                    className="h-auto w-[160px] -mt-10"
+                    priority
+                  />
+                </div>
+                <Link
+                  className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-5 py-2 font-semibold text-white shadow-[0_0_22px_rgba(168,85,247,0.75)] transition-all hover:from-purple-500 hover:to-blue-500"
+                  href="/login?mode=signup"
+                >
+                  Sign Up
+                </Link>
+                <Link
+                  className="rounded-lg bg-white/10 px-5 py-2 font-semibold text-white transition-all hover:bg-white/20"
+                  href="/login"
+                >
+                  Log In
+                </Link>
+              </div>
             </div>
           </section>
 
@@ -117,7 +145,7 @@ export default function Home() {
               { title: 'Translation practice', text: 'Move beyond words with sentence-level practice and recall.' },
               { title: 'Teacher ready', text: 'Create classroom decks and share targeted vocabulary.' },
             ].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-6">
+              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-6 opacity-0 animate-slide-up">
                 <h2 className="text-xl font-semibold text-white">{item.title}</h2>
                 <p className="mt-2 text-white/70">{item.text}</p>
               </div>
@@ -125,7 +153,7 @@ export default function Home() {
           </section>
 
           <section className="mt-12 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 opacity-0 animate-slide-up">
               <h2 className="text-2xl font-semibold leading-tight pb-1">About StudyHatch</h2>
               <p className="mt-3 text-white/80 leading-relaxed">
                 StudyHatch is built for students and teachers who want a simple way to grow vocabulary, retain it, and
@@ -135,7 +163,7 @@ export default function Home() {
                 Log in to create decks, track progress, and unlock the full study experience.
               </p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-8 opacity-0 animate-slide-up">
               <h2 className="text-2xl font-semibold leading-tight pb-1">Activities inside StudyHatch</h2>
               <div className="mt-4 flex flex-wrap gap-3 text-white/80">
                 {[
@@ -159,6 +187,9 @@ export default function Home() {
       </div>
     );
   }
+
+  const { level, xpForNextLevel } = getXPInfo();
+  const xpToNextLabel = xpForNextLevel > 0 ? `${xpForNextLevel} XP to level up` : 'Max level';
 
   const limits = getUserLimits();
 
@@ -252,25 +283,38 @@ export default function Home() {
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12 opacity-0 animate-fade-in">
-          <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
-            Your Vocabulary Decks
-          </h1>
+        <div className="text-center mb-12" data-reveal>
+          <div className="relative inline-block">
+            <h1 className="text-5xl font-bold mb-4 pb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
+              Your Vocabulary Decks
+            </h1>
+            <Image
+              src="/Arrow.png"
+              alt=""
+              width={140}
+              height={140}
+              className="absolute -right-10 -bottom-6 h-auto w-[120px] sm:w-[140px]"
+              priority
+            />
+          </div>
           <p className="text-xl text-white/80 mb-2">
             Create and study your custom vocabulary decks
           </p>
           <p className="text-lg text-purple-300/80 font-medium">
             {encouragingMessage}
           </p>
+          <p className="text-sm text-white/70 mt-2">
+            User level: {level} • {xpToNextLabel}
+          </p>
         </div>
 
         {/* Streak Pet Widget */}
-        <div className="mb-6 flex justify-center" style={{ position: 'relative', zIndex: 10 }}>
+        <div className="mb-6 flex justify-center" style={{ position: 'relative', zIndex: 10 }} data-reveal>
           <StreakPetWidget />
         </div>
 
         {/* Create Deck Button */}
-        <div className="mb-8 text-center flex justify-center" key="create-deck-button">
+        <div className="mb-8 text-center flex justify-center" key="create-deck-button" data-reveal>
           <Link
             href="/create"
             className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg text-lg pulse-glow whitespace-nowrap inline-flex items-center justify-center hover-lift-scale"
@@ -283,7 +327,7 @@ export default function Home() {
         </div>
 
         {/* Secondary Links */}
-        <div className="mb-8 flex flex-col sm:flex-row justify-center gap-3">
+        <div className="mb-8 flex flex-col sm:flex-row justify-center gap-3" data-reveal>
           <Link
             href="/classrooms"
             className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-sm font-medium transition-all text-center"
@@ -313,6 +357,12 @@ export default function Home() {
               >
                 Classroom Leaderboards
               </Link>
+              <Link
+                href="/leaderboards?scope=levels"
+                className="block px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10 transition-all"
+              >
+                Level Leaderboards
+              </Link>
             </div>
           </details>
         </div>
@@ -326,7 +376,7 @@ export default function Home() {
 
         {/* Decks List */}
         {decks.length === 0 ? (
-          <div className="text-center py-16 opacity-0 animate-fade-in">
+          <div className="text-center py-16" data-reveal>
             <div className="text-6xl mb-4">📚</div>
             <h2 className="text-2xl font-bold mb-2 text-white/90">No decks yet</h2>
             <p className="text-white/70 mb-6">Create your first vocabulary deck to get started!</p>
@@ -393,6 +443,7 @@ export default function Home() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span>{formatDate(deck.createdDate)}</span>
+                    <span className="text-xs text-white/60">XP gained: {getDeckXP(deck.id)}</span>
                     <button
                       type="button"
                       draggable

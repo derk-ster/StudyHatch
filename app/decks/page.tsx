@@ -4,12 +4,14 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { StreakPetWidget } from '@/components/StreakPet';
 import { getAllDecks, deleteDeck, getUserLimits, getOwnedClassrooms, getPublishedDecksForDeck, publishDeckToClassroom, getClassesForStudent, getClassDeckIdsForStudent, getActiveClassDecks, reorderDecksByIds } from '@/lib/storage';
 import { Deck, ActivityType, Classroom } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
+import { getDeckXP } from '@/lib/xp';
 
 const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; description: string }[] = [
   {
@@ -245,10 +247,20 @@ export default function ViewDecksPage() {
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12 opacity-0 animate-fade-in">
-          <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
-            Your Vocabulary Decks
-          </h1>
+        <div className="text-center mb-12" data-reveal>
+          <div className="relative inline-block">
+            <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
+              Your Vocabulary Decks
+            </h1>
+            <Image
+              src="/Arrow.png"
+              alt=""
+              width={140}
+              height={140}
+              className="absolute -right-10 -bottom-6 h-auto w-[120px] sm:w-[140px]"
+              priority
+            />
+          </div>
           <p className="text-xl text-white/80">
             View and study your custom vocabulary decks
           </p>
@@ -324,7 +336,7 @@ export default function ViewDecksPage() {
 
         {/* Decks List */}
         {visiblePersonalDecks.length === 0 ? (
-          <div className="text-center py-16 opacity-0 animate-fade-in">
+          <div className="text-center py-16" data-reveal>
             <div className="text-6xl mb-4">📚</div>
             <h2 className="text-2xl font-bold mb-2 text-white/90">No decks yet</h2>
             <p className="text-white/70 mb-6">Create your first vocabulary deck to get started!</p>
@@ -391,6 +403,7 @@ export default function ViewDecksPage() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span>{formatDate(deck.createdDate)}</span>
+                    <span className="text-xs text-white/60">XP gained: {getDeckXP(deck.id)}</span>
                     <button
                       type="button"
                       draggable

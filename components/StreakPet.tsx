@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getStreakInfo, getProgressToNextEvolution, getNextEvolutionStreak } from '@/lib/streak';
 import { PetStage } from '@/types/vocab';
 
@@ -9,6 +9,9 @@ type PetProps = {
   petStage: PetStage;
   progressToNext: number;
   showDetails?: boolean;
+  onPetClick?: () => void;
+  isAnimating?: boolean;
+  animationKey?: number;
 };
 
 // Pet emoji/visual representation
@@ -26,15 +29,28 @@ const PET_COLORS: Record<PetStage, string> = {
   evolved: 'bg-purple-500',
 };
 
-export function PetDisplay({ streak, petStage, progressToNext, showDetails = false }: PetProps) {
+export function PetDisplay({
+  streak,
+  petStage,
+  progressToNext,
+  showDetails = false,
+  onPetClick,
+  isAnimating = false,
+  animationKey,
+}: PetProps) {
   const emoji = PET_EMOJIS[petStage];
   const color = PET_COLORS[petStage];
   
   return (
     <div className="flex flex-col items-center">
-      <div className={`text-8xl mb-4 transform transition-transform hover:scale-110 ${streak === 0 ? 'opacity-50 grayscale' : ''}`}>
-        {emoji}
-      </div>
+      <button
+        type="button"
+        onClick={onPetClick}
+        className={`text-8xl mb-4 transform transition-transform hover:scale-110 ${streak === 0 ? 'opacity-50 grayscale' : ''} ${isAnimating ? 'pet-shake-float' : ''}`}
+        aria-label="Animate streak pet"
+      >
+        <span key={animationKey}>{emoji}</span>
+      </button>
       {showDetails && (
         <div className="text-center w-full max-w-xs">
           <div className="text-2xl font-bold text-white mb-2">
@@ -60,6 +76,9 @@ export function PetDisplay({ streak, petStage, progressToNext, showDetails = fal
 export function StreakPetWidget() {
   const [streakInfo, setStreakInfo] = useState(getStreakInfo());
   const [showModal, setShowModal] = useState(false);
+  const [petAnimating, setPetAnimating] = useState(false);
+  const [petAnimationKey, setPetAnimationKey] = useState(0);
+  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     // Refresh streak info periodically
@@ -67,8 +86,23 @@ export function StreakPetWidget() {
       setStreakInfo(getStreakInfo());
     }, 5000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+    };
   }, []);
+
+  const triggerPetAnimation = () => {
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+    setPetAnimating(false);
+    setPetAnimationKey(Date.now());
+    requestAnimationFrame(() => setPetAnimating(true));
+    animationTimeoutRef.current = setTimeout(() => setPetAnimating(false), 800);
+  };
 
   return (
     <>
@@ -114,6 +148,9 @@ export function StreakPetWidget() {
               petStage={streakInfo.petStage}
               progressToNext={streakInfo.progressToNext}
               showDetails
+              onPetClick={triggerPetAnimation}
+              isAnimating={petAnimating}
+              animationKey={petAnimationKey}
             />
 
             <div className="mt-6 space-y-3">

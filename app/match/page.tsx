@@ -12,6 +12,7 @@ import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
+import { addXP, XP_REWARDS } from '@/lib/xp';
 
 type CardState = {
   id: string;
@@ -33,6 +34,7 @@ export default function MatchPage() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [gameComplete, setGameComplete] = useState(false);
   const [incorrectCards, setIncorrectCards] = useState<Set<string>>(new Set());
+  const [sessionXp, setSessionXp] = useState(0);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -134,6 +136,7 @@ export default function MatchPage() {
     if (!deck) return;
     setCurrentRound(0);
     setupRound(0, true);
+    setSessionXp(0);
   }, [deckId]);
 
   useEffect(() => {
@@ -198,6 +201,9 @@ export default function MatchPage() {
         }
         return newCount;
       });
+
+      addXP(XP_REWARDS.CORRECT_ANSWER, deckId || undefined);
+      setSessionXp(prev => prev + XP_REWARDS.CORRECT_ANSWER);
       
       // Reset selection immediately for correct match
       setSelectedSpanish(null);
@@ -218,6 +224,7 @@ export default function MatchPage() {
     if (!deck) return;
     setCurrentRound(0);
     setupRound(0, true);
+    setSessionXp(0);
   };
 
   if (!deck) {
@@ -280,6 +287,9 @@ export default function MatchPage() {
                 <h2 className="text-3xl font-bold mb-4">Congratulations!</h2>
                 <p className="text-xl text-white/70 mb-2">You completed the game in</p>
                 <p className="text-4xl font-bold text-purple-400 mb-6">{formatTime(elapsedTime)}</p>
+                <p className="text-white/70 mb-6">
+                  XP gained: <span className="text-emerald-400 font-semibold">{sessionXp}</span>
+                </p>
                 <div className="flex gap-4">
                   <button
                     onClick={handleReset}
