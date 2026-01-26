@@ -34,7 +34,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
       description: classroom.description,
       joinCode: classroom.joinCode,
       schoolName: classroom.school.name,
-      students: classroom.memberships.map((member) => ({
+      students: classroom.memberships.map((member: typeof classroom.memberships[number]) => ({
         userId: member.userId,
         username: member.user.username,
       })),
