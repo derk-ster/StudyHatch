@@ -10,13 +10,10 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
-import { useAuth } from '@/lib/auth-context';
-import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 
 export default function QuizPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { session } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
@@ -34,7 +31,7 @@ export default function QuizPage() {
     if (deckId) {
       updateStreakOnStudy();
     }
-  }, [deck]);
+  }, [deckId]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
@@ -111,7 +108,7 @@ export default function QuizPage() {
     const allOptions = [correctAnswer, ...wrongAnswers];
     const shuffled = [...allOptions].sort(() => Math.random() - 0.5);
     setCurrentOptions(shuffled);
-  }, [currentIndex, showTranslationFirst, deck, currentCard]);
+  }, [currentIndex, showTranslationFirst, deckId]); // Use deckId instead of deck object, and currentIndex instead of currentCard
 
   useEffect(() => {
     setSelectedAnswer(null);
@@ -155,13 +152,6 @@ export default function QuizPage() {
       newStats[currentCard.id].incorrect++;
       newStats[currentCard.id].lastSeen = Date.now();
       updateDeckProgress({ cardStats: newStats });
-    }
-
-    if (session && !session.isGuest) {
-      updateLeaderboardsForUser({
-        points: isCorrect ? 10 : 0,
-        quizResult: { correct: isCorrect },
-      });
     }
   };
 

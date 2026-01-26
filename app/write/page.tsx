@@ -10,13 +10,10 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress, normalizeText, fuzzyMatch } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
-import { useAuth } from '@/lib/auth-context';
-import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 
 export default function WritePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { session } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
   const [showAnswer, setShowAnswer] = useState(false);
@@ -33,7 +30,7 @@ export default function WritePage() {
     if (deckId) {
       updateStreakOnStudy();
     }
-  }, [deck]);
+  }, [deckId]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
@@ -156,12 +153,6 @@ export default function WritePage() {
     }
     newStats[currentCard.id].lastSeen = Date.now();
     updateDeckProgress({ cardStats: newStats });
-
-    if (session && !session.isGuest) {
-      updateLeaderboardsForUser({
-        points: correct ? 8 : 0,
-      });
-    }
   };
 
   const handleNext = () => {

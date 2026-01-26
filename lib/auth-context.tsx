@@ -1,21 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { signIn as nextAuthSignIn, signOut as nextAuthSignOut, useSession, getSession } from 'next-auth/react';
-import { AuthSession } from '@/types/auth';
-import { getCurrentSession, setCurrentSession, signOut as authSignOut, continueAsGuest } from './auth';
+import { AuthSession, User } from '@/types/auth';
+import { getCurrentSession, setCurrentSession, signIn as authSignIn, signUp as authSignUp, signOut as authSignOut, continueAsGuest } from './auth';
 
 type AuthContextType = {
   session: AuthSession | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; userId?: string }>;
-  signUp: (
-    email: string,
-    username: string,
-    password: string,
-    role: 'teacher' | 'student',
-    options?: { schoolName?: string; schoolDescription?: string; classCode?: string }
-  ) => Promise<{ success: boolean; error?: string; userId?: string }>;
+  signUp: (email: string, username: string, password: string, role: 'teacher' | 'student') => Promise<{ success: boolean; error?: string; userId?: string }>;
   signOut: () => void;
   continueAsGuest: () => void;
 };
@@ -25,106 +18,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { data: nextAuthSession, status } = useSession();
 
   useEffect(() => {
-    if (status === 'loading') {
-      return;
-    }
-    if (nextAuthSession?.user?.id) {
-      const newSession: AuthSession = {
-        userId: nextAuthSession.user.id,
-        email: nextAuthSession.user.email || '',
-        username: nextAuthSession.user.username || nextAuthSession.user.name || '',
-        isGuest: false,
-        role: (nextAuthSession.user.role as AuthSession['role']) || 'student',
-      };
-      setCurrentSession(newSession);
-      setSession(newSession);
-      setIsLoading(false);
-      return;
-    }
-    const storedSession = getCurrentSession();
-    setSession(storedSession);
+    // Load session on mount
+    const currentSession = getCurrentSession();
+    setSession(currentSession);
     setIsLoading(false);
-  }, [nextAuthSession, status]);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
-    const response = await nextAuthSignIn('credentials', {
-      redirect: false,
-      identifier: email,
-      password,
-    });
-    if (response?.error) {
-      const message = response.error === 'CredentialsSignin'
-        ? 'Invalid email/username or password'
-        : response.error;
-      return { success: false, error: message };
-    }
-    const updatedSession = await getSession();
-    if (updatedSession?.user?.id) {
+    const result = await authSignIn(email, password);
+    if (result.success && result.user) {
       const newSession: AuthSession = {
-        userId: updatedSession.user.id,
-        email: updatedSession.user.email || email,
-        username: updatedSession.user.username || updatedSession.user.name || '',
+        userId: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
         isGuest: false,
-        role: (updatedSession.user.role as AuthSession['role']) || 'student',
+        role: result.user.role || 'student',
+        schoolId: result.user.schoolId,
       };
       setCurrentSession(newSession);
       setSession(newSession);
-      return { success: true, userId: newSession.userId };
     }
-    return { success: true };
+    return { success: result.success, error: result.error, userId: result.user?.id };
   };
 
-  const signUp = async (
-    email: string,
-    username: string,
-    password: string,
-    role: 'teacher' | 'student',
-    options?: { schoolName?: string; schoolDescription?: string; classCode?: string }
-  ) => {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        username,
-        password,
-        role,
-        schoolName: options?.schoolName,
-        schoolDescription: options?.schoolDescription,
-        classCode: options?.classCode,
-      }),
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      return { success: false, error: data.error || 'Sign up failed' };
-    }
-    await nextAuthSignIn('credentials', {
-      redirect: false,
-      identifier: email,
-      password,
-    });
-    const updatedSession = await getSession();
-    if (updatedSession?.user?.id) {
+  const signUp = async (email: string, username: string, password: string, role: 'teacher' | 'student') => {
+    const result = await authSignUp(email, username, password, role);
+    if (result.success && result.user) {
       const newSession: AuthSession = {
-        userId: updatedSession.user.id,
-        email: updatedSession.user.email || email,
-        username: updatedSession.user.username || updatedSession.user.name || username,
+        userId: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
         isGuest: false,
-        role: (updatedSession.user.role as AuthSession['role']) || role,
+        role: result.user.role || role,
+        schoolId: result.user.schoolId,
       };
       setCurrentSession(newSession);
       setSession(newSession);
-      return { success: true, userId: newSession.userId };
     }
-    return { success: true };
+    return { success: result.success, error: result.error, userId: result.user?.id };
   };
 
   const handleSignOut = () => {
     authSignOut();
-    nextAuthSignOut({ redirect: false });
     setSession(null);
   };
 

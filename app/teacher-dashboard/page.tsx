@@ -6,8 +6,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
-import { ClassRoom, Deck, LeaderboardType, School } from '@/types/vocab';
-import { getAllDecks, publishDeckToClass } from '@/lib/storage';
+import { ClassRoom, Deck, School } from '@/types/vocab';
+import { createClassRoom, getAllDecks, getClassesForSchool, getSchoolForUser, getStudentsForClass, publishDeckToClass, getClassSettings, setClassSettings } from '@/lib/storage';
 import { getActivityLogForClasses } from '@/lib/activity-log';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 
@@ -39,34 +39,26 @@ export default function TeacherDashboardPage() {
   const router = useRouter();
   const { session } = useAuth();
   const [school, setSchool] = useState<School | undefined>();
-  const [classes, setClasses] = useState<Array<ClassRoom & { students?: { userId: string; username: string }[] }>>([]);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
   const [className, setClassName] = useState('');
   const [classDescription, setClassDescription] = useState('');
   const [publishSelections, setPublishSelections] = useState<Record<string, { classId: string; expiration: string }>>({});
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [classSettings, setClassSettingsState] = useState<Record<string, {
-    aiTutorEnabled: boolean;
-    multiplayerEnabled: boolean;
-    studentDecksEnabled: boolean;
-    defaultLeaderboardType: LeaderboardType;
-  }>>({});
+  const [classSettings, setClassSettingsState] = useState<Record<string, ReturnType<typeof getClassSettings>>>({});
   const [activityLogs, setActivityLogs] = useState(getActivityLogForClasses([]));
   const schoolMode = isSchoolModeEnabled();
 
   useEffect(() => {
     if (!session?.userId || session.role !== 'teacher') return;
-    const loadClasses = async () => {
-      const response = await fetch('/api/classrooms');
-      if (!response.ok) return;
-      const data = await response.json();
-      setSchool(data.school || undefined);
-      setClasses(data.classes || []);
-      const allDecks = getAllDecks().filter(deck => deck.ownerUserId === session.userId);
-      setDecks(allDecks);
-    };
-    loadClasses();
+    const userSchool = getSchoolForUser(session.userId);
+    setSchool(userSchool);
+    if (userSchool) {
+      setClasses(getClassesForSchool(userSchool.id));
+    }
+    const allDecks = getAllDecks().filter(deck => deck.ownerUserId === session.userId);
+    setDecks(allDecks);
   }, [session?.userId, session?.role]);
 
   useEffect(() => {
@@ -75,61 +67,17 @@ export default function TeacherDashboardPage() {
       setActivityLogs(getActivityLogForClasses([]));
       return;
     }
-    const loadSettings = async () => {
-      const updated: Record<string, {
-        aiTutorEnabled: boolean;
-        multiplayerEnabled: boolean;
-        studentDecksEnabled: boolean;
-        defaultLeaderboardType: LeaderboardType;
-      }> = {};
-      await Promise.all(
-        classes.map(async (classroom) => {
-          const response = await fetch(`/api/classrooms/${classroom.id}/settings`);
-          if (!response.ok) return;
-          const data = await response.json();
-          if (data.settings) {
-            updated[classroom.id] = {
-              aiTutorEnabled: data.settings.aiTutorEnabled,
-              multiplayerEnabled: data.settings.multiplayerEnabled,
-              studentDecksEnabled: data.settings.studentDecksEnabled,
-              defaultLeaderboardType: data.settings.defaultLeaderboardType || 'total_points',
-            };
-          }
-        })
-      );
-      setClassSettingsState(updated);
-    };
-    loadSettings();
+    const updated: Record<string, ReturnType<typeof getClassSettings>> = {};
+    classes.forEach((classroom) => {
+      updated[classroom.id] = getClassSettings(classroom.id);
+    });
+    setClassSettingsState(updated);
     setActivityLogs(getActivityLogForClasses(classes.map(cls => cls.id)));
   }, [classes]);
 
-  const handleUpdateClassSetting = async (
-    classId: string,
-    updates: Partial<{
-      aiTutorEnabled: boolean;
-      multiplayerEnabled: boolean;
-      studentDecksEnabled: boolean;
-      defaultLeaderboardType: LeaderboardType;
-    }>
-  ) => {
-    const response = await fetch(`/api/classrooms/${classId}/settings`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) return;
-    const data = await response.json();
-    if (data.settings) {
-      setClassSettingsState(prev => ({
-        ...prev,
-        [classId]: {
-          aiTutorEnabled: data.settings.aiTutorEnabled,
-          multiplayerEnabled: data.settings.multiplayerEnabled,
-          studentDecksEnabled: data.settings.studentDecksEnabled,
-          defaultLeaderboardType: data.settings.defaultLeaderboardType || 'total_points',
-        },
-      }));
-    }
+  const handleUpdateClassSetting = (classId: string, key: 'aiTutorEnabled' | 'multiplayerEnabled', value: boolean) => {
+    const updated = setClassSettings(classId, { [key]: value }, session?.userId);
+    setClassSettingsState(prev => ({ ...prev, [classId]: updated }));
   };
 
   const handleRefreshLogs = () => {
@@ -137,30 +85,21 @@ export default function TeacherDashboardPage() {
   };
 
   const handleCreateClass = () => {
+    if (!school) {
+      setError('School not found.');
+      return;
+    }
     if (!className.trim()) {
       setError('Enter a class name.');
       return;
     }
-    const createClass = async () => {
-      const response = await fetch('/api/classrooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: className, description: classDescription }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        setError(data.error || 'Unable to create class.');
-        return;
-      }
-      const data = await response.json();
-      setClasses(prev => [...prev, data.classroom]);
-      setClassName('');
-      setClassDescription('');
-      setMessage('');
-      setError('');
-      router.push('/');
-    };
-    createClass();
+    const created = createClassRoom(school.id, className, classDescription || undefined);
+    setClasses(prev => [...prev, created]);
+    setClassName('');
+    setClassDescription('');
+    setMessage('');
+    setError('');
+    router.push('/');
   };
 
   const handlePublishSelection = (deckId: string, updates: Partial<{ classId: string; expiration: string }>) => {
@@ -323,12 +262,7 @@ export default function TeacherDashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {classes.map(classroom => {
-                    const settings = classSettings[classroom.id] || {
-                      aiTutorEnabled: false,
-                      multiplayerEnabled: true,
-                      studentDecksEnabled: false,
-                      defaultLeaderboardType: 'total_points' as LeaderboardType,
-                    };
+                    const settings = classSettings[classroom.id] || getClassSettings(classroom.id);
                     return (
                       <div key={classroom.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
                         <div className="flex items-center justify-between mb-3">
@@ -342,7 +276,7 @@ export default function TeacherDashboardPage() {
                             <input
                               type="checkbox"
                               checked={settings.aiTutorEnabled}
-                              onChange={(e) => handleUpdateClassSetting(classroom.id, { aiTutorEnabled: e.target.checked })}
+                              onChange={(e) => handleUpdateClassSetting(classroom.id, 'aiTutorEnabled', e.target.checked)}
                               className="h-4 w-4 rounded border-white/20 bg-white/10"
                             />
                             Enable AI tutor
@@ -351,24 +285,10 @@ export default function TeacherDashboardPage() {
                             <input
                               type="checkbox"
                               checked={settings.multiplayerEnabled}
-                              onChange={(e) => handleUpdateClassSetting(classroom.id, { multiplayerEnabled: e.target.checked })}
+                              onChange={(e) => handleUpdateClassSetting(classroom.id, 'multiplayerEnabled', e.target.checked)}
                               className="h-4 w-4 rounded border-white/20 bg-white/10"
                             />
                             Enable multiplayer games
-                          </label>
-                          <label className="flex flex-col gap-2 md:col-span-2 text-sm text-white/80">
-                            <span className="text-white/70">Default leaderboard</span>
-                            <select
-                              value={settings.defaultLeaderboardType}
-                              onChange={(e) => handleUpdateClassSetting(classroom.id, { defaultLeaderboardType: e.target.value as LeaderboardType })}
-                              className="px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            >
-                              <option value="total_points">Total points</option>
-                              <option value="weekly_points">Weekly points</option>
-                              <option value="quiz_accuracy">Quiz accuracy</option>
-                              <option value="games_won">Games won</option>
-                              <option value="streak_days">Streak days</option>
-                            </select>
                           </label>
                         </div>
                       </div>
@@ -395,11 +315,11 @@ export default function TeacherDashboardPage() {
                     </div>
                     <div>
                       <p className="text-white/60 text-sm mb-2">Students</p>
-                      {((classroom as ClassRoom & { students?: { userId: string; username: string }[] }).students || []).length === 0 ? (
+                      {getStudentsForClass(classroom.id).length === 0 ? (
                         <p className="text-white/40 text-sm">No students yet.</p>
                       ) : (
                         <ul className="text-white/70 text-sm space-y-1">
-                          {(classroom as ClassRoom & { students?: { userId: string; username: string }[] }).students?.map(student => (
+                          {getStudentsForClass(classroom.id).map(student => (
                             <li key={student.userId}>@{student.username}</li>
                           ))}
                         </ul>

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
+import { joinSchoolByInviteCode } from '@/lib/storage';
 
 export default function JoinSchoolPage() {
   const params = useParams();
@@ -25,26 +26,13 @@ export default function JoinSchoolPage() {
       setError('Only teacher accounts can join a school.');
       return;
     }
-    const joinSchool = async () => {
-      try {
-        const response = await fetch('/api/schools/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          setError(data.error || 'Unable to join school.');
-          return;
-        }
-        const data = await response.json();
-        setMessage(`Joined ${data.school?.name || 'school'} successfully.`);
-        setTimeout(() => router.push('/teacher-dashboard'), 1200);
-      } catch (err) {
-        setError('Unable to join school.');
-      }
-    };
-    joinSchool();
+    const result = joinSchoolByInviteCode(session.userId, code);
+    if (!result.success) {
+      setError(result.error || 'Unable to join school.');
+      return;
+    }
+    setMessage(`Joined ${result.school?.name || 'school'} successfully.`);
+    setTimeout(() => router.push('/teacher-dashboard'), 1200);
   }, [code, session, router]);
 
   return (

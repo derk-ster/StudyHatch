@@ -65,7 +65,7 @@ export default function StudyPage() {
     if (deck) {
       setEditedCards(deck.cards);
     }
-  }, [deck]);
+  }, [deckId]);
 
   const createActivityUrl = (activity: ActivityType | 'ai-chat') => {
     if (activity === 'ai-chat') {

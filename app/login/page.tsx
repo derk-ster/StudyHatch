@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { createSchool, getClassByJoinCode, joinClassByCode } from '@/lib/storage';
 import { recordActivity } from '@/lib/activity-log';
 
 export default function LoginPage() {
@@ -51,8 +52,8 @@ export default function LoginPage() {
         } else {
           const classCode = extractClassCode(classCodeInput);
           if (classCode.trim()) {
-            const response = await fetch(`/api/classrooms/lookup?code=${encodeURIComponent(classCode)}`);
-            if (!response.ok) {
+            const existingClass = getClassByJoinCode(classCode);
+            if (!existingClass) {
               setError('Class code not found. Please check and try again.');
               setIsSubmitting(false);
               return;
@@ -60,13 +61,11 @@ export default function LoginPage() {
           }
         }
 
-        const result = await signUp(email, username, password, role, {
-          schoolName: role === 'teacher' ? schoolName : undefined,
-          schoolDescription: role === 'teacher' ? schoolDescription : undefined,
-          classCode: role === 'student' ? extractClassCode(classCodeInput) : undefined,
-        });
+        const result = await signUp(email, username, password, role);
         if (result.success) {
           if (role === 'teacher') {
+            createSchool(schoolName, schoolDescription || undefined, result.userId || '');
+            await signIn(email, password);
             if (result.userId) {
               recordActivity(result.userId, 'signup', 'Teacher account created.');
             }
@@ -74,6 +73,10 @@ export default function LoginPage() {
             return;
           }
           if (role === 'student') {
+            const classCode = extractClassCode(classCodeInput);
+            if (result.userId && classCode.trim()) {
+              joinClassByCode(result.userId, classCode);
+            }
             if (result.userId) {
               recordActivity(result.userId, 'signup', 'Student account created.');
             }

@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
@@ -10,8 +10,6 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
-import { useAuth } from '@/lib/auth-context';
-import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 
 type CardState = {
   id: string;
@@ -24,7 +22,6 @@ type CardState = {
 export default function MatchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { session } = useAuth();
   const [spanishCards, setSpanishCards] = useState<CardState[]>([]);
   const [englishCards, setEnglishCards] = useState<CardState[]>([]);
   const [selectedSpanish, setSelectedSpanish] = useState<string | null>(null);
@@ -94,7 +91,7 @@ export default function MatchPage() {
         };
   };
 
-  const setupRound = useCallback((roundIndex: number, resetTimer: boolean) => {
+  const setupRound = (roundIndex: number, resetTimer: boolean) => {
     if (!deck) return;
     const startIndex = roundIndex * pairsPerRound;
     const roundCards = deck.cards.slice(startIndex, startIndex + pairsPerRound);
@@ -129,13 +126,13 @@ export default function MatchPage() {
       setStartTime(null);
       setElapsedTime(0);
     }
-  }, [deck, pairsPerRound]);
+  };
 
   useEffect(() => {
     if (!deck) return;
     setCurrentRound(0);
     setupRound(0, true);
-  }, [deck, setupRound]);
+  }, [deckId]);
 
   useEffect(() => {
     if (startTime && !gameComplete) {
@@ -189,9 +186,6 @@ export default function MatchPage() {
             const currentDeckProgress = getCurrentDeckProgress();
             if (!currentDeckProgress.matchBestTime || finalTime < currentDeckProgress.matchBestTime) {
               updateDeckProgress({ matchBestTime: finalTime });
-            }
-            if (session && !session.isGuest) {
-              updateLeaderboardsForUser({ points: 15 });
             }
           } else {
             const nextRound = currentRound + 1;

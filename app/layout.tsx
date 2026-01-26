@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
-import AuthSessionProvider from '@/components/SessionProvider';
 import PWAProvider from '@/components/PWAProvider';
 import ComplianceBanner from '@/components/ComplianceBanner';
 
@@ -104,12 +103,10 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
         <PWAProvider>
-          <AuthSessionProvider>
-            <AuthProvider>
-              <ComplianceBanner />
-              {children}
-            </AuthProvider>
-          </AuthSessionProvider>
+          <AuthProvider>
+            <ComplianceBanner />
+            {children}
+          </AuthProvider>
         </PWAProvider>
       </body>
     </html>

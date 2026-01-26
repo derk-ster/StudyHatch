@@ -9,7 +9,6 @@ import Leaderboard from '@/components/games/Leaderboard';
 import type { GameSession } from '@/types/games';
 import { createGameSocket } from '@/lib/games/ws-client';
 import { useAuth } from '@/lib/auth-context';
-import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 import {
   clearLastGameCode,
   clearLastHostCode,
@@ -64,7 +63,6 @@ export default function GameResultsPage() {
   const [session, setSession] = useState<GameSession | null>(null);
   const [error, setError] = useState('');
   const [playerId, setPlayerId] = useState<string | null>(null);
-  const [hasUpdatedLeaderboard, setHasUpdatedLeaderboard] = useState(false);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
 
   useEffect(() => {
@@ -115,38 +113,6 @@ export default function GameResultsPage() {
     () => session?.players.find(p => p.id === playerId) || null,
     [session, playerId]
   );
-
-  const playerRank = useMemo(() => {
-    if (!session || !player) return null;
-    const sorted = [...session.players].sort((a, b) => {
-      if (session.mode === 'word-heist') {
-        return b.bankedKeys - a.bankedKeys || b.unbankedKeys - a.unbankedKeys;
-      }
-      if (session.mode === 'lightning-ladder') {
-        return b.ladderPosition - a.ladderPosition;
-      }
-      return b.hearts - a.hearts || b.score - a.score;
-    });
-    const index = sorted.findIndex(p => p.id === player.id);
-    return index >= 0 ? index + 1 : null;
-  }, [session, player]);
-
-  useEffect(() => {
-    if (!session || !player || hasUpdatedLeaderboard) return;
-    if (!authSession || authSession.isGuest) return;
-    if (!session.settings.classroomId) return;
-    if (session.status !== 'ended') return;
-
-    const didWin = playerRank === 1;
-    updateLeaderboardsForUser(
-      {
-        points: Math.max(0, player.score || 0),
-        gameWin: didWin,
-      },
-      session.settings.classroomId || undefined
-    );
-    setHasUpdatedLeaderboard(true);
-  }, [session, player, authSession, hasUpdatedLeaderboard, playerRank]);
 
   const totalClaps = useMemo(() => {
     if (!session) return 0;

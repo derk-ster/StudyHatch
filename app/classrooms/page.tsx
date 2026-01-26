@@ -7,34 +7,32 @@ import { useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { ClassRoom } from '@/types/vocab';
+import { getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass } from '@/lib/storage';
 import Link from 'next/link';
 
 export default function ClassroomsPage() {
   const router = useRouter();
   const { session } = useAuth();
   const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<ClassRoom[]>([]);
   const [teacherSchoolName, setTeacherSchoolName] = useState<string | null>(null);
-  const [teacherClassesWithStudents, setTeacherClassesWithStudents] = useState<
-    Array<ClassRoom & { students?: { userId: string; username: string }[] }>
-  >([]);
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
-    if (!session?.userId || session.isGuest) return;
-    const loadClasses = async () => {
-      const response = await fetch('/api/classrooms');
-      if (!response.ok) return;
-      const data = await response.json();
-      if (session.role === 'teacher') {
-        setTeacherSchoolName(data.school?.name || null);
-        setTeacherClassesWithStudents(data.classes || []);
+    if (session?.role === 'student' && session.userId) {
+      setClasses(getClassesForStudent(session.userId));
+    }
+    if (session?.role === 'teacher' && session.userId) {
+      const school = getSchoolForUser(session.userId);
+      setTeacherSchoolName(school?.name || null);
+      if (school) {
+        setTeacherClasses(getClassesForSchool(school.id));
       } else {
-        setClasses(data.classes || []);
+        setTeacherClasses([]);
       }
-    };
-    loadClasses();
-  }, [session?.userId, session?.role, session?.isGuest]);
+    }
+  }, [session?.userId, session?.role]);
 
   const handleJoinClass = () => {
     setJoinError('');
@@ -68,11 +66,11 @@ export default function ClassroomsPage() {
                   <p className="text-white/60 text-xs">School: {teacherSchoolName}</p>
                 )}
               </div>
-              {teacherClassesWithStudents.length === 0 ? (
+              {teacherClasses.length === 0 ? (
                 <p className="text-white/60">No classrooms created yet.</p>
               ) : (
-                teacherClassesWithStudents.map(classroom => {
-                  const students = classroom.students || [];
+                teacherClasses.map(classroom => {
+                  const students = getStudentsForClass(classroom.id);
                   return (
                     <div key={classroom.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-2">
@@ -137,21 +135,11 @@ export default function ClassroomsPage() {
               ) : (
                 classes.map(classroom => (
                   <div key={classroom.id} className="bg-emerald-500/10 border border-emerald-400/30 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-white font-semibold">{classroom.name}</p>
-                        {classroom.description && (
-                          <p className="text-white/60 text-sm">{classroom.description}</p>
-                        )}
-                        <p className="text-emerald-200/70 text-xs mt-2">Join code: {classroom.joinCode}</p>
-                      </div>
-                      <Link
-                        href={`/classrooms/${classroom.id}`}
-                        className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold"
-                      >
-                        View Leaderboard
-                      </Link>
-                    </div>
+                    <p className="text-white font-semibold">{classroom.name}</p>
+                    {classroom.description && (
+                      <p className="text-white/60 text-sm">{classroom.description}</p>
+                    )}
+                    <p className="text-emerald-200/70 text-xs mt-2">Join code: {classroom.joinCode}</p>
                   </div>
                 ))
               )}

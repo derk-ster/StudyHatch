@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
+import { joinClassByCode } from '@/lib/storage';
 
 export default function JoinClassPage() {
   const params = useParams();
@@ -25,26 +26,13 @@ export default function JoinClassPage() {
       setError('Only student accounts can join a class.');
       return;
     }
-    const joinClass = async () => {
-      try {
-        const response = await fetch('/api/classrooms/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          setError(data.error || 'Unable to join class.');
-          return;
-        }
-        const data = await response.json();
-        setMessage(`Joined ${data.classroom?.name || 'class'} successfully.`);
-        setTimeout(() => router.push('/decks'), 1200);
-      } catch (err) {
-        setError('Unable to join class.');
-      }
-    };
-    joinClass();
+    const result = joinClassByCode(session.userId, code);
+    if (!result.success) {
+      setError(result.error || 'Unable to join class.');
+      return;
+    }
+    setMessage(`Joined ${result.classroom?.name || 'class'} successfully.`);
+    setTimeout(() => router.push('/decks'), 1200);
   }, [code, session, router]);
 
   return (

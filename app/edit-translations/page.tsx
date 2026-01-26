@@ -24,7 +24,7 @@ export default function EditTranslationsPage() {
     if (deck) {
       setEditedCards(deck.cards);
     }
-  }, [deck]);
+  }, [deckId]);
 
   const isTeacher = session?.role === 'teacher';
   const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };

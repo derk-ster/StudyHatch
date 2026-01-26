@@ -242,18 +242,18 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
     setShowInstallToast(false);
   };
 
-  const applyUpdate = useCallback(() => {
+  const applyUpdate = () => {
     if (!registration?.waiting) return;
     setUpdateAvailable(false);
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-  }, [registration]);
+  };
 
   useEffect(() => {
     if (!updateAvailable) return;
     if (isStandaloneMode()) {
       applyUpdate();
     }
-  }, [updateAvailable, applyUpdate]);
+  }, [updateAvailable, registration]);
 
   const contextValue = useMemo(() => ({
     canInstall: canInstall && !isInstalled,
