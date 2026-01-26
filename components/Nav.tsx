@@ -22,6 +22,7 @@ export default function Nav() {
   const [decks, setDecks] = useState(getAllDecks());
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const resourcesRef = useRef<HTMLDivElement>(null);
+  const [fromMarketingSite, setFromMarketingSite] = useState(false);
   const progress = getProgress();
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
   const hasClassMembership = session?.role === 'student' && session?.userId
@@ -47,6 +48,26 @@ export default function Nav() {
       setCurrentDeck(loadedDecks[0].id);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!document.referrer) {
+      setFromMarketingSite(false);
+      return;
+    }
+    try {
+      const referrerUrl = new URL(document.referrer);
+      const host = referrerUrl.hostname.toLowerCase();
+      const isStudyHatchDomain = host === 'studyhatch.org' || host === 'www.studyhatch.org';
+      const isLocalMarketing =
+        host === 'localhost' &&
+        referrerUrl.port === '3001' &&
+        referrerUrl.pathname.toLowerCase().startsWith('/studyhatch.org');
+      setFromMarketingSite(isStudyHatchDomain || isLocalMarketing);
+    } catch {
+      setFromMarketingSite(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isResourcesRoute) return;
@@ -77,6 +98,9 @@ export default function Nav() {
   };
 
   const currentDeckData = currentDeck ? getDeckById(currentDeck) : null;
+  const shouldShowGoBack = Boolean(
+    pathname?.startsWith('/games') && fromMarketingSite && (!session || session.isGuest)
+  );
 
   return (
     <nav 
@@ -168,7 +192,7 @@ export default function Nav() {
               </div>
             ) : !session ? (
               <div className="flex items-center gap-3">
-                {pathname?.startsWith('/games') && (
+                {shouldShowGoBack && (
                   <Link
                     href="/"
                     className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
@@ -231,7 +255,7 @@ export default function Nav() {
                     Home
                   </Link>
 
-                  {pathname?.startsWith('/games') && (
+                  {shouldShowGoBack && (
                     <Link
                       href="/"
                       className="px-4 py-1 rounded-lg transition-all inline-block text-sm bg-white/10 hover:bg-white/20"
