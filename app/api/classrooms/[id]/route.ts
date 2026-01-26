@@ -17,7 +17,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   if (!classroom) {
     return NextResponse.json({ error: 'Classroom not found.' }, { status: 404 });
   }
-  const isMember = classroom.memberships.some((member) => member.userId === user.id);
+  const isMember = classroom.memberships.some((member: typeof classroom.memberships[number]) => member.userId === user.id);
   const isOwner = user.role === 'teacher' && classroom.ownerId === user.id;
   const isSchoolTeacher = user.role === 'teacher'
     && classroom.school
