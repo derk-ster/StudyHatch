@@ -514,7 +514,7 @@ const getDefaultClassSettings = (classId: string): ClassSettings => ({
   classId,
   aiTutorEnabled: false,
   studentDecksEnabled: false,
-  multiplayerEnabled: false,
+  multiplayerEnabled: true,
   updatedAt: Date.now(),
 });
 

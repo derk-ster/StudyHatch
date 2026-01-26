@@ -54,7 +54,18 @@ export default function GamesPage() {
   const [isJoining, setIsJoining] = useState(false);
   const schoolMode = isSchoolModeEnabled();
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
-  const multiplayerEnabled = !schoolMode || (effectiveSettings?.multiplayerEnabled ?? false);
+  const studentClasses = session?.role === 'student' && session?.userId
+    ? getClassesForStudent(session.userId)
+    : [];
+  const hasClassMembership = studentClasses.length > 0;
+  const multiplayerAllowedForStudent = hasClassMembership
+    ? studentClasses.every((cls) => getClassSettings(cls.id).multiplayerEnabled)
+    : true;
+  const multiplayerEnabled = !schoolMode
+    || session?.role === 'teacher'
+    || !hasClassMembership
+    || multiplayerAllowedForStudent
+    || (effectiveSettings?.multiplayerEnabled ?? false);
   const hostTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
