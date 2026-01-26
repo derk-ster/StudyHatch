@@ -33,7 +33,7 @@ export default function ScramblePage() {
     if (deckId) {
       updateStreakOnStudy();
     }
-  }, [deckId]);
+  }, [deck]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
@@ -86,7 +86,7 @@ export default function ScramblePage() {
   const shuffledCards = useMemo(() => {
     if (!deck) return [];
     return [...deck.cards].sort(() => Math.random() - 0.5);
-  }, [deckId]);
+  }, [deck]);
 
   const currentCard = shuffledCards[currentIndex];
 

@@ -3,6 +3,10 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
+const hasStringProp = (value: unknown, prop: string): value is Record<string, string> => {
+  return typeof value === 'object' && value !== null && prop in value && typeof (value as Record<string, unknown>)[prop] === 'string';
+};
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   providers: [
@@ -44,9 +48,15 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as { id: string }).id;
-        token.role = (user as { role: string }).role;
-        token.username = (user as { username: string }).username;
+        if (hasStringProp(user, 'id')) {
+          token.id = user.id;
+        }
+        if (hasStringProp(user, 'role')) {
+          token.role = user.role;
+        }
+        if (hasStringProp(user, 'username')) {
+          token.username = user.username;
+        }
       }
       return token;
     },

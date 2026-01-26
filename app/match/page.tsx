@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
@@ -94,7 +94,7 @@ export default function MatchPage() {
         };
   };
 
-  const setupRound = (roundIndex: number, resetTimer: boolean) => {
+  const setupRound = useCallback((roundIndex: number, resetTimer: boolean) => {
     if (!deck) return;
     const startIndex = roundIndex * pairsPerRound;
     const roundCards = deck.cards.slice(startIndex, startIndex + pairsPerRound);
@@ -129,13 +129,13 @@ export default function MatchPage() {
       setStartTime(null);
       setElapsedTime(0);
     }
-  };
+  }, [deck, pairsPerRound]);
 
   useEffect(() => {
     if (!deck) return;
     setCurrentRound(0);
     setupRound(0, true);
-  }, [deckId]);
+  }, [deck, setupRound]);
 
   useEffect(() => {
     if (startTime && !gameComplete) {

@@ -169,7 +169,7 @@ export default function FlashcardsPage() {
   useEffect(() => {
     const indices = filteredCards.map((_, i) => i);
     setShuffledIndices(indices);
-  }, [deckId, filteredCards.length]);
+  }, [deckId, filteredCards]);
 
   const actualIndex = shuffledIndices.length > 0 && shuffledIndices[currentIndex] !== undefined 
     ? shuffledIndices[currentIndex] 

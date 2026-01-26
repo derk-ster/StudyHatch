@@ -95,7 +95,7 @@ export default function ViewDecksPage() {
         setClassDeckLabels(labelMap);
       }
     }
-  }, [session?.userId]);
+  }, [session?.userId, session?.role]);
 
   const limits = getUserLimits();
   const visiblePersonalDecks = session?.role === 'student' ? personalDecks : decks;

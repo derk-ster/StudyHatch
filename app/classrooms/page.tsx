@@ -34,7 +34,7 @@ export default function ClassroomsPage() {
       }
     };
     loadClasses();
-  }, [session?.userId, session?.role]);
+  }, [session?.userId, session?.role, session?.isGuest]);
 
   const handleJoinClass = () => {
     setJoinError('');

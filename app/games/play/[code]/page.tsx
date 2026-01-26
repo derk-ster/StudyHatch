@@ -149,7 +149,7 @@ export default function GamePlayPage() {
       setStealMode(false);
       setDecisionLocked(false);
     }
-  }, [player?.pendingDecision]);
+  }, [player, player?.pendingDecision]);
 
   useEffect(() => {
     if (!player) return;
@@ -162,7 +162,7 @@ export default function GamePlayPage() {
       setDecisionVisible(false);
     }
     decisionIndexRef.current = player.currentIndex;
-  }, [player?.pendingDecision, player?.currentIndex, decisionVisible]);
+  }, [player, player?.pendingDecision, player?.currentIndex, decisionVisible]);
 
   const isHost = playerId === session?.hostId;
   const hasAnswered = session?.modeState?.answers?.[playerId || ''] || false;

@@ -28,7 +28,7 @@ export default function TranslateDefinitionsPage() {
       setEditedCards(deck.cards);
       setDefinitionInputs(deck.cards.map(() => ''));
     }
-  }, [deckId]);
+  }, [deck]);
 
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 

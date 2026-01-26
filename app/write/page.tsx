@@ -33,7 +33,7 @@ export default function WritePage() {
     if (deckId) {
       updateStreakOnStudy();
     }
-  }, [deckId]);
+  }, [deck]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 

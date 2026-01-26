@@ -34,7 +34,7 @@ export default function QuizPage() {
     if (deckId) {
       updateStreakOnStudy();
     }
-  }, [deckId]);
+  }, [deck]);
   const progress = getProgress();
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
@@ -111,7 +111,7 @@ export default function QuizPage() {
     const allOptions = [correctAnswer, ...wrongAnswers];
     const shuffled = [...allOptions].sort(() => Math.random() - 0.5);
     setCurrentOptions(shuffled);
-  }, [currentIndex, showTranslationFirst, deckId]); // Use deckId instead of deck object, and currentIndex instead of currentCard
+  }, [currentIndex, showTranslationFirst, deck, currentCard]);
 
   useEffect(() => {
     setSelectedAnswer(null);
