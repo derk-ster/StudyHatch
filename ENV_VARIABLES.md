@@ -4,6 +4,18 @@ This document lists all environment variables used in the StudyHatch application
 
 ## Required for Production
 
+### Database + Auth
+**Required for leaderboards and classroom APIs:**
+- `DATABASE_URL` - Postgres connection string
+  - **Required**: Yes (leaderboards/classrooms need DB)
+  - **Default**: None
+- `NEXTAUTH_URL` - Base URL for NextAuth (e.g. `https://studyhatch.app`)
+  - **Required**: Yes
+  - **Default**: None
+- `NEXTAUTH_SECRET` - Secret for NextAuth sessions/JWT
+  - **Required**: Yes
+  - **Default**: None
+
 ### AI Chat Feature
 **Required for AI chat to work:**
 - `GROQ_API_KEY` - Your Groq API key (get free key at https://console.groq.com)
@@ -42,20 +54,28 @@ This document lists all environment variables used in the StudyHatch application
 ## Summary by Priority
 
 ### 🔴 Critical (App won't work properly without these)
-1. `GROQ_API_KEY` - Required for AI chat feature
+1. `DATABASE_URL` - Required for classroom leaderboards
+2. `NEXTAUTH_URL` - Required for authentication
+3. `NEXTAUTH_SECRET` - Required for authentication
+4. `GROQ_API_KEY` - Required for AI chat feature
 
 ### 🟢 Optional (App works with fallbacks)
-2. `GROQ_MODEL` - Optional, has default
-3. `DEEPL_API_KEY` - Optional, free APIs used as fallback
-4. `GOOGLE_TRANSLATE_API_KEY` - Optional, free APIs used as fallback
-5. `LIBRETRANSLATE_API_KEY` - Optional
-6. `LIBRETRANSLATE_API_URL` - Optional, has default
+5. `GROQ_MODEL` - Optional, has default
+6. `DEEPL_API_KEY` - Optional, free APIs used as fallback
+7. `GOOGLE_TRANSLATE_API_KEY` - Optional, free APIs used as fallback
+8. `LIBRETRANSLATE_API_KEY` - Optional
+9. `LIBRETRANSLATE_API_URL` - Optional, has default
 
 ## Example .env.local File
 
 Create a `.env.local` file in the root directory:
 
 ```env
+# Database/Auth (Required for leaderboards)
+DATABASE_URL=postgresql://user:password@localhost:5432/studyhatch
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_random_secret
+
 # AI Chat (Required)
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.1-8b-instant

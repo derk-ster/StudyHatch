@@ -65,9 +65,17 @@ export type ClassSettings = {
   aiTutorEnabled: boolean;
   studentDecksEnabled: boolean;
   multiplayerEnabled: boolean;
+  defaultLeaderboardType?: LeaderboardType;
   updatedAt: number;
   updatedBy?: string;
 };
+
+export type LeaderboardType =
+  | 'total_points'
+  | 'weekly_points'
+  | 'quiz_accuracy'
+  | 'games_won'
+  | 'streak_days';
 
 export type Language = {
   code: string;

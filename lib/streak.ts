@@ -6,6 +6,7 @@
 
 import { PetStage, UserProgress } from '@/types/vocab';
 import { getProgress, saveProgress } from './storage';
+import { updateLeaderboardsForUser } from './leaderboard-client';
 
 // Pet evolution thresholds
 const PET_STAGES: { stage: PetStage; minStreak: number }[] = [
@@ -115,6 +116,7 @@ export function updateStreakOnStudy(): { streakUpdated: boolean; newStreak: numb
     progress.lastStudyDate = today.getTime();
     progress.petStage = newPetStage;
     saveProgress(progress);
+    updateLeaderboardsForUser({ streakDays: newStreak });
   }
   
   return { streakUpdated, newStreak, petEvolved };

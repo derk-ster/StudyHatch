@@ -10,6 +10,8 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { useAuth } from '@/lib/auth-context';
+import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 
 type CardState = {
   id: string;
@@ -22,6 +24,7 @@ type CardState = {
 export default function MatchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { session } = useAuth();
   const [spanishCards, setSpanishCards] = useState<CardState[]>([]);
   const [englishCards, setEnglishCards] = useState<CardState[]>([]);
   const [selectedSpanish, setSelectedSpanish] = useState<string | null>(null);
@@ -186,6 +189,9 @@ export default function MatchPage() {
             const currentDeckProgress = getCurrentDeckProgress();
             if (!currentDeckProgress.matchBestTime || finalTime < currentDeckProgress.matchBestTime) {
               updateDeckProgress({ matchBestTime: finalTime });
+            }
+            if (session && !session.isGuest) {
+              updateLeaderboardsForUser({ points: 15 });
             }
           } else {
             const nextRound = currentRound + 1;

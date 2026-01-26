@@ -10,10 +10,13 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { useAuth } from '@/lib/auth-context';
+import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 
 export default function FlashcardsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { session } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showTranslationFirst, setShowTranslationFirst] = useState(() => {
@@ -334,6 +337,10 @@ export default function FlashcardsPage() {
     newStats[currentCard.id].lastSeen = Date.now();
     updateDeckProgress({ knownCards, learningCards, cardStats: newStats });
 
+    if (session && !session.isGuest) {
+      updateLeaderboardsForUser({ points: 4 });
+    }
+
     setCardStates(prev => new Map(prev).set(currentCard.id, 'known'));
     setMarkedCards(prev => new Set(prev).add(currentCard.id));
     setFlashingCard({ id: currentCard.id, type: 'known' });
@@ -367,6 +374,10 @@ export default function FlashcardsPage() {
     newStats[currentCard.id].incorrect++;
     newStats[currentCard.id].lastSeen = Date.now();
     updateDeckProgress({ knownCards, learningCards, cardStats: newStats });
+
+    if (session && !session.isGuest) {
+      updateLeaderboardsForUser({ points: 1 });
+    }
 
     setCardStates(prev => new Map(prev).set(currentCard.id, 'not-known'));
     setMarkedCards(prev => new Set(prev).add(currentCard.id));

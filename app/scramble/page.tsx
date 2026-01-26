@@ -10,10 +10,13 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { useAuth } from '@/lib/auth-context';
+import { updateLeaderboardsForUser } from '@/lib/leaderboard-client';
 
 export default function ScramblePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { session } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scrambledWord, setScrambledWord] = useState('');
   const [userInput, setUserInput] = useState('');
@@ -138,6 +141,12 @@ export default function ScramblePage() {
     }
     newStats[currentCard.id].lastSeen = Date.now();
     updateDeckProgress({ cardStats: newStats });
+
+    if (session && !session.isGuest) {
+      updateLeaderboardsForUser({
+        points: correct ? 6 : 0,
+      });
+    }
   };
 
   const handleNext = () => {
