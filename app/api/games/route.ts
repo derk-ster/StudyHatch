@@ -39,7 +39,7 @@ type GamePlayer = {
 type GameSession = {
   code: string;
   hostId: string;
-  hostUserId: string;
+  hostUserId: string | null;
   hostKey: string;
   mode: GameMode;
   status: GameStatus;
@@ -558,17 +558,22 @@ const createSession = async (payload: any, memoryStore: Map<string, GameSession>
   if (!deck || !deck.cards || deck.cards.length === 0) {
     return { type: 'error', payload: { message: 'Deck is missing or empty.' } };
   }
-  if (!host?.userId) {
-    return { type: 'error', payload: { message: 'Host must be logged in.' } };
+  if (settings?.classroomOnly) {
+    if (!host?.userId) {
+      return { type: 'error', payload: { message: 'Login required for classroom games.' } };
+    }
+    if (!settings?.classroomId) {
+      return { type: 'error', payload: { message: 'Classroom is required for restricted games.' } };
+    }
   }
 
   const code = createUniqueCode(memoryStore);
   const hostKey = randomBytes(12).toString('hex');
-  const hostPlayer = createPlayer({ name: host.name, userId: host.userId, isHost: true });
+  const hostPlayer = createPlayer({ name: host?.name, userId: host?.userId || undefined, isHost: true });
   const session: GameSession = {
     code,
     hostId: hostPlayer.id,
-    hostUserId: host.userId,
+    hostUserId: host?.userId || null,
     hostKey,
     mode,
     status: 'lobby',
@@ -592,7 +597,9 @@ const createSession = async (payload: any, memoryStore: Map<string, GameSession>
       gameDurationMinutes: settings?.gameDurationMinutes ? Number(settings.gameDurationMinutes) : null,
       classroomOnly: Boolean(settings?.classroomOnly),
       classroomId: settings?.classroomId || null,
-      allowedUserIds: Array.from(new Set([host.userId, ...(settings?.allowedUserIds || [])])),
+      allowedUserIds: Array.from(
+        new Set([...(host?.userId ? [host.userId] : []), ...(settings?.allowedUserIds || [])])
+      ),
     },
     players: {
       [hostPlayer.id]: hostPlayer,
@@ -652,8 +659,8 @@ const joinSession = async (payload: any, memoryStore: Map<string, GameSession>):
       if (!session.settings.allowedUserIds.includes(userId)) {
         return { type: 'error', payload: { message: 'You are not on the class roster.' } };
       }
-    } else if (userId !== session.hostUserId) {
-      return { type: 'error', payload: { message: 'You are not on the class roster.' } };
+    } else {
+      return { type: 'error', payload: { message: 'Class roster is not available.' } };
     }
   }
 

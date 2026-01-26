@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth-context';
 import { updatePassword } from '@/lib/auth';
 import { usePWA } from '@/components/PWAProvider';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
+import { useAudioSettings } from '@/lib/audio-settings';
+import { playSfx } from '@/lib/sfx';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -22,6 +24,7 @@ export default function AccountPage() {
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const schoolMode = isSchoolModeEnabled();
+  const { settings, updateSettings } = useAudioSettings();
 
   useEffect(() => {
     if (session?.isGuest) {
@@ -72,6 +75,59 @@ export default function AccountPage() {
     router.push('/logout');
   };
 
+  const renderVolumeRow = (
+    label: string,
+    description: string,
+    value: number,
+    muted: boolean,
+    onMutedChange: (next: boolean) => void,
+    onVolumeChange: (next: number) => void,
+    onTest?: () => void
+  ) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-white font-medium">{label}</div>
+          <div className="text-xs text-white/60">{description}</div>
+        </div>
+        <div className="flex items-center gap-4">
+          {onTest && (
+            <button
+              type="button"
+              onClick={onTest}
+              className="px-3 py-1 rounded-md bg-white/10 hover:bg-white/20 text-xs font-semibold"
+            >
+              Test
+            </button>
+          )}
+          <label className="flex items-center gap-2 text-sm text-white/70">
+            <input
+              type="checkbox"
+              checked={muted}
+              onChange={(e) => onMutedChange(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Mute
+          </label>
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={Math.round(value * 100)}
+          onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
+          className="w-full accent-purple-500"
+        />
+        <div className="w-12 text-right text-sm text-white/70">
+          {Math.round(value * 100)}%
+        </div>
+      </div>
+    </div>
+  );
+
   if (session?.isGuest) {
     return null;
   }
@@ -120,6 +176,47 @@ export default function AccountPage() {
                 ? 'Teachers control AI and multiplayer access for classroom sessions.'
                 : 'Teachers control AI and multiplayer access for classroom sessions.'}
             </p>
+          </div>
+
+          {/* Audio Settings */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 card-glow">
+            <h2 className="text-2xl font-bold mb-6 text-white">Audio Settings</h2>
+            <div className="space-y-6">
+              {renderVolumeRow(
+                'Home Background Music',
+                'Controls music on non-game pages.',
+                settings.homeMusic.volume,
+                settings.homeMusic.muted,
+                (muted) => updateSettings({ homeMusic: { muted } }),
+                (volume) => updateSettings({ homeMusic: { volume } })
+              )}
+              {renderVolumeRow(
+                'In-Game Background Music',
+                'Controls music during multiplayer games.',
+                settings.gameMusic.volume,
+                settings.gameMusic.muted,
+                (muted) => updateSettings({ gameMusic: { muted } }),
+                (volume) => updateSettings({ gameMusic: { volume } })
+              )}
+              {renderVolumeRow(
+                'Correct Answer Sound',
+                'Plays when answers are correct.',
+                settings.correctSfx.volume,
+                settings.correctSfx.muted,
+                (muted) => updateSettings({ correctSfx: { muted } }),
+                (volume) => updateSettings({ correctSfx: { volume } }),
+                () => playSfx('correct')
+              )}
+              {renderVolumeRow(
+                'Incorrect Answer Sound',
+                'Plays when answers are incorrect.',
+                settings.incorrectSfx.volume,
+                settings.incorrectSfx.muted,
+                (muted) => updateSettings({ incorrectSfx: { muted } }),
+                (volume) => updateSettings({ incorrectSfx: { volume } }),
+                () => playSfx('incorrect')
+              )}
+            </div>
           </div>
 
           {/* Resources */}

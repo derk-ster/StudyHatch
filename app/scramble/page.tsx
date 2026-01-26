@@ -11,6 +11,7 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { playSfx } from '@/lib/sfx';
 
 export default function ScramblePage() {
   const searchParams = useSearchParams();
@@ -121,6 +122,7 @@ export default function ScramblePage() {
     
     setIsCorrect(correct);
     setShowAnswer(true);
+    playSfx(correct ? 'correct' : 'incorrect');
     
     if (correct) {
       const points = 10 - (hintsUsed * 2);

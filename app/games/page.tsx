@@ -19,13 +19,12 @@ import {
   setStoredHostKey,
   setStoredPlayerId,
 } from '@/lib/games/session-store';
-import { backupDecks, getAllDecks, getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass, getDeckById, restoreDecksFromBackup, getClassSettings, getEffectiveClassSettingsForUser } from '@/lib/storage';
+import { backupDecks, getAllDecks, getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass, getDeckById, restoreDecksFromBackup } from '@/lib/storage';
 import type { ClassRoom, Deck } from '@/types/vocab';
 import type { DirectionSetting, GameMode } from '@/types/games';
 import { WORD_HEIST_MODE } from '@/lib/games/engines/word-heist';
 import { LIGHTNING_LADDER_MODE } from '@/lib/games/engines/lightning-ladder';
 import { SURVIVAL_SPRINT_MODE } from '@/lib/games/engines/survival-sprint';
-import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { recordStudentActivityForClasses } from '@/lib/activity-log';
 
 const MODE_CHOICES = [WORD_HEIST_MODE, LIGHTNING_LADDER_MODE, SURVIVAL_SPRINT_MODE];
@@ -52,20 +51,7 @@ export default function GamesPage() {
   const [displayName, setDisplayName] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isJoining, setIsJoining] = useState(false);
-  const schoolMode = isSchoolModeEnabled();
-  const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
-  const studentClasses = session?.role === 'student' && session?.userId
-    ? getClassesForStudent(session.userId)
-    : [];
-  const hasClassMembership = studentClasses.length > 0;
-  const multiplayerAllowedForStudent = hasClassMembership
-    ? studentClasses.every((cls) => getClassSettings(cls.id).multiplayerEnabled)
-    : true;
-  const multiplayerEnabled = !schoolMode
-    || session?.role === 'teacher'
-    || !hasClassMembership
-    || multiplayerAllowedForStudent
-    || (effectiveSettings?.multiplayerEnabled ?? false);
+  const canUseClassroomOnly = classes.length > 0;
   const hostTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const joinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -114,14 +100,9 @@ export default function GamesPage() {
   }, [session?.userId, session?.role, session?.isGuest]);
 
   useEffect(() => {
-    if (!schoolMode) return;
-    setClassroomOnly(true);
-  }, [schoolMode]);
-
-  useEffect(() => {
-    if (!schoolMode || classroomId || classes.length === 0) return;
+    if (classroomId || classes.length === 0) return;
     setClassroomId(classes[0].id);
-  }, [schoolMode, classroomId, classes]);
+  }, [classroomId, classes]);
 
   const hasDecks = decks.length > 0;
   const deckOptions = useMemo(() => decks.map(deck => ({ value: deck.id, label: deck.name })), [decks]);
@@ -142,36 +123,17 @@ export default function GamesPage() {
 
   const handleHostGame = () => {
     setHostError('');
-    if (schoolMode && !multiplayerEnabled) {
-      setHostError('Multiplayer games are disabled for your classes.');
-      return;
-    }
-    if (schoolMode && session?.role !== 'teacher') {
-      setHostError('Only teachers can host games in School Edition.');
-      return;
-    }
-    if (!session || session.isGuest || !session.userId) {
-      setHostError('You must be logged in to host a game.');
-      return;
-    }
     if (!hostDeckId) {
       setHostError('Select a deck to host.');
-      return;
-    }
-    if (classroomOnly && session.role !== 'teacher') {
-      setHostError('Only teachers can host classroom-only games.');
       return;
     }
     if (classroomOnly && !classroomId) {
       setHostError('Select a classroom to host a private game.');
       return;
     }
-    if (schoolMode && classroomId) {
-      const classSettings = getClassSettings(classroomId);
-      if (!classSettings.multiplayerEnabled) {
-        setHostError('Multiplayer games are disabled for this class.');
-        return;
-      }
+    if (classroomOnly && (!session || session.isGuest || !session.userId)) {
+      setHostError('Log in to host a classroom-only game.');
+      return;
     }
     const deck = getDeckById(hostDeckId);
     if (!deck) {
@@ -181,7 +143,7 @@ export default function GamesPage() {
 
     const allowedUserIds =
       classroomOnly && classroomId ? getStudentsForClass(classroomId).map(student => student.userId) : [];
-    const hostName = session.username || 'Host';
+    const hostName = session?.username || 'Host';
     setIsHosting(true);
     clearHostTimeout();
 
@@ -231,7 +193,7 @@ export default function GamesPage() {
             allowedUserIds,
           },
           host: {
-            userId: session.userId,
+            userId: session?.isGuest ? null : session?.userId,
             name: hostName,
           },
         });
@@ -301,14 +263,6 @@ export default function GamesPage() {
 
   const handleJoinGame = () => {
     setJoinError('');
-    if (schoolMode && !multiplayerEnabled) {
-      setJoinError('Multiplayer games are disabled for your classes.');
-      return;
-    }
-    if (schoolMode && (!session || session.isGuest)) {
-      setJoinError('Please log in to join a teacher-hosted game.');
-      return;
-    }
     const code = joinCode.trim().toUpperCase();
     if (!code) {
       setJoinError('Enter a game code to join.');
@@ -377,13 +331,8 @@ export default function GamesPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
           <h2 className="text-2xl font-semibold text-white">Host a Game</h2>
           <p className="text-white/70 text-sm">
-            {schoolMode ? 'Only teachers can host classroom-only games.' : 'Teachers and students can host. Guests may join but cannot host.'}
+            Anyone can host or join. Use Classroom Only to restrict by roster.
           </p>
-          {schoolMode && !multiplayerEnabled && (
-            <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
-              Multiplayer is disabled for your classes. Ask a teacher to enable it.
-            </div>
-          )}
           {resumeHostCode && (
             <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -522,17 +471,17 @@ export default function GamesPage() {
                     type="checkbox"
                     checked={classroomOnly}
                     onChange={(e) => setClassroomOnly(e.target.checked)}
-                    disabled={session?.role !== 'teacher' || schoolMode}
+                    disabled={!canUseClassroomOnly}
                     className="h-4 w-4 rounded border-white/20 bg-white/10"
                   />
                   <span className="text-white/60 text-sm">
-                    {schoolMode ? 'School Edition requires classroom-only games.' : session?.role === 'teacher' ? 'Restrict to a class roster.' : 'Teachers only.'}
+                    {canUseClassroomOnly ? 'Restrict to a class roster.' : 'No classrooms available.'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {classroomOnly && session?.role === 'teacher' && (
+            {classroomOnly && canUseClassroomOnly && (
               <div>
                 <label className="text-white/70 text-sm">Select Classroom</label>
                 <select
@@ -556,7 +505,7 @@ export default function GamesPage() {
 
             <button
               onClick={handleHostGame}
-              disabled={isHosting || !hasDecks || (schoolMode && session?.role !== 'teacher')}
+              disabled={isHosting || !hasDecks}
               className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 disabled:opacity-60"
             >
               {!hasDecks ? 'Create a deck to host' : isHosting ? 'Creating Game...' : 'Host Game'}
@@ -567,7 +516,7 @@ export default function GamesPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
           <h2 className="text-2xl font-semibold text-white">Join a Game</h2>
           <p className="text-white/70 text-sm">
-            {schoolMode ? 'Join a teacher-hosted classroom game with your class code.' : 'Guests can join with a display name.'}
+            Join any game with a code and display name.
           </p>
 
           <div className="space-y-4">
@@ -576,7 +525,6 @@ export default function GamesPage() {
               <input
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value)}
-                disabled={schoolMode && (!multiplayerEnabled || session?.isGuest)}
                 className="mt-2 w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white tracking-widest uppercase disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="ABC123"
               />
@@ -586,7 +534,6 @@ export default function GamesPage() {
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                disabled={schoolMode && (!multiplayerEnabled || session?.isGuest)}
                 className="mt-2 w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Your name"
               />
@@ -594,7 +541,7 @@ export default function GamesPage() {
             {joinError && <p className="text-red-300 text-sm">{joinError}</p>}
             <button
               onClick={handleJoinGame}
-              disabled={isJoining || (schoolMode && (!multiplayerEnabled || session?.isGuest))}
+              disabled={isJoining}
               className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold disabled:opacity-60"
             >
               {isJoining ? 'Joining...' : 'Join Game'}

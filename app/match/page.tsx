@@ -11,6 +11,7 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { playSfx } from '@/lib/sfx';
 
 type CardState = {
   id: string;
@@ -168,6 +169,7 @@ export default function MatchPage() {
     // Check if they match (same cardId)
     if (englishCard.cardId === spanishCard.cardId) {
       // Match!
+      playSfx('correct');
       setSpanishCards(prev => prev.map(c => 
         c.id === selectedSpanish ? { ...c, isMatched: true } : c
       ));
@@ -201,6 +203,7 @@ export default function MatchPage() {
       setSelectedSpanish(null);
     } else {
       // Wrong match - show red feedback
+      playSfx('incorrect');
       setIncorrectCards(new Set([selectedSpanish, cardId]));
       
       // After 1 second, clear red feedback and reset selection

@@ -12,6 +12,7 @@ import SurvivalSprintPanel from '@/components/games/SurvivalSprintPanel';
 import type { GameSession } from '@/types/games';
 import { createGameSocket } from '@/lib/games/ws-client';
 import { useAuth } from '@/lib/auth-context';
+import { playSfx } from '@/lib/sfx';
 import {
   clearLastGameCode,
   getStoredHostKey,
@@ -39,6 +40,8 @@ export default function GamePlayPage() {
   const [gameTimeLeft, setGameTimeLeft] = useState<string | null>(null);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const decisionIndexRef = useRef<number | null>(null);
+  const lastAnswerRef = useRef<{ roundIndex: number; value: boolean } | null>(null);
+  const lastEventRef = useRef<string | null>(null);
   const countdownSeconds = 3;
 
   useEffect(() => {
@@ -207,6 +210,29 @@ export default function GamePlayPage() {
     });
     setAnswer('');
   };
+
+  useEffect(() => {
+    if (!session || !playerId || session.mode === 'word-heist') return;
+    const roundIndex = session.modeState?.roundIndex ?? 0;
+    const answerValue = session.modeState?.answers?.[playerId];
+    if (typeof answerValue !== 'boolean') return;
+    const last = lastAnswerRef.current;
+    if (last && last.roundIndex === roundIndex && last.value === answerValue) return;
+    lastAnswerRef.current = { roundIndex, value: answerValue };
+    playSfx(answerValue ? 'correct' : 'incorrect');
+  }, [session, playerId]);
+
+  useEffect(() => {
+    if (session?.mode !== 'word-heist') return;
+    if (!player?.lastEvent) return;
+    if (player.lastEvent === lastEventRef.current) return;
+    lastEventRef.current = player.lastEvent;
+    if (player.lastEvent.startsWith('Correct')) {
+      playSfx('correct');
+    } else if (player.lastEvent.startsWith('Incorrect')) {
+      playSfx('incorrect');
+    }
+  }, [session?.mode, player?.lastEvent]);
 
   const handleBank = () => {
     if (!playerId) return;

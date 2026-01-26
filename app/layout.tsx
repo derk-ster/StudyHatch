@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import PWAProvider from '@/components/PWAProvider';
+import BackgroundMusic from '@/components/BackgroundMusic';
 import ComplianceBanner from '@/components/ComplianceBanner';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -104,6 +105,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
         <PWAProvider>
           <AuthProvider>
+            <BackgroundMusic />
             <ComplianceBanner />
             {children}
           </AuthProvider>

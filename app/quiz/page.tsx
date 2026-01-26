@@ -11,6 +11,7 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { playSfx } from '@/lib/sfx';
 
 export default function QuizPage() {
   const searchParams = useSearchParams();
@@ -131,6 +132,7 @@ export default function QuizPage() {
     setShowResult(true);
     
     if (isCorrect) {
+      playSfx('correct');
       setScore(prev => prev + 1);
       setStreak(prev => prev + 1);
       // Update per-deck card stats
@@ -143,6 +145,7 @@ export default function QuizPage() {
       newStats[currentCard.id].lastSeen = Date.now();
       updateDeckProgress({ cardStats: newStats });
     } else {
+      playSfx('incorrect');
       setStreak(0);
       setMissedWords(prev => [...prev, currentCard]);
       // Update per-deck card stats

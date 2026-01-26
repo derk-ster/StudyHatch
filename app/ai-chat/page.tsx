@@ -9,6 +9,7 @@ import { getDeckById, getAllDecks, getDailyUsage, getTimeUntilReset, incrementDa
 import { useAuth } from '@/lib/auth-context';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { recordStudentActivityForClasses } from '@/lib/activity-log';
+import { getLanguageName } from '@/lib/languages';
 
 type Message = {
   id: string;
@@ -26,6 +27,8 @@ export default function AIChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastIntroDeckRef = useRef<string | null>(null);
+  const introRequestRef = useRef(0);
   
   const decks = getAllDecks();
   const dailyUsage = getDailyUsage();
@@ -66,6 +69,59 @@ export default function AIChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const buildDeckIntroPrompt = () => {
+    if (!selectedDeck) return '';
+    const targetLanguage = getLanguageName(selectedDeck.targetLanguage);
+    const sampleCards = selectedDeck.cards.slice(0, 5);
+    const sampleList = sampleCards
+      .map((card) => `${card.english} → ${card.translation}`)
+      .join(', ');
+    return `The user selected the study deck "${selectedDeck.name}". The target language is ${targetLanguage}. The deck has ${selectedDeck.cards.length} cards. Provide a short, friendly intro about the deck and what you can help with. Include one or two example cards from this list: ${sampleList}.`;
+  };
+
+  const sendDeckIntro = async () => {
+    if (!selectedDeck || !aiEnabled) return;
+    const prompt = buildDeckIntroPrompt();
+    if (!prompt) return;
+    const requestId = introRequestRef.current + 1;
+    introRequestRef.current = requestId;
+    try {
+      const response = await fetch(`${apiBase}/api/ai-chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: prompt,
+          deckId: selectedDeckId,
+          conversationHistory: messages.slice(-10),
+          allowAI: aiEnabled,
+        }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (introRequestRef.current !== requestId) return;
+      const aiResponse: Message = {
+        id: `msg-${Date.now()}`,
+        role: 'assistant',
+        content: data.response,
+        timestamp: Date.now(),
+      };
+      setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Error calling AI API:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedDeckId) {
+      lastIntroDeckRef.current = null;
+      return;
+    }
+    if (selectedDeckId === lastIntroDeckRef.current) return;
+    lastIntroDeckRef.current = selectedDeckId;
+    sendDeckIntro();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeckId, aiEnabled]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading || !canSend.allowed || !aiEnabled) return;

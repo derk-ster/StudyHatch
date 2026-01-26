@@ -11,6 +11,7 @@ import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress, normalizeText, fuzzyMatch } from '@/lib/storage';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
+import { playSfx } from '@/lib/sfx';
 
 export default function WritePage() {
   const searchParams = useSearchParams();
@@ -138,6 +139,7 @@ export default function WritePage() {
     setIsCorrect(correct);
     setShowAnswer(true);
     setCorrectForm(target); // Store correct form with accents
+    playSfx(correct ? 'correct' : 'incorrect');
     
     // Track session results
     setSessionResults(prev => new Map(prev).set(currentCard.id, correct));
