@@ -7,6 +7,13 @@ export type AudioSettings = {
   incorrectSfx: { muted: boolean; volume: number };
 };
 
+export type AudioSettingsUpdate = {
+  homeMusic?: Partial<AudioSettings['homeMusic']>;
+  gameMusic?: Partial<AudioSettings['gameMusic']>;
+  correctSfx?: Partial<AudioSettings['correctSfx']>;
+  incorrectSfx?: Partial<AudioSettings['incorrectSfx']>;
+};
+
 const STORAGE_KEY = 'studyhatch_audio_settings';
 
 const clampVolume = (value: number) => Math.max(0, Math.min(1, value));
@@ -18,7 +25,7 @@ const defaultSettings: AudioSettings = {
   incorrectSfx: { muted: false, volume: 0.6 },
 };
 
-const normalizeSettings = (value: Partial<AudioSettings> | null): AudioSettings => ({
+const normalizeSettings = (value: AudioSettingsUpdate | Partial<AudioSettings> | null): AudioSettings => ({
   homeMusic: {
     muted: value?.homeMusic?.muted ?? defaultSettings.homeMusic.muted,
     volume: clampVolume(value?.homeMusic?.volume ?? defaultSettings.homeMusic.volume),
@@ -55,7 +62,7 @@ export const setAudioSettings = (settings: AudioSettings) => {
   window.dispatchEvent(new CustomEvent('audio-settings'));
 };
 
-export const updateAudioSettings = (updates: Partial<AudioSettings>) => {
+export const updateAudioSettings = (updates: AudioSettingsUpdate) => {
   const current = getAudioSettings();
   const next: AudioSettings = normalizeSettings({
     ...current,
