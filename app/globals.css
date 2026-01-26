@@ -52,6 +52,18 @@ a[class*='rounded']:active {
   transform: translateY(0) scale(calc(2 - var(--button-hover-scale)));
 }
 
+.hover-lift-only {
+  transition: transform 0.18s ease;
+}
+
+.hover-lift-only:hover {
+  transform: translateY(calc(var(--link-hover-raise) * -1));
+}
+
+.hover-lift-only:active {
+  transform: translateY(0);
+}
+
 @layer base {
   html,
   body {
@@ -92,6 +104,12 @@ a[class*='rounded']:active {
   
   .text-glow {
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+
+  .bg-clip-text {
+    display: inline-block;
+    line-height: 1.15;
+    padding-bottom: 0.08em;
   }
   
   .flip-card {

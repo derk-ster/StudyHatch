@@ -1,5 +1,6 @@
 import { getUserById } from '@/lib/auth';
 import { getClassesForStudent } from '@/lib/storage';
+import { recordWeeklyActivity } from '@/lib/leaderboards';
 
 export type ActivityLogEntry = {
   id: string;
@@ -64,9 +65,12 @@ export const getActivityLogForStudent = (userId: string): ActivityLogEntry[] => 
 
 export const recordStudentActivityForClasses = (userId: string, action: string, details?: string): void => {
   const classes = getClassesForStudent(userId);
+  const username = getUserById(userId)?.username || 'Player';
   if (classes.length === 0) {
     recordActivity(userId, action, details);
+    recordWeeklyActivity(userId, username);
     return;
   }
   classes.forEach((classroom) => recordActivity(userId, action, details, classroom.id));
+  recordWeeklyActivity(userId, username, classes.map(cls => cls.id), 1);
 };

@@ -1,6 +1,7 @@
 import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership, ClassSettings } from '@/types/vocab';
-import { addUserClassroom, getCurrentSession, getUserById, removeClassroomFromAllUsers, setUserSchool } from './auth';
+import { addUserClassroom, getAccountData, getCurrentSession, getUserById, removeClassroomFromAllUsers, saveAccountData, setUserSchool } from './auth';
 import { isSchoolModeEnabled } from './school-mode';
+import { recordWeeklyStudyAttempt } from './leaderboards';
 
 const STORAGE_KEY = 'spanish-vocab-progress';
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
@@ -79,6 +80,14 @@ export const saveProgress = (progress: UserProgress): void => {
   
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    const session = getCurrentSession();
+    if (session?.userId && !session.isGuest) {
+      const accountData = getAccountData(session.userId);
+      if (accountData) {
+        accountData.progress = progress;
+        saveAccountData(session.userId, accountData);
+      }
+    }
   } catch (error) {
     console.error('Error saving progress:', error);
   }
@@ -182,6 +191,15 @@ export const recordCardAttempt = (cardId: string, correct: boolean): void => {
   
   progress.cardStats[cardId].lastSeen = Date.now();
   saveProgress(progress);
+
+  const session = getCurrentSession();
+  if (session?.userId && !session.isGuest) {
+    const username = session.username || getUserById(session.userId)?.username || 'Player';
+    const classIds = session.role === 'student'
+      ? getClassesForStudent(session.userId).map(cls => cls.id)
+      : [];
+    recordWeeklyStudyAttempt(session.userId, username, correct, classIds);
+  }
 };
 
 export const normalizeText = (text: string): string => {

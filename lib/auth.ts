@@ -330,6 +330,14 @@ export function getUserById(userId: string): User | null {
   return users[userId]?.user || null;
 }
 
+export function getAllUsers(): { user: User; accountData: AccountData }[] {
+  const users = getUsers();
+  return Object.values(users).map(entry => ({
+    user: entry.user,
+    accountData: entry.accountData,
+  }));
+}
+
 export function setUserSchool(userId: string, schoolId: string): void {
   const users = getUsers();
   const userEntry = users[userId];
