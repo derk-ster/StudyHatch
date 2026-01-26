@@ -8,6 +8,7 @@ const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
 const DECKS_BACKUP_STORAGE_KEY = 'spanish-vocab-decks-backup';
 const CLASSROOMS_STORAGE_KEY = 'studyhatch-classrooms';
 const PUBLISHED_DECKS_STORAGE_KEY = 'studyhatch-published-decks';
+const PUBLIC_DECKS_STORAGE_KEY = 'spanish-vocab-public-decks';
 const SCHOOLS_STORAGE_KEY = 'studyhatch-schools';
 const CLASSES_STORAGE_KEY = 'studyhatch-classes';
 const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
@@ -319,6 +320,12 @@ export const saveDeck = (deck: Deck): void => {
     }
     
     localStorage.setItem(getDeckStorageKey(), JSON.stringify(decks));
+
+    if (deckToSave.visibility === 'public') {
+      upsertPublicDeck(deckToSave);
+    } else if (existingDeck?.visibility === 'public') {
+      removePublicDeck(deckToSave.id);
+    }
   } catch (error) {
     console.error('Error saving deck:', error);
   }
@@ -331,12 +338,64 @@ export const setDeckVisibility = (deckId: string, visibility: 'private' | 'publi
   return true;
 };
 
+function getStoredPublicDecks(): Deck[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(PUBLIC_DECKS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Error loading public decks:', error);
+    return [];
+  }
+}
+
+function saveStoredPublicDecks(decks: Deck[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PUBLIC_DECKS_STORAGE_KEY, JSON.stringify(decks));
+  } catch (error) {
+    console.error('Error saving public decks:', error);
+  }
+}
+
+function upsertPublicDeck(deck: Deck): void {
+  const publicDecks = getStoredPublicDecks();
+  const existingIndex = publicDecks.findIndex(entry => entry.id === deck.id);
+  const deckEntry = { ...deck, visibility: 'public' as const };
+  if (existingIndex >= 0) {
+    publicDecks[existingIndex] = deckEntry;
+  } else {
+    publicDecks.push(deckEntry);
+  }
+  saveStoredPublicDecks(publicDecks);
+}
+
+function removePublicDeck(deckId: string): void {
+  const publicDecks = getStoredPublicDecks();
+  const filtered = publicDecks.filter(deck => deck.id !== deckId);
+  if (filtered.length !== publicDecks.length) {
+    saveStoredPublicDecks(filtered);
+  }
+}
+
 export const getPublicDecks = (): Deck[] => {
-  return getAllDecks().filter(deck => deck.visibility === 'public');
+  const stored = getStoredPublicDecks();
+  const localPublic = getAllDecks().filter(deck => deck.visibility === 'public');
+  if (localPublic.length === 0) {
+    return stored;
+  }
+  const mergedMap = new Map<string, Deck>();
+  stored.forEach(deck => mergedMap.set(deck.id, deck));
+  localPublic.forEach(deck => mergedMap.set(deck.id, deck));
+  const merged = Array.from(mergedMap.values());
+  if (merged.length !== stored.length) {
+    saveStoredPublicDecks(merged);
+  }
+  return merged;
 };
 
 export const duplicateDeck = (deckId: string, ownerUserId?: string): Deck | null => {
-  const deck = getDeckById(deckId);
+  const deck = getDeckById(deckId) || getStoredPublicDecks().find(entry => entry.id === deckId);
   if (!deck) return null;
   const copiedDeck: Deck = {
     ...deck,
@@ -652,8 +711,12 @@ export const deleteDeck = (deckId: string): void => {
   
   try {
     const decks = getAllDecks();
+    const deckToDelete = decks.find(d => d.id === deckId);
     const filtered = decks.filter(d => d.id !== deckId);
     localStorage.setItem(getDeckStorageKey(), JSON.stringify(filtered));
+    if (deckToDelete?.visibility === 'public') {
+      removePublicDeck(deckId);
+    }
     
     // Also clear progress for this deck
     const progress = getProgress();
@@ -827,7 +890,9 @@ export const getPublishedDecksForDeck = (deckId: string): PublishedDeck[] => {
 
 export const getDeckById = (deckId: string): Deck | undefined => {
   const decks = getAllDecks();
-  const deck = decks.find(d => d.id === deckId);
+  const localDeck = decks.find(d => d.id === deckId);
+  const publicDeck = localDeck ? undefined : getStoredPublicDecks().find(d => d.id === deckId);
+  const deck = localDeck || publicDeck;
   
   // Backward compatibility: ensure targetLanguage exists
   if (deck && !deck.targetLanguage) {
@@ -844,7 +909,11 @@ export const getDeckById = (deckId: string): Deck | undefined => {
       return card;
     });
     // Save the migrated deck
-    saveDeck(deck);
+    if (localDeck) {
+      saveDeck(deck);
+    } else if (publicDeck) {
+      upsertPublicDeck(deck);
+    }
   }
   
   return deck;

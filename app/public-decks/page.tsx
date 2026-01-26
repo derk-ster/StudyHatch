@@ -15,6 +15,7 @@ export default function PublicDecksPage() {
   const [filteredDecks, setFilteredDecks] = useState<Deck[]>([]);
   const [myDecks, setMyDecks] = useState<Deck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState('');
+  const [previewDeck, setPreviewDeck] = useState<Deck | null>(null);
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -167,16 +168,22 @@ export default function PublicDecksPage() {
                     <p className="text-white/70 text-sm mb-3">{deck.description}</p>
                   )}
                   <p className="text-white/60 text-sm mb-4">{deck.cards.length} cards</p>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col gap-3">
                     <Link
                       href={`/study?deck=${deck.id}`}
-                      className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center text-sm font-medium transition-all"
+                      className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center text-sm font-medium transition-all flex items-center justify-center"
                     >
                       Study Now
                     </Link>
                     <button
+                      onClick={() => setPreviewDeck(deck)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 hover:bg-white/20"
+                    >
+                      View Translations
+                    </button>
+                    <button
                       onClick={() => handleCopyDeck(deck.id)}
-                      className="flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 hover:bg-white/20"
+                      className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 hover:bg-white/20"
                     >
                       Copy to My Decks
                     </button>
@@ -187,6 +194,53 @@ export default function PublicDecksPage() {
           )}
         </div>
       </main>
+      {previewDeck && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-3xl mx-4 border border-white/20 card-glow">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-white">{previewDeck.name}</h2>
+                {previewDeck.description && (
+                  <p className="text-white/60 text-sm mt-1">{previewDeck.description}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setPreviewDeck(null)}
+                className="text-white/60 hover:text-white text-2xl leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto border border-white/10 rounded-xl">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 bg-gray-900/95 backdrop-blur border-b border-white/10">
+                  <tr>
+                    <th className="px-4 py-3 text-white/70 font-semibold">English</th>
+                    <th className="px-4 py-3 text-white/70 font-semibold">Translation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewDeck.cards.map((card) => (
+                    <tr key={card.id} className="border-b border-white/10 last:border-0">
+                      <td className="px-4 py-3 text-white/80">{card.english}</td>
+                      <td className="px-4 py-3 text-white/80">{card.translation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setPreviewDeck(null)}
+                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-medium transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

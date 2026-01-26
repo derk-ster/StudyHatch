@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { StreakPetWidget } from '@/components/StreakPet';
-import { getAllDecks, deleteDeck, getUserLimits, getOwnedClassrooms, getPublishedDecksForDeck, publishDeckToClassroom, setDeckVisibility, getClassesForStudent, getClassDeckIdsForStudent, getActiveClassDecks, reorderDecksByIds } from '@/lib/storage';
+import { getAllDecks, deleteDeck, getUserLimits, getOwnedClassrooms, getPublishedDecksForDeck, publishDeckToClassroom, getClassesForStudent, getClassDeckIdsForStudent, getActiveClassDecks, reorderDecksByIds } from '@/lib/storage';
 import { Deck, ActivityType, Classroom } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
 
@@ -176,17 +176,6 @@ export default function ViewDecksPage() {
     publishDeckToClassroom(deckId, selection.classroomId, expiresAt);
     setPublishMessage('Deck published to classroom.');
     setPublishError('');
-  };
-
-  const handleVisibilityChange = (deckId: string, visibility: 'private' | 'public') => {
-    const updated = setDeckVisibility(deckId, visibility);
-    if (updated) {
-      setPublishMessage(`Deck set to ${visibility}.`);
-      setPublishError('');
-      const allDecks = getAllDecks();
-      setDecks(allDecks);
-      setPersonalDecks(allDecks);
-    }
   };
 
   const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, deckId: string) => {
@@ -420,20 +409,6 @@ export default function ViewDecksPage() {
                   }}
                 >
                   <div className="mt-4 pt-4 border-t border-white/20">
-                    <div className="mb-4 bg-white/5 rounded-lg p-3 border border-white/10">
-                      <p className="text-white/80 text-sm mb-2">Sharing</p>
-                      <select
-                        value={deck.visibility || 'private'}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleVisibilityChange(deck.id, e.target.value as 'private' | 'public');
-                        }}
-                        className="px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      >
-                        <option value="private" className="bg-gray-800">Private</option>
-                        <option value="public" className="bg-gray-800">Public</option>
-                      </select>
-                    </div>
                     {ownedClassrooms.length > 0 && (
                       <div className="mb-4 bg-white/5 rounded-lg p-3 border border-white/10">
                         <p className="text-white/80 text-sm mb-2">Publish to Classroom</p>

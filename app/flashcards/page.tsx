@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
+import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
@@ -172,6 +173,10 @@ export default function FlashcardsPage() {
     ? shuffledIndices[currentIndex] 
     : currentIndex;
   const currentCard = filteredCards[actualIndex];
+  const translationText = currentCard?.translation || '';
+  const targetLanguageCode = deck?.targetLanguage || 'es';
+  const isFrontTranslation = Boolean(currentCard && showTranslationFirst);
+  const isBackTranslation = Boolean(currentCard && !showTranslationFirst);
   const isStarred = currentCard ? sessionStarredCards.has(currentCard.id) : false;
   const isMarked = currentCard ? markedCards.has(currentCard.id) : false;
   const cardState = currentCard ? cardStates.get(currentCard.id) : null;
@@ -482,6 +487,14 @@ export default function FlashcardsPage() {
           >
             <div className="flip-card-inner h-full">
               <div className="flip-card-front text-center relative p-12">
+                {isFrontTranslation && (
+                  <PronounceButton
+                    text={translationText}
+                    languageCode={targetLanguageCode}
+                    className="absolute top-4 left-4"
+                    label={`Play ${targetLanguageName} pronunciation`}
+                  />
+                )}
                 <div className="absolute top-4 right-4 text-white/40 text-sm">
                   {currentIndex + 1} / {filteredCards.length}
                 </div>
@@ -514,6 +527,14 @@ export default function FlashcardsPage() {
                 </div>
               </div>
               <div className="flip-card-back text-center relative p-12">
+                {isBackTranslation && (
+                  <PronounceButton
+                    text={translationText}
+                    languageCode={targetLanguageCode}
+                    className="absolute top-4 left-4"
+                    label={`Play ${targetLanguageName} pronunciation`}
+                  />
+                )}
                 <div className="absolute top-4 right-4 text-white/40 text-sm">
                   {currentIndex + 1} / {filteredCards.length}
                 </div>

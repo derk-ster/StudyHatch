@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
+import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
@@ -86,6 +87,7 @@ export default function ScramblePage() {
   }, [deckId]);
 
   const currentCard = shuffledCards[currentIndex];
+  const targetLanguageCode = deck?.targetLanguage || 'es';
 
   // Scramble word function
   const scrambleWord = (word: string): string => {
@@ -209,7 +211,15 @@ export default function ScramblePage() {
             </h2>
             
             <div className="mb-8">
-              <div className="text-sm text-white/60 mb-2">Scrambled {targetLanguageName} word:</div>
+              <div className="text-sm text-white/60 mb-2 flex items-center justify-center gap-2">
+                <span>Scrambled {targetLanguageName} word:</span>
+                <PronounceButton
+                  text={currentCard.translation}
+                  languageCode={targetLanguageCode}
+                  className="text-xl"
+                  label={`Play ${targetLanguageName} pronunciation`}
+                />
+              </div>
               <div className="text-5xl font-bold text-purple-400 mb-4 tracking-wider">
                 {scrambledWord}
               </div>

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
+import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
@@ -302,26 +303,33 @@ export default function MatchPage() {
             {spanishCards.map((card) => {
               const isIncorrect = incorrectCards.has(card.id);
               return (
-                <button
-                  key={card.id}
-                  onClick={() => handleSpanishClick(card.id)}
-                  disabled={card.isMatched || selectedSpanish !== null || isIncorrect}
-                  className={`aspect-square rounded-xl p-4 border-2 transition-all ${
-                    card.isMatched
-                      ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
-                      : isIncorrect
-                      ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
-                      : selectedSpanish === card.id
-                      ? 'bg-purple-500/50 border-purple-500'
-                      : selectedSpanish !== null
-                      ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
-                      : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
-                  }`}
-                >
-                  <div className="text-center h-full flex items-center justify-center">
-                    <span className="text-sm font-medium break-words">{card.text}</span>
-                  </div>
-                </button>
+                <div key={card.id} className="relative aspect-square">
+                  <button
+                    onClick={() => handleSpanishClick(card.id)}
+                    disabled={card.isMatched || selectedSpanish !== null || isIncorrect}
+                    className={`absolute inset-0 rounded-xl p-4 border-2 transition-all ${
+                      card.isMatched
+                        ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
+                        : isIncorrect
+                        ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
+                        : selectedSpanish === card.id
+                        ? 'bg-purple-500/50 border-purple-500'
+                        : selectedSpanish !== null
+                        ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
+                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
+                    }`}
+                  >
+                    <div className="text-center h-full flex items-center justify-center">
+                      <span className="text-sm font-medium break-words">{card.text}</span>
+                    </div>
+                  </button>
+                  <PronounceButton
+                    text={card.text}
+                    languageCode={deck.targetLanguage}
+                    className="absolute top-2 left-2 text-xl"
+                    label={`Play ${targetLanguageName} pronunciation`}
+                  />
+                </div>
               );
             })}
           </div>
@@ -331,24 +339,25 @@ export default function MatchPage() {
             {englishCards.map((card) => {
               const isIncorrect = incorrectCards.has(card.id);
               return (
-                <button
-                  key={card.id}
-                  onClick={() => handleEnglishClick(card.id)}
-                  disabled={card.isMatched || !selectedSpanish || isIncorrect}
-                  className={`aspect-square rounded-xl p-4 border-2 transition-all ${
-                    card.isMatched
-                      ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
-                      : isIncorrect
-                      ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
-                      : !selectedSpanish
-                      ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
-                      : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
-                  }`}
-                >
-                  <div className="text-center h-full flex items-center justify-center">
-                    <span className="text-sm font-medium break-words">{card.text}</span>
-                  </div>
-                </button>
+                <div key={card.id} className="relative aspect-square">
+                  <button
+                    onClick={() => handleEnglishClick(card.id)}
+                    disabled={card.isMatched || !selectedSpanish || isIncorrect}
+                    className={`absolute inset-0 rounded-xl p-4 border-2 transition-all ${
+                      card.isMatched
+                        ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
+                        : isIncorrect
+                        ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
+                        : !selectedSpanish
+                        ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
+                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
+                    }`}
+                  >
+                    <div className="text-center h-full flex items-center justify-center">
+                      <span className="text-sm font-medium break-words">{card.text}</span>
+                    </div>
+                  </button>
+                </div>
               );
             })}
           </div>

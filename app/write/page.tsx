@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
+import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress, normalizeText, fuzzyMatch } from '@/lib/storage';
@@ -86,6 +87,7 @@ export default function WritePage() {
   }, [deckId]);
 
   const currentCard = shuffledCards[currentIndex];
+  const targetLanguageCode = deck?.targetLanguage || 'es';
 
   useEffect(() => {
     setUserInput('');
@@ -222,9 +224,18 @@ export default function WritePage() {
             <div className="text-sm text-white/60 mb-4">
               {showTranslationFirst ? targetLanguageName : 'English'}
             </div>
-            <h2 className="text-5xl font-bold mb-8 text-white">
-              {currentCard ? (showTranslationFirst ? currentCard.translation : currentCard.english) : ''}
-            </h2>
+            <div className="flex items-center justify-center gap-3">
+              <h2 className="text-5xl font-bold mb-8 text-white">
+                {currentCard ? (showTranslationFirst ? currentCard.translation : currentCard.english) : ''}
+              </h2>
+              {showTranslationFirst && currentCard && (
+                <PronounceButton
+                  text={currentCard.translation}
+                  languageCode={targetLanguageCode}
+                  label={`Play ${targetLanguageName} pronunciation`}
+                />
+              )}
+            </div>
             
             {!showAnswer && (
               <div className="mt-8">
@@ -255,7 +266,18 @@ export default function WritePage() {
                 {!isCorrect && (
                   <div className="text-xl text-white/90 mt-4">
                     <div>Your answer: <strong>{userInput}</strong></div>
-                    <div className="mt-2">Correct answer: <strong className="text-green-400">{correctForm}</strong></div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span>Correct answer:</span>
+                      <strong className="text-green-400">{correctForm}</strong>
+                      {!showTranslationFirst && (
+                        <PronounceButton
+                          text={correctForm}
+                          languageCode={targetLanguageCode}
+                          className="text-xl"
+                          label={`Play ${targetLanguageName} pronunciation`}
+                        />
+                      )}
+                    </div>
                     {normalizeText(userInput) === normalizeText(correctForm) && (
                       <div className="text-sm text-yellow-400 mt-2">
                         ⚠️ You had the right letters but missed the accents!

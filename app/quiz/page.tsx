@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
+import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
 import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
@@ -90,6 +91,7 @@ export default function QuizPage() {
   }, [deckId]);
 
   const currentCard = quizCards[currentIndex];
+  const targetLanguageCode = deck?.targetLanguage || 'es';
 
   // Generate options for current question - store in state so they don't change when answer is clicked
   useEffect(() => {
@@ -284,9 +286,18 @@ export default function QuizPage() {
             <div className="text-sm text-white/60 mb-4">
               {showTranslationFirst ? targetLanguageName : 'English'}
             </div>
-            <h2 className="text-5xl font-bold mb-8 text-white">
-              {currentCard ? (showTranslationFirst ? currentCard.translation : currentCard.english) : ''}
-            </h2>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <h2 className="text-5xl font-bold text-white">
+                {currentCard ? (showTranslationFirst ? currentCard.translation : currentCard.english) : ''}
+              </h2>
+              {showTranslationFirst && currentCard && (
+                <PronounceButton
+                  text={currentCard.translation}
+                  languageCode={targetLanguageCode}
+                  label={`Play ${targetLanguageName} pronunciation`}
+                />
+              )}
+            </div>
             <p className="text-white/70">Select the correct translation:</p>
           </div>
         </div>
@@ -300,26 +311,37 @@ export default function QuizPage() {
             const showIncorrect = showResult && isSelected && !isCorrectOption;
 
             return (
-              <button
-                key={index}
-                onClick={() => handleAnswerSelect(option)}
-                disabled={showResult}
-                className={`w-full p-6 rounded-xl border-2 text-left transition-all ${
-                  showCorrect
-                    ? 'bg-green-500/30 border-green-500'
-                    : showIncorrect
-                    ? 'bg-red-500/30 border-red-500 animate-shake'
-                    : isSelected
-                    ? 'bg-purple-600/30 border-purple-500'
-                    : 'bg-white/10 border-white/20 hover:bg-white/15'
-                } ${showResult ? 'cursor-default' : 'cursor-pointer'}`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xl font-medium">{option}</span>
-                  {showCorrect && <span className="text-2xl">✓</span>}
-                  {showIncorrect && <span className="text-2xl">✗</span>}
-                </div>
-              </button>
+              <div key={index} className="relative">
+                <button
+                  onClick={() => handleAnswerSelect(option)}
+                  disabled={showResult}
+                  className={`w-full rounded-xl border-2 text-left transition-all ${
+                    showCorrect
+                      ? 'bg-green-500/30 border-green-500'
+                      : showIncorrect
+                      ? 'bg-red-500/30 border-red-500 animate-shake'
+                      : isSelected
+                      ? 'bg-purple-600/30 border-purple-500'
+                      : 'bg-white/10 border-white/20 hover:bg-white/15'
+                  } ${showResult ? 'cursor-default' : 'cursor-pointer'} ${
+                    showTranslationFirst ? 'p-6' : 'pl-14 pr-6 py-6'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-medium">{option}</span>
+                    {showCorrect && <span className="text-2xl">✓</span>}
+                    {showIncorrect && <span className="text-2xl">✗</span>}
+                  </div>
+                </button>
+                {!showTranslationFirst && (
+                  <PronounceButton
+                    text={option}
+                    languageCode={targetLanguageCode}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-xl z-10"
+                    label={`Play ${targetLanguageName} pronunciation`}
+                  />
+                )}
+              </div>
             );
           })}
         </div>
