@@ -111,23 +111,6 @@ export default function GameResultsPage() {
     setPlayerId(getStoredPlayerId(code, storageScope));
   }, [code, storageScope]);
 
-  useEffect(() => {
-    if (!session || !player || hasUpdatedLeaderboard) return;
-    if (!authSession || authSession.isGuest) return;
-    if (!session.settings.classroomId) return;
-    if (session.status !== 'ended') return;
-
-    const didWin = playerRank === 1;
-    updateLeaderboardsForUser(
-      {
-        points: Math.max(0, player.score || 0),
-        gameWin: didWin,
-      },
-      session.settings.classroomId || undefined
-    );
-    setHasUpdatedLeaderboard(true);
-  }, [session, player, authSession, hasUpdatedLeaderboard, playerRank]);
-
   const player = useMemo(
     () => session?.players.find(p => p.id === playerId) || null,
     [session, playerId]
@@ -147,6 +130,23 @@ export default function GameResultsPage() {
     const index = sorted.findIndex(p => p.id === player.id);
     return index >= 0 ? index + 1 : null;
   }, [session, player]);
+
+  useEffect(() => {
+    if (!session || !player || hasUpdatedLeaderboard) return;
+    if (!authSession || authSession.isGuest) return;
+    if (!session.settings.classroomId) return;
+    if (session.status !== 'ended') return;
+
+    const didWin = playerRank === 1;
+    updateLeaderboardsForUser(
+      {
+        points: Math.max(0, player.score || 0),
+        gameWin: didWin,
+      },
+      session.settings.classroomId || undefined
+    );
+    setHasUpdatedLeaderboard(true);
+  }, [session, player, authSession, hasUpdatedLeaderboard, playerRank]);
 
   const totalClaps = useMemo(() => {
     if (!session) return 0;
