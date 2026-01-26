@@ -43,13 +43,13 @@ export async function GET() {
     });
     return NextResponse.json({
       school: teacherSchool.school,
-      classes: classes.map((cls) => ({
+      classes: classes.map((cls: typeof classes[number]) => ({
         id: cls.id,
         name: cls.name,
         description: cls.description,
         joinCode: cls.joinCode,
         createdAt: cls.createdAt,
-        students: cls.memberships.map((member) => ({
+        students: cls.memberships.map((member: typeof cls.memberships[number]) => ({
           userId: member.userId,
           username: member.user.username,
         })),
@@ -62,7 +62,7 @@ export async function GET() {
     include: { classroom: true },
   });
   return NextResponse.json({
-    classes: memberships.map((membership) => ({
+    classes: memberships.map((membership: typeof memberships[number]) => ({
       id: membership.classroom.id,
       name: membership.classroom.name,
       description: membership.classroom.description,
