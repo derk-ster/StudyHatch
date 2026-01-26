@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     take: 50,
   });
 
-  const formatted = entries.map((entry: typeof entries[number], index) => ({
+  const formatted = entries.map((entry: typeof entries[number], index: number) => ({
     rank: index + 1,
     userId: entry.userId,
     username: entry.user.username,
