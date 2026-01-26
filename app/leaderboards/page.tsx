@@ -8,7 +8,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { useAuth } from '@/lib/auth-context';
 import { getAllUsers } from '@/lib/auth';
-import { getClassesForStudent, getClassesForSchool, getSchoolForUser, getStudentsForClass } from '@/lib/storage';
+import { getClassesForStudent, getClassesForSchool, getProgress, getSchoolForUser, getStudentsForClass } from '@/lib/storage';
 import { getWeekRangeLabel, getWeeklyStatsSnapshot, WeeklyUserStats } from '@/lib/leaderboards';
 import { getLevelFromXP } from '@/lib/xp';
 
@@ -243,7 +243,7 @@ export default function LeaderboardsPage() {
       users.push({
         userId: session?.userId || 'guest',
         username: session?.username || 'Guest',
-        progress: session?.userId ? undefined : undefined,
+        progress: getProgress(),
       });
     }
     const mapped: LevelRow[] = users.map(user => {
