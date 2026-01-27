@@ -43,14 +43,22 @@ export function PetDisplay({
   
   return (
     <div className="flex flex-col items-center">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onPetClick}
-        className={`text-8xl mb-4 transform transition-transform hover:scale-110 ${streak === 0 ? 'opacity-50 grayscale' : ''} ${isAnimating ? 'pet-shake-float' : ''}`}
+        onKeyDown={(event) => {
+          if (!onPetClick) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onPetClick();
+          }
+        }}
+        className={`inline-flex items-center justify-center text-8xl mb-4 bg-transparent border-0 p-0 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none appearance-none leading-none cursor-pointer select-none transform transition-transform hover:scale-110 ${streak === 0 ? 'opacity-50 grayscale' : ''} ${isAnimating ? 'pet-shake-float' : ''}`}
         aria-label="Animate streak pet"
       >
         <span key={animationKey}>{emoji}</span>
-      </button>
+      </div>
       {showDetails && (
         <div className="text-center w-full max-w-xs">
           <div className="text-2xl font-bold text-white mb-2">
@@ -122,7 +130,7 @@ export function StreakPetWidget() {
 
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fade-in"
+          className="fixed inset-0 bg-transparent flex items-center justify-center pt-[100px] animate-fade-in"
           onClick={() => setShowModal(false)}
           style={{ zIndex: 10000, position: 'fixed' }}
         >

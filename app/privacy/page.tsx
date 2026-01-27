@@ -58,16 +58,16 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-semibold text-white mt-6">Request Data Deletion</h2>
             <p>
               Parents, guardians, and teachers can request student data deletion at any time by contacting us at
-              <a className="ml-1 text-purple-300 hover:text-purple-200" href="mailto:admin@studyhatch.org">
-                admin@studyhatch.org
+              <a className="ml-1 text-purple-300 hover:text-purple-200" href="mailto:derek.ray.2104@gmail.com">
+                derek.ray.2104@gmail.com
               </a>.
             </p>
 
             <h2 className="text-xl font-semibold text-white mt-6">Contact</h2>
             <p>
               For questions about this policy, email
-              <a className="ml-1 text-purple-300 hover:text-purple-200" href="mailto:admin@studyhatch.org">
-                admin@studyhatch.org
+              <a className="ml-1 text-purple-300 hover:text-purple-200" href="mailto:derek.ray.2104@gmail.com">
+                derek.ray.2104@gmail.com
               </a>.
             </p>
           </section>

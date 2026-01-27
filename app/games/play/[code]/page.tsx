@@ -33,7 +33,6 @@ export default function GamePlayPage() {
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [countdown, setCountdown] = useState<number>(0);
   const [stealMode, setStealMode] = useState(false);
   const [decisionLocked, setDecisionLocked] = useState(false);
   const [decisionVisible, setDecisionVisible] = useState(false);
@@ -42,7 +41,6 @@ export default function GamePlayPage() {
   const decisionIndexRef = useRef<number | null>(null);
   const lastAnswerRef = useRef<{ roundIndex: number; value: boolean } | null>(null);
   const lastEventRef = useRef<string | null>(null);
-  const countdownSeconds = 3;
 
   useEffect(() => {
     setPlayerId(getStoredPlayerId(code, storageScope));
@@ -111,21 +109,6 @@ export default function GamePlayPage() {
     return () => clearInterval(interval);
   }, [session?.modeState?.roundEndAt]);
 
-  useEffect(() => {
-    if (!session?.startedAt) {
-      setCountdown(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - (session.startedAt || 0);
-      const remaining = Math.max(0, countdownSeconds - Math.floor(elapsed / 1000));
-      setCountdown(remaining);
-      if (remaining === 0) {
-        clearInterval(interval);
-      }
-    }, 250);
-    return () => clearInterval(interval);
-  }, [session?.startedAt, countdownSeconds]);
 
   useEffect(() => {
     if (!session?.startedAt || !session.settings.gameDurationMinutes) {
@@ -298,11 +281,6 @@ export default function GamePlayPage() {
         </div>
       </div>
 
-      {countdown > 0 && (
-        <div className="mb-4 rounded-xl border border-blue-400/40 bg-blue-500/10 p-4 text-blue-200 text-center text-xl font-semibold">
-          Starting in {countdown}...
-        </div>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
