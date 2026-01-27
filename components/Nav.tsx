@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
@@ -23,6 +23,17 @@ export default function Nav() {
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const resourcesRef = useRef<HTMLDivElement>(null);
   const [fromMarketingSite, setFromMarketingSite] = useState(false);
+  const navItemsRef = useRef<HTMLDivElement>(null);
+  const navLinkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const [navPillStyle, setNavPillStyle] = useState({
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+    opacity: 0,
+  });
+  const [navPillReady, setNavPillReady] = useState(false);
+  const navPillMeasuredRef = useRef(false);
   const progress = getProgress();
   const effectiveSettings = session?.userId && session.role ? getEffectiveClassSettingsForUser(session.userId, session.role) : null;
   const hasClassMembership = session?.role === 'student' && session?.userId
@@ -101,6 +112,71 @@ export default function Nav() {
   const shouldShowGoBack = Boolean(
     pathname?.startsWith('/games') && fromMarketingSite && (!session || session.isGuest)
   );
+  const activeNavKey = useMemo(() => {
+    if (!session || session.isGuest) return null;
+    if (pathname === '/') return 'home';
+    if (pathname?.startsWith('/games')) return 'games';
+    if (pathname === '/ai-chat') return 'ai';
+    if (pathname === '/account') return 'account';
+    return null;
+  }, [pathname, session]);
+
+  useLayoutEffect(() => {
+    if (!activeNavKey) {
+      setNavPillStyle((prev) => ({ ...prev, opacity: 0 }));
+      setNavPillReady(false);
+      navPillMeasuredRef.current = false;
+      return;
+    }
+    const container = navItemsRef.current;
+    const target = navLinkRefs.current[activeNavKey];
+    if (!container || !target) return;
+
+    const nextStyle = {
+      left: target.offsetLeft,
+      top: target.offsetTop,
+      width: target.offsetWidth,
+      height: target.offsetHeight,
+      opacity: 1,
+    };
+
+    if (!navPillMeasuredRef.current) {
+      setNavPillReady(false);
+      setNavPillStyle(nextStyle);
+      navPillMeasuredRef.current = true;
+      requestAnimationFrame(() => setNavPillReady(true));
+    } else {
+      setNavPillReady(true);
+      setNavPillStyle(nextStyle);
+    }
+  }, [activeNavKey]);
+
+  useEffect(() => {
+    if (!activeNavKey) return;
+    const updatePill = () => {
+      const container = navItemsRef.current;
+      const target = navLinkRefs.current[activeNavKey];
+      if (!container || !target) return;
+      setNavPillStyle({
+        left: target.offsetLeft,
+        top: target.offsetTop,
+        width: target.offsetWidth,
+        height: target.offsetHeight,
+        opacity: 1,
+      });
+    };
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updatePill)
+      : null;
+    if (resizeObserver && navItemsRef.current) {
+      resizeObserver.observe(navItemsRef.current);
+    }
+    window.addEventListener('resize', updatePill);
+    return () => {
+      window.removeEventListener('resize', updatePill);
+      resizeObserver?.disconnect();
+    };
+  }, [activeNavKey]);
 
   return (
     <nav 
@@ -219,7 +295,21 @@ export default function Nav() {
                 <div 
                   className="flex items-center space-x-4 flex-1 justify-center max-w-4xl mx-4 sm:mx-8" 
                   style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
+                  ref={navItemsRef}
                 >
+                  <span
+                    aria-hidden
+                    className={`absolute rounded-lg bg-purple-600/80 shadow-[0_0_18px_rgba(168,85,247,0.6)] pointer-events-none ${
+                      navPillReady ? 'transition-[left,width] duration-300 ease-out' : ''
+                    }`}
+                    style={{
+                      left: navPillStyle.left,
+                      top: navPillStyle.top,
+                      width: navPillStyle.width,
+                      height: navPillStyle.height,
+                      opacity: navPillStyle.opacity,
+                    }}
+                  />
                   {/* Deck Dropdown */}
                   {decks.length > 0 && (
                     <div className="flex items-center gap-2">
@@ -241,9 +331,12 @@ export default function Nav() {
                   {/* Home Link */}
                   <Link
                     href="/"
-                    className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
-                      pathname === '/' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                    className={`px-4 py-1 rounded-lg transition-colors inline-block text-sm relative z-10 ${
+                      pathname === '/' ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
                     }`}
+                    ref={(node) => {
+                      navLinkRefs.current.home = node;
+                    }}
                     style={{ 
                       position: 'relative', 
                       zIndex: 99999, 
@@ -272,9 +365,12 @@ export default function Nav() {
                   )}
                   <Link
                     href="/games"
-                    className={`px-4 py-1 rounded-lg transition-all inline-block text-sm ${
-                      pathname?.startsWith('/games') ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                    className={`px-4 py-1 rounded-lg transition-colors inline-block text-sm relative z-10 ${
+                      pathname?.startsWith('/games') ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
                     }`}
+                    ref={(node) => {
+                      navLinkRefs.current.games = node;
+                    }}
                     style={{ 
                       position: 'relative', 
                       zIndex: 99999, 
@@ -309,9 +405,12 @@ export default function Nav() {
                   <Link
                     href="/ai-chat"
                     aria-disabled={!aiEnabled}
-                    className={`px-4 py-1 rounded-lg transition-all text-sm font-medium inline-block relative ${
-                      aiEnabled ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/60'
+                    className={`px-4 py-1 rounded-lg transition-colors text-sm font-medium inline-block relative z-10 ${
+                      aiEnabled ? 'bg-white/10 hover:bg-white/20 text-white/90' : 'bg-white/5 text-white/60'
                     }`}
+                    ref={(node) => {
+                      navLinkRefs.current.ai = node;
+                    }}
                     style={{ 
                       position: 'relative', 
                       zIndex: 99999, 
@@ -338,9 +437,12 @@ export default function Nav() {
                   {session && !session.isGuest ? (
                     <Link
                       href="/account"
-                      className={`px-4 py-1.5 rounded-lg transition-all text-sm font-medium inline-block ${
-                        pathname === '/account' ? 'bg-purple-600 text-white' : 'bg-white/10 hover:bg-white/20'
+                      className={`px-4 py-1.5 rounded-lg transition-colors text-sm font-medium inline-block relative z-10 ${
+                        pathname === '/account' ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
                       }`}
+                      ref={(node) => {
+                        navLinkRefs.current.account = node;
+                      }}
                       style={{ 
                         position: 'relative', 
                         zIndex: 99999, 
