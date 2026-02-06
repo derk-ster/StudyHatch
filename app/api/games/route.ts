@@ -70,6 +70,7 @@ type GameSession = {
     answers: Record<string, boolean>;
     roundFormat?: 'quiz' | 'text';
     options?: string[];
+    cardFormats?: ('quiz' | 'text')[];
   };
   roundTimer: NodeJS.Timeout | null;
 };
@@ -205,16 +206,13 @@ const fuzzyMatch = (input: string, target: string) => {
   const normalizedTarget = normalizeText(target);
   if (!normalizedInput || !normalizedTarget) return false;
   if (normalizedInput === normalizedTarget) return true;
-  if (
-    normalizedTarget.includes(normalizedInput) ||
-    normalizedInput.includes(normalizedTarget)
-  ) {
-    return true;
-  }
+  // No substring match: short input like "d" must not match "dog" or "delicious"
   const distance = levenshteinDistance(normalizedInput, normalizedTarget);
   const maxLength = Math.max(normalizedInput.length, normalizedTarget.length);
   const similarity = 1 - distance / maxLength;
-  return similarity >= 0.85;
+  // Require high similarity and that input is not much shorter than target (avoid "d" matching long words)
+  const lengthRatio = normalizedInput.length / Math.max(1, normalizedTarget.length);
+  return similarity >= 0.85 && lengthRatio >= 0.5;
 };
 
 const generateCode = () => {
@@ -298,6 +296,7 @@ const serializeSession = (session: GameSession) => ({
     answers: session.modeState.answers,
     roundFormat: session.modeState.roundFormat,
     options: session.modeState.options,
+    cardFormats: session.modeState.cardFormats,
   },
 });
 
@@ -331,15 +330,21 @@ const pauseGame = (session: GameSession) => {
 const resumeGame = (session: GameSession) => {
   if (session.status !== 'paused') return;
   session.status = 'playing';
-  if (session.mode !== 'word-heist') {
-    scheduleRound(session);
-  }
-};
+}
 
 const getRoundCard = (session: GameSession) => {
   const cards = session.deck?.cards || [];
   if (cards.length === 0) return null;
   const index = session.modeState.roundIndex % cards.length;
+  return { card: cards[index], index };
+};
+
+/** Current card for a player (self-paced modes). */
+const getPlayerCard = (session: GameSession, player: GamePlayer) => {
+  const cards = session.deck?.cards || [];
+  if (cards.length === 0) return null;
+  const index = player.currentIndex % cards.length;
+  if (player.currentIndex >= cards.length) return null;
   return { card: cards[index], index };
 };
 
@@ -482,6 +487,11 @@ const startGame = (session: GameSession) => {
     };
     return;
   }
+  const cards = session.deck?.cards || [];
+  const cardFormats =
+    session.settings.questionFormat === 'mix' && cards.length > 0
+      ? Array.from({ length: cards.length }, () => (Math.random() < 0.5 ? 'quiz' : 'text'))
+      : undefined;
   session.modeState = {
     roundIndex: 0,
     roundEndAt: null,
@@ -489,9 +499,9 @@ const startGame = (session: GameSession) => {
     answers: {},
     roundFormat: undefined,
     options: undefined,
+    cardFormats,
   };
-  scheduleRound(session);
-};
+}
 
 const handleAnswer = (session: GameSession, player: GamePlayer, answer: string) => {
   if (session.status !== 'playing') return;
@@ -524,33 +534,29 @@ const handleAnswer = (session: GameSession, player: GamePlayer, answer: string) 
     return;
   }
 
-  if (session.modeState.answers[player.id]) return;
-  session.modeState.answers[player.id] = true;
-
-  const { card } = getRoundCard(session) || {};
-  if (!card) return;
+  // Self-paced: each player answers at their own currentIndex
+  const playerCard = getPlayerCard(session, player);
+  if (!playerCard) return;
+  const { card } = playerCard;
   const expected =
     session.settings.direction === 'en-to-target' ? card.translation : card.english;
   const correct = fuzzyMatch(answer, expected);
-  const now = Date.now();
-  const timeLeft = Math.max(0, (session.modeState.roundEndAt || 0) - now);
-  const speedRatio = Math.min(1, timeLeft / (session.settings.timePerQuestion * 1000));
-  const speedBonus = Math.max(0, Math.round(speedRatio * 2));
+  session.modeState.answers = session.modeState.answers || {};
+  session.modeState.answers[player.id] = correct;
 
   if (correct) {
     player.stats.correct += 1;
     if (session.mode === 'lightning-ladder') {
-      const jump = 1 + speedBonus;
-      player.ladderPosition = Math.min(LADDER_TOP, player.ladderPosition + jump);
-      player.lastEvent = `+${jump} rung${jump === 1 ? '' : 's'}!`;
+      player.ladderPosition = Math.min(LADDER_TOP, player.ladderPosition + 1);
+      player.lastEvent = '+1 rung!';
       player.lastEventTone = 'positive';
       if (player.ladderPosition >= LADDER_TOP) {
         session.status = 'ended';
         session.endedAt = Date.now();
       }
     } else if (session.mode === 'survival-sprint') {
-      player.score += 10 + speedBonus * 5;
-      player.lastEvent = `Speed bonus +${speedBonus * 5} points!`;
+      player.score += 10;
+      player.lastEvent = 'Correct! +10 points.';
       player.lastEventTone = 'positive';
     }
   } else {
@@ -564,6 +570,13 @@ const handleAnswer = (session: GameSession, player: GamePlayer, answer: string) 
       player.lastEvent = player.hearts === 0 ? 'Eliminated.' : 'Lost a heart.';
       player.lastEventTone = 'negative';
     }
+  }
+
+  player.currentIndex += 1;
+  const allFinished = Object.values(session.players).every(p => p.currentIndex >= cards.length);
+  if (allFinished) {
+    session.status = 'ended';
+    session.endedAt = Date.now();
   }
 
   if (session.mode === 'survival-sprint') {
@@ -586,11 +599,8 @@ const tickSession = (session: GameSession) => {
     }
   }
   if (session.mode === 'word-heist') return;
-  if (!session.modeState.roundEndAt) return;
-  const now = Date.now();
-  if (now < session.modeState.roundEndAt) return;
-  advanceRound(session);
-};
+  // Self-paced: no round timer; do not advance rounds
+}
 
 const createSession = async (payload: any, memoryStore: Map<string, GameSession>): Promise<SocketMessage> => {
   const { deck, mode, settings, host } = payload || {};

@@ -45,10 +45,10 @@ export type GameModeState = {
   roundEndAt?: number | null;
   roundRemainingMs?: number | null;
   answers?: Record<string, boolean>;
-  /** For quiz/mix: 'quiz' | 'text' for this round */
   roundFormat?: 'quiz' | 'text';
-  /** For quiz rounds: [correct, wrong, ...] shuffled */
   options?: string[];
+  /** For mix mode: per-card format so client can show quiz vs text per card */
+  cardFormats?: ('quiz' | 'text')[];
 };
 
 export type GameSession = {

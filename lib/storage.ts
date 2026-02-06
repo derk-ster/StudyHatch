@@ -15,11 +15,26 @@ const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
 const CLASS_DECKS_STORAGE_KEY = 'studyhatch-class-decks';
 const CLASS_SETTINGS_STORAGE_KEY = 'studyhatch-class-settings';
 
+const LAST_DECK_USER_KEY = 'studyhatch-last-deck-user';
+
 const getDeckStorageKey = (): string => {
   if (typeof window === 'undefined') return DECKS_STORAGE_KEY;
   const session = getCurrentSession();
   if (session?.userId) {
+    try {
+      sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+    } catch {
+      // ignore
+    }
     return `${DECKS_STORAGE_KEY}-${session.userId}`;
+  }
+  try {
+    const lastUserId = sessionStorage.getItem(LAST_DECK_USER_KEY);
+    if (lastUserId) {
+      return `${DECKS_STORAGE_KEY}-${lastUserId}`;
+    }
+  } catch {
+    // ignore
   }
   return DECKS_STORAGE_KEY;
 };
@@ -29,6 +44,14 @@ const getDeckBackupStorageKey = (): string => {
   const session = getCurrentSession();
   if (session?.userId) {
     return `${DECKS_BACKUP_STORAGE_KEY}-${session.userId}`;
+  }
+  try {
+    const lastUserId = typeof window !== 'undefined' ? sessionStorage.getItem(LAST_DECK_USER_KEY) : null;
+    if (lastUserId) {
+      return `${DECKS_BACKUP_STORAGE_KEY}-${lastUserId}`;
+    }
+  } catch {
+    // ignore
   }
   return DECKS_BACKUP_STORAGE_KEY;
 };
@@ -234,21 +257,14 @@ export const normalizeText = (text: string): string => {
 export const fuzzyMatch = (input: string, target: string): boolean => {
   const normalizedInput = normalizeText(input);
   const normalizedTarget = normalizeText(target);
-  
-  // Exact match
+
   if (normalizedInput === normalizedTarget) return true;
-  
-  // Check if input is close to target (allowing for small typos)
-  if (normalizedTarget.includes(normalizedInput) || normalizedInput.includes(normalizedTarget)) {
-    return true;
-  }
-  
-  // Levenshtein distance check for small differences
+
   const distance = levenshteinDistance(normalizedInput, normalizedTarget);
   const maxLength = Math.max(normalizedInput.length, normalizedTarget.length);
   const similarity = 1 - distance / maxLength;
-  
-  return similarity >= 0.85; // 85% similarity threshold
+  const lengthRatio = normalizedInput.length / Math.max(1, normalizedTarget.length);
+  return similarity >= 0.85 && lengthRatio >= 0.5;
 };
 
 const levenshteinDistance = (str1: string, str2: string): number => {

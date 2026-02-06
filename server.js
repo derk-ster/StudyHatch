@@ -49,16 +49,11 @@ const fuzzyMatch = (input, target) => {
   const normalizedTarget = normalizeText(target);
   if (!normalizedInput || !normalizedTarget) return false;
   if (normalizedInput === normalizedTarget) return true;
-  if (
-    normalizedTarget.includes(normalizedInput) ||
-    normalizedInput.includes(normalizedTarget)
-  ) {
-    return true;
-  }
   const distance = levenshteinDistance(normalizedInput, normalizedTarget);
   const maxLength = Math.max(normalizedInput.length, normalizedTarget.length);
   const similarity = 1 - distance / maxLength;
-  return similarity >= 0.85;
+  const lengthRatio = normalizedInput.length / Math.max(1, normalizedTarget.length);
+  return similarity >= 0.85 && lengthRatio >= 0.5;
 };
 
 const generateCode = () => {
@@ -126,6 +121,7 @@ const serializeSession = (session) => {
         answers: session.modeState.answers,
         roundFormat: session.modeState.roundFormat,
         options: session.modeState.options,
+        cardFormats: session.modeState.cardFormats,
       }
     : undefined;
   const players = Object.values(session.players).map(player => ({
@@ -242,9 +238,6 @@ const pauseGame = (session) => {
 const resumeGame = (session) => {
   if (session.status !== 'paused') return;
   session.status = 'playing';
-  if (session.mode !== 'word-heist') {
-    scheduleRound(session);
-  }
   broadcastSession(session);
 };
 
@@ -252,6 +245,14 @@ const getRoundCard = (session) => {
   const cards = session.deck?.cards || [];
   if (cards.length === 0) return null;
   const index = session.modeState.roundIndex % cards.length;
+  return { card: cards[index], index };
+};
+
+const getPlayerCard = (session, player) => {
+  const cards = session.deck?.cards || [];
+  if (cards.length === 0) return null;
+  if (player.currentIndex >= cards.length) return null;
+  const index = player.currentIndex % cards.length;
   return { card: cards[index], index };
 };
 
@@ -395,6 +396,11 @@ const startGame = (session) => {
     broadcastSession(session);
     return;
   }
+  const cards = session.deck?.cards || [];
+  const cardFormats =
+    session.settings.questionFormat === 'mix' && cards.length > 0
+      ? Array.from({ length: cards.length }, () => (Math.random() < 0.5 ? 'quiz' : 'text'))
+      : undefined;
   session.modeState = {
     roundIndex: 0,
     roundEndAt: null,
@@ -402,8 +408,8 @@ const startGame = (session) => {
     answers: {},
     roundFormat: undefined,
     options: undefined,
+    cardFormats,
   };
-  scheduleRound(session);
   broadcastSession(session);
 };
 
@@ -440,25 +446,20 @@ const handleAnswer = (session, player, answer, answerTimeMs) => {
     return;
   }
 
-  if (session.modeState.answers[player.id]) return;
-  session.modeState.answers[player.id] = true;
-
-  const { card } = getRoundCard(session) || {};
-  if (!card) return;
+  const playerCard = getPlayerCard(session, player);
+  if (!playerCard) return;
+  const { card } = playerCard;
   const expected =
     session.settings.direction === 'en-to-target' ? card.translation : card.english;
   const correct = fuzzyMatch(answer, expected);
-  const now = Date.now();
-  const timeLeft = Math.max(0, session.modeState.roundEndAt - now);
-  const speedRatio = Math.min(1, timeLeft / (session.settings.timePerQuestion * 1000));
-  const speedBonus = Math.max(0, Math.round(speedRatio * 2));
+  session.modeState.answers = session.modeState.answers || {};
+  session.modeState.answers[player.id] = correct;
 
   if (correct) {
     player.stats.correct += 1;
     if (session.mode === 'lightning-ladder') {
-      const jump = 1 + speedBonus;
-      player.ladderPosition = Math.min(LADDER_TOP, player.ladderPosition + jump);
-      player.lastEvent = `+${jump} rung${jump === 1 ? '' : 's'}!`;
+      player.ladderPosition = Math.min(LADDER_TOP, player.ladderPosition + 1);
+      player.lastEvent = '+1 rung!';
       player.lastEventTone = 'positive';
       if (player.ladderPosition >= LADDER_TOP) {
         session.status = 'ended';
@@ -466,8 +467,8 @@ const handleAnswer = (session, player, answer, answerTimeMs) => {
         clearRoundTimer(session);
       }
     } else if (session.mode === 'survival-sprint') {
-      player.score += 10 + speedBonus * 5;
-      player.lastEvent = `Speed bonus +${speedBonus * 5} points!`;
+      player.score += 10;
+      player.lastEvent = 'Correct! +10 points.';
       player.lastEventTone = 'positive';
     }
   } else {
@@ -481,6 +482,14 @@ const handleAnswer = (session, player, answer, answerTimeMs) => {
       player.lastEvent = player.hearts === 0 ? 'Eliminated.' : 'Lost a heart.';
       player.lastEventTone = 'negative';
     }
+  }
+
+  player.currentIndex += 1;
+  const allFinished = Object.values(session.players).every(p => p.currentIndex >= cards.length);
+  if (allFinished) {
+    session.status = 'ended';
+    session.endedAt = Date.now();
+    clearRoundTimer(session);
   }
 
   if (session.mode === 'survival-sprint') {

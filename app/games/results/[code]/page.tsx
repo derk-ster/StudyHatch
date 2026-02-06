@@ -64,6 +64,8 @@ export default function GameResultsPage() {
   const [error, setError] = useState('');
   const [playerId, setPlayerId] = useState<string | null>(null);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
+  const lastClapAtRef = useRef<number>(0);
+  const CLAP_COOLDOWN_MS = 500;
 
   useEffect(() => {
     if (!code) return;
@@ -130,6 +132,9 @@ export default function GameResultsPage() {
 
   const handleClap = () => {
     if (!playerId) return;
+    const now = Date.now();
+    if (now - lastClapAtRef.current < CLAP_COOLDOWN_MS) return;
+    lastClapAtRef.current = now;
     socketRef.current?.send('clap', { code, playerId });
   };
 
