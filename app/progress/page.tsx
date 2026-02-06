@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Nav from '@/components/Nav';
 import { getProgress, resetProgress, getAllDecks, getDeckById } from '@/lib/storage';
 import { getXPInfo } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function ProgressPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function ProgressPage() {
   const progress = getProgress();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const resetConfirmPopupRef = useScrollPopupIntoView(showResetConfirm);
   const decks = getAllDecks();
   const { xp, level, xpForNextLevel, xpToday } = getXPInfo();
 
@@ -233,7 +235,7 @@ export default function ProgressPage() {
         {/* Reset Confirmation Modal */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
+            <div ref={resetConfirmPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
               <h2 className="text-2xl font-bold mb-4">Reset Progress?</h2>
               <p className="text-white/70 mb-6">
                 This will permanently delete all your progress, including learned words, scores, and statistics. This action cannot be undone.

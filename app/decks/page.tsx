@@ -12,6 +12,7 @@ import { getAllDecks, deleteDeck, getUserLimits, getOwnedClassrooms, getPublishe
 import { Deck, ActivityType, Classroom } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
 import { getDeckXP } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; description: string }[] = [
   {
@@ -58,6 +59,7 @@ export default function ViewDecksPage() {
   const [personalDecks, setPersonalDecks] = useState<Deck[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const deleteConfirmPopupRef = useScrollPopupIntoView(!!showDeleteConfirm);
   const [ownedClassrooms, setOwnedClassrooms] = useState<Classroom[]>([]);
   const [publishSelections, setPublishSelections] = useState<Record<string, { classroomId: string; expiration: string }>>({});
   const [publishMessage, setPublishMessage] = useState('');
@@ -551,7 +553,7 @@ export default function ViewDecksPage() {
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
+            <div ref={deleteConfirmPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
               <h2 className="text-2xl font-bold mb-4">Delete Deck?</h2>
               <p className="text-white/70 mb-6">
                 Are you sure you want to delete this deck? This action cannot be undone.

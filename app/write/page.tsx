@@ -13,6 +13,7 @@ import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
 import { addXP, XP_REWARDS } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function WritePage() {
   const searchParams = useSearchParams();
@@ -26,6 +27,7 @@ export default function WritePage() {
   const [sessionResults, setSessionResults] = useState<Map<string, boolean>>(new Map());
   const [showResults, setShowResults] = useState(false);
   const [sessionXp, setSessionXp] = useState(0);
+  const resultsPopupRef = useScrollPopupIntoView(showResults);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -357,6 +359,7 @@ export default function WritePage() {
           onClick={() => setShowResults(false)}
         >
           <div 
+            ref={resultsPopupRef}
             className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}
           >

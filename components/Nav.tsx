@@ -10,6 +10,7 @@ import { getAllDecks, getDeckById, getProgress, updateProgress, getDailyUsage, g
 import { useAuth } from '@/lib/auth-context';
 import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { RESOURCES } from '@/app/resources/resources';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function Nav() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -33,6 +34,7 @@ export default function Nav() {
     height: 0,
     opacity: 0,
   });
+  const progressModalPopupRef = useScrollPopupIntoView(showProgress);
   const [navPillReady, setNavPillReady] = useState(false);
   const navPillMeasuredRef = useRef(false);
   const progress = getProgress();
@@ -501,6 +503,7 @@ export default function Nav() {
           onClick={() => setShowProgress(false)}
         >
           <div 
+            ref={progressModalPopupRef}
             className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}
           >

@@ -21,6 +21,7 @@ import {
   setStoredHostKey,
   setStoredPlayerId,
 } from '@/lib/games/session-store';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function GamePlayPage() {
   const params = useParams();
@@ -90,16 +91,19 @@ export default function GamePlayPage() {
           const player = payload.players?.find((p: { id: string }) => p.id === pid);
           if (payload.mode !== 'word-heist' && pid && typeof payload.modeState?.answers?.[pid] === 'boolean') {
             const answerValue = payload.modeState.answers[pid];
-            if (pendingSubmitRef.current) {
+            const nextIndex = player?.currentIndex ?? 0;
+            const cardIndexForAnswer = nextIndex - 1;
+            const alreadyProcessed = lastAnswerRef.current?.cardIndex === cardIndexForAnswer && lastAnswerRef.current?.value === answerValue;
+            if (!alreadyProcessed) {
+              lastAnswerRef.current = { cardIndex: cardIndexForAnswer, value: answerValue };
               pendingSubmitRef.current = false;
               setFeedbackResult(answerValue);
-              setPendingSubmit(!answerValue);
+              setPendingSubmit(answerValue ? false : true);
               playSfx(answerValue ? 'correct' : 'incorrect');
               if (feedbackAutoAdvanceRef.current) {
                 clearTimeout(feedbackAutoAdvanceRef.current);
                 feedbackAutoAdvanceRef.current = null;
               }
-              const nextIndex = player?.currentIndex ?? 0;
               setTimeout(() => {
                 setFeedbackResult(null);
                 setLastSubmittedOption(null);
@@ -377,6 +381,9 @@ export default function GamePlayPage() {
       : '';
 
   const showFeedback = typeof answerResultForCard === 'boolean' && feedbackResult !== null;
+  const feedbackPopupRef = useScrollPopupIntoView<HTMLParagraphElement>(showFeedback);
+  const displayedEventPopupRef = useScrollPopupIntoView(!!displayedEvent);
+  const leaderboardPopupRef = useScrollPopupIntoView(leaderboardOpen);
 
   const quizOptionColors = [
     'bg-rose-600/90 hover:bg-rose-500 border-rose-500/50',
@@ -557,7 +564,7 @@ export default function GamePlayPage() {
             </div>
           )}
           {showFeedback && (
-            <p className="text-white/60 text-sm mt-3">
+            <p ref={feedbackPopupRef} className="text-white/60 text-sm mt-3">
               {feedbackResult ? 'Correct!' : 'Incorrect.'}
             </p>
           )}
@@ -594,6 +601,7 @@ export default function GamePlayPage() {
         )}
         {displayedEvent && (
           <div
+            ref={displayedEventPopupRef}
             className={`rounded-xl p-4 border transition-opacity duration-300 max-w-md ${
               displayedEvent.tone === 'positive'
                 ? 'text-emerald-100 bg-emerald-500/15 border-emerald-400/30'
@@ -610,7 +618,7 @@ export default function GamePlayPage() {
 
       {leaderboardOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-transparent" onClick={() => setLeaderboardOpen(false)}>
-          <div className="bg-gray-900 border border-white/20 rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={e => e.stopPropagation()}>
+          <div ref={leaderboardPopupRef} className="bg-gray-900 border border-white/20 rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-white">Leaderboard</h2>
               <button

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getStreakInfo, getProgressToNextEvolution, getNextEvolutionStreak } from '@/lib/streak';
 import { PetStage } from '@/types/vocab';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 type PetProps = {
   streak: number;
@@ -87,6 +88,7 @@ export function StreakPetWidget() {
   const [petAnimating, setPetAnimating] = useState(false);
   const [petAnimationKey, setPetAnimationKey] = useState(0);
   const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streakModalPopupRef = useScrollPopupIntoView(showModal);
 
   useEffect(() => {
     // Refresh streak info periodically
@@ -135,6 +137,7 @@ export function StreakPetWidget() {
           style={{ zIndex: 10000, position: 'fixed' }}
         >
           <div
+            ref={streakModalPopupRef}
             className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto max-w-md"
             onClick={(e) => e.stopPropagation()}
             style={{ position: 'relative', zIndex: 10001 }}

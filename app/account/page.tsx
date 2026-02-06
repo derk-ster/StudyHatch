@@ -13,6 +13,7 @@ import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { useAudioSettings } from '@/lib/audio-settings';
 import { playSfx } from '@/lib/sfx';
 import { getXPInfo } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function AccountPage() {
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDeletionWarning, setShowDeletionWarning] = useState(false);
+  const deletionWarningPopupRef = useScrollPopupIntoView(showDeletionWarning);
   const schoolMode = isSchoolModeEnabled();
   const { settings, updateSettings } = useAudioSettings();
   const { xp, level, xpForNextLevel, xpToday, progressToNext } = getXPInfo();
@@ -434,7 +436,7 @@ export default function AccountPage() {
       </main>
       {showDeletionWarning && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="modal-panel max-w-xl rounded-2xl border border-white/20 bg-gray-900 p-4 sm:p-6 shadow-xl my-auto">
+          <div ref={deletionWarningPopupRef} className="modal-panel max-w-xl rounded-2xl border border-white/20 bg-gray-900 p-4 sm:p-6 shadow-xl my-auto">
             <h3 className="text-2xl font-bold text-white mb-3">Confirm Data Deletion</h3>
             <p className="text-white/70 mb-4">
               Deleting your data will permanently remove:

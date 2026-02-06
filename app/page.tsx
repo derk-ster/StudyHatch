@@ -13,6 +13,7 @@ import { Deck, ActivityType } from '@/types/vocab';
 import { getAllDecks, deleteDeck, getUserLimits, reorderDecksByIds } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 import { getDeckXP, getXPInfo } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; description: string }[] = [
   {
@@ -71,6 +72,7 @@ export default function Home() {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const deleteConfirmPopupRef = useScrollPopupIntoView(!!showDeleteConfirm);
   const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -491,7 +493,7 @@ export default function Home() {
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
+            <div ref={deleteConfirmPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
               <h2 className="text-2xl font-bold mb-4">Delete Deck?</h2>
               <p className="text-white/70 mb-6">
                 This will permanently delete the deck and all its cards. This action cannot be undone.

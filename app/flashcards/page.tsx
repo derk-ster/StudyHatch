@@ -13,6 +13,7 @@ import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
 import { addXP, XP_REWARDS } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function FlashcardsPage() {
   const searchParams = useSearchParams();
@@ -44,6 +45,7 @@ export default function FlashcardsPage() {
   const [definitions, setDefinitions] = useState<Map<string, string>>(new Map());
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set());
   const [sessionXp, setSessionXp] = useState(0);
+  const resultsPopupRef = useScrollPopupIntoView(showResults);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -660,6 +662,7 @@ export default function FlashcardsPage() {
           style={{ zIndex: 9999 }}
           >
           <div 
+            ref={resultsPopupRef}
             className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}
           >

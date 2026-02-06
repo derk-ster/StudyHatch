@@ -8,6 +8,7 @@ import Nav from '@/components/Nav';
 import { Deck } from '@/types/vocab';
 import { duplicateDeck, getAllDecks, getDailyUsage, getDeckOwnerName, getPublicDecks, getUserLimits, incrementDailyPublicSearches, setDeckVisibility } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function PublicDecksPage() {
   const { session } = useAuth();
@@ -23,6 +24,7 @@ export default function PublicDecksPage() {
   const [dailyUsage, setDailyUsage] = useState(getDailyUsage());
   const limits = getUserLimits();
   const visibleDecks = filteredDecks.slice(0, 100);
+  const previewPopupRef = useScrollPopupIntoView(!!previewDeck);
 
   useEffect(() => {
     const decks = getPublicDecks();
@@ -265,7 +267,7 @@ export default function PublicDecksPage() {
       </main>
       {previewDeck && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 border border-white/20 card-glow my-auto max-w-3xl">
+          <div ref={previewPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 border border-white/20 card-glow my-auto max-w-3xl">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h2 className="text-2xl font-bold text-white">{previewDeck.name}</h2>

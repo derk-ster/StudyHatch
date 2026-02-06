@@ -13,6 +13,7 @@ import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
 import { addXP, XP_REWARDS } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function QuizPage() {
   const searchParams = useSearchParams();
@@ -27,6 +28,7 @@ export default function QuizPage() {
   const [showTranslationFirst, setShowTranslationFirst] = useState(true);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [sessionXp, setSessionXp] = useState(0);
+  const quizCompletePopupRef = useScrollPopupIntoView(quizComplete);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -283,7 +285,7 @@ export default function QuizPage() {
         {/* Quiz Complete Modal */}
         {quizComplete && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto">
+            <div ref={quizCompletePopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto">
               <div className="text-center mb-6">
                 <div className="text-6xl mb-4">🎯</div>
                 <h2 className="text-3xl font-bold mb-2">Quiz Complete!</h2>

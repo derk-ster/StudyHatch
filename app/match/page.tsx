@@ -13,6 +13,7 @@ import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
 import { addXP, XP_REWARDS } from '@/lib/xp';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 type CardState = {
   id: string;
@@ -35,6 +36,7 @@ export default function MatchPage() {
   const [gameComplete, setGameComplete] = useState(false);
   const [incorrectCards, setIncorrectCards] = useState<Set<string>>(new Set());
   const [sessionXp, setSessionXp] = useState(0);
+  const gameCompletePopupRef = useScrollPopupIntoView(gameComplete);
 
   const deckId = searchParams.get('deck');
   const deck = deckId ? getDeckById(deckId) : null;
@@ -281,7 +283,7 @@ export default function MatchPage() {
         {/* Game Complete Modal */}
         {gameComplete && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
-            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto max-w-md">
+            <div ref={gameCompletePopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto max-w-md">
               <div className="text-center">
                 <div className="text-6xl mb-4">🎉</div>
                 <h2 className="text-3xl font-bold mb-4">Congratulations!</h2>

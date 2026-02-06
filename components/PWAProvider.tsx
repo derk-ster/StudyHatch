@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getCurrentSession } from '@/lib/auth';
 import { syncToAccount } from '@/lib/storage-sync';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -49,6 +50,10 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [isOffline, setIsOffline] = useState(false);
+  const installToastPopupRef = useScrollPopupIntoView(showInstallToast && !isInstalled);
+  const iosHelpPopupRef = useScrollPopupIntoView(showIosHelp);
+  const browserInstallHelpPopupRef = useScrollPopupIntoView(showBrowserInstallHelp);
+  const updateAvailablePopupRef = useScrollPopupIntoView(updateAvailable && isInstalled);
 
   useEffect(() => {
     setIsInstalled(isStandaloneMode());
@@ -266,7 +271,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       {children}
 
       {showInstallToast && !isInstalled && (
-        <div className="fixed bottom-6 right-6 z-[99999] max-w-sm rounded-xl bg-gray-900/95 border border-white/10 p-4 shadow-xl animate-slide-up">
+        <div ref={installToastPopupRef} className="fixed bottom-6 right-6 z-[99999] max-w-sm rounded-xl bg-gray-900/95 border border-white/10 p-4 shadow-xl animate-slide-up">
           <div className="text-sm text-white/90 font-semibold mb-1">Install StudyHatch</div>
           <div className="text-xs text-white/70 mb-3">
             Add StudyHatch to your home screen for offline access and faster launches.
@@ -290,7 +295,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
       {showIosHelp && (
         <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
+          <div ref={iosHelpPopupRef} className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
             <div className="text-lg font-semibold mb-2">Install StudyHatch on iOS</div>
             <div className="text-sm text-white/70 mb-4">
               Tap the Share button in Safari, then choose &quot;Add to Home Screen.&quot;
@@ -307,7 +312,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
       {showBrowserInstallHelp && (
         <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
+          <div ref={browserInstallHelpPopupRef} className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
             <div className="text-lg font-semibold mb-2">Install StudyHatch</div>
             <div className="text-sm text-white/70 mb-4">
               If the install prompt doesn&apos;t appear, use your browser menu to install the app.
@@ -325,7 +330,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
 
       {updateAvailable && isInstalled && (
         <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
+          <div ref={updateAvailablePopupRef} className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
             <div className="text-lg font-semibold mb-2">Update available</div>
             <div className="text-sm text-white/70 mb-4">
               A new StudyHatch update is available. Tap to refresh.
