@@ -125,7 +125,9 @@ export default function GamePlayPage() {
           if (payload.mode === 'word-heist' && player?.lastEvent && (player.lastEvent.startsWith('Correct') || player.lastEvent.startsWith('Incorrect')) && lastEventRefForMessage.current !== player.lastEvent) {
             lastEventRefForMessage.current = player.lastEvent;
             const correct = player.lastEvent.startsWith('Correct');
+            pendingSubmitRef.current = false;
             setFeedbackResult(correct);
+            setPendingSubmit(correct ? false : true);
             playSfx(correct ? 'correct' : 'incorrect');
             if (feedbackAutoAdvanceRef.current) {
               clearTimeout(feedbackAutoAdvanceRef.current);
@@ -135,6 +137,12 @@ export default function GamePlayPage() {
               setFeedbackResult(null);
               setLastSubmittedOption(null);
             }, 2000);
+            if (!correct) {
+              feedbackAutoAdvanceRef.current = setTimeout(() => {
+                setPendingSubmit(false);
+                feedbackAutoAdvanceRef.current = null;
+              }, 3000);
+            }
           }
         }
       },
