@@ -155,7 +155,7 @@ const serializeSession = (session) => {
     settings: {
       direction: session.settings.direction,
       timePerQuestion: session.settings.timePerQuestion,
-      questionFormat: session.settings.questionFormat,
+      questionFormat: session.settings.questionFormat ?? 'text',
       maxPlayers: session.settings.maxPlayers,
       gameDurationMinutes: session.settings.gameDurationMinutes,
       classroomOnly: session.settings.classroomOnly,
@@ -541,7 +541,7 @@ const createSession = (payload, ws) => {
     settings: {
       direction: settings?.direction || 'en-to-target',
       timePerQuestion: Number(settings?.timePerQuestion || 20),
-      questionFormat: settings?.questionFormat === 'quiz' || settings?.questionFormat === 'mix' ? settings.questionFormat : 'text',
+      questionFormat: (settings?.questionFormat === 'quiz' || settings?.questionFormat === 'mix' || settings?.questionFormat === 'text') ? settings.questionFormat : 'text',
       maxPlayers: settings?.maxPlayers ? Number(settings.maxPlayers) : null,
       gameDurationMinutes: settings?.gameDurationMinutes ? Number(settings.gameDurationMinutes) : null,
       classroomOnly: Boolean(settings?.classroomOnly),

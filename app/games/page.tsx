@@ -37,7 +37,6 @@ export default function GamesPage() {
   const [hostDeckId, setHostDeckId] = useState<string>('');
   const [hostMode, setHostMode] = useState<GameMode>('word-heist');
   const [direction, setDirection] = useState<DirectionSetting>('en-to-target');
-  const [timePerQuestion, setTimePerQuestion] = useState<number>(20);
   const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('text');
   const [maxPlayers, setMaxPlayers] = useState<string>('');
   const [gameDurationMinutes, setGameDurationMinutes] = useState<string>('');
@@ -186,7 +185,6 @@ export default function GamesPage() {
           mode: hostMode,
           settings: {
             direction,
-            timePerQuestion,
             questionFormat,
             maxPlayers: maxPlayers ? Number(maxPlayers) : null,
             gameDurationMinutes: gameDurationMinutes ? Number(gameDurationMinutes) : null,
@@ -437,33 +435,20 @@ export default function GamesPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-white/70 text-sm">Direction</label>
-                <select
-                  value={direction}
-                  onChange={(e) => setDirection(e.target.value as DirectionSetting)}
-                  className="mt-2 w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
-                >
-                  <option value="en-to-target" className="bg-gray-900">
-                    EN → Target
-                  </option>
-                  <option value="target-to-en" className="bg-gray-900">
-                    Target → EN
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label className="text-white/70 text-sm">Time per Question</label>
-                <input
-                  type="number"
-                  min={5}
-                  max={60}
-                  value={timePerQuestion}
-                  onChange={(e) => setTimePerQuestion(Number(e.target.value))}
-                  className="mt-2 w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
-                />
-              </div>
+            <div>
+              <label className="text-white/70 text-sm">Direction</label>
+              <select
+                value={direction}
+                onChange={(e) => setDirection(e.target.value as DirectionSetting)}
+                className="mt-2 w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white"
+              >
+                <option value="en-to-target" className="bg-gray-900">
+                  EN → Target
+                </option>
+                <option value="target-to-en" className="bg-gray-900">
+                  Target → EN
+                </option>
+              </select>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

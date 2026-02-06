@@ -80,10 +80,14 @@ export default function LobbyPanel({ session, playerId, onStart, onResume }: Lob
                 {session.settings.direction === 'en-to-target' ? 'EN → Target' : 'Target → EN'}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span>Time / Question</span>
-              <span className="font-semibold">{session.settings.timePerQuestion}s</span>
-            </div>
+            {session.settings.questionFormat ? (
+              <div className="flex justify-between">
+                <span>Answer format</span>
+                <span className="font-semibold">
+                  {session.settings.questionFormat === 'quiz' ? 'Multiple choice' : session.settings.questionFormat === 'mix' ? 'Mix' : 'Type answer'}
+                </span>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <span>Max Players</span>
               <span className="font-semibold">

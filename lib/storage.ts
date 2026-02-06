@@ -16,23 +16,30 @@ const CLASS_DECKS_STORAGE_KEY = 'studyhatch-class-decks';
 const CLASS_SETTINGS_STORAGE_KEY = 'studyhatch-class-settings';
 
 const LAST_DECK_USER_KEY = 'studyhatch-last-deck-user';
+const TAB_DECK_USER_KEY = 'studyhatch-tab-deck-user';
 
 const getDeckStorageKey = (): string => {
   if (typeof window === 'undefined') return DECKS_STORAGE_KEY;
-  const session = getCurrentSession();
-  if (session?.userId) {
-    try {
-      sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
-    } catch {
-      // ignore
-    }
-    return `${DECKS_STORAGE_KEY}-${session.userId}`;
-  }
   try {
+    const session = getCurrentSession();
+    const tabUserId = sessionStorage.getItem(TAB_DECK_USER_KEY);
     const lastUserId = sessionStorage.getItem(LAST_DECK_USER_KEY);
-    if (lastUserId) {
-      return `${DECKS_STORAGE_KEY}-${lastUserId}`;
+
+    if (session?.userId) {
+      if (tabUserId === session.userId) {
+        sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+        return `${DECKS_STORAGE_KEY}-${session.userId}`;
+      }
+      if (tabUserId != null) {
+        return `${DECKS_STORAGE_KEY}-${lastUserId || tabUserId}`;
+      }
+      sessionStorage.setItem(TAB_DECK_USER_KEY, session.userId);
+      sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+      return `${DECKS_STORAGE_KEY}-${session.userId}`;
     }
+
+    sessionStorage.removeItem(TAB_DECK_USER_KEY);
+    if (lastUserId) return `${DECKS_STORAGE_KEY}-${lastUserId}`;
   } catch {
     // ignore
   }
@@ -41,19 +48,10 @@ const getDeckStorageKey = (): string => {
 
 const getDeckBackupStorageKey = (): string => {
   if (typeof window === 'undefined') return DECKS_BACKUP_STORAGE_KEY;
-  const session = getCurrentSession();
-  if (session?.userId) {
-    return `${DECKS_BACKUP_STORAGE_KEY}-${session.userId}`;
-  }
-  try {
-    const lastUserId = typeof window !== 'undefined' ? sessionStorage.getItem(LAST_DECK_USER_KEY) : null;
-    if (lastUserId) {
-      return `${DECKS_BACKUP_STORAGE_KEY}-${lastUserId}`;
-    }
-  } catch {
-    // ignore
-  }
-  return DECKS_BACKUP_STORAGE_KEY;
+  const baseKey = getDeckStorageKey();
+  if (baseKey === DECKS_STORAGE_KEY) return DECKS_BACKUP_STORAGE_KEY;
+  const suffix = baseKey.slice(DECKS_STORAGE_KEY.length);
+  return `${DECKS_BACKUP_STORAGE_KEY}${suffix}`;
 };
 
 const getProgressStorageKey = (): string => {

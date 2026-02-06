@@ -176,9 +176,11 @@ export default function GamePlayPage() {
 
   const isQuizRound = useMemo(() => {
     if (!session || session.mode === 'word-heist' || !currentCard) return false;
-    const format = session.settings?.questionFormat;
+    const format = (session.settings && 'questionFormat' in session.settings)
+      ? (session.settings.questionFormat ?? 'text')
+      : 'text';
     if (format === 'quiz') return true;
-    if (format === 'mix' && session.modeState?.cardFormats) {
+    if (format === 'mix' && session.modeState?.cardFormats && effectiveIndex < session.modeState.cardFormats.length) {
       return session.modeState.cardFormats[effectiveIndex] === 'quiz';
     }
     return false;
@@ -456,105 +458,103 @@ export default function GamePlayPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_0.4fr]">
-        <div className="space-y-6">
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
-            <p className="text-white/60 text-sm uppercase tracking-wide">Question</p>
-            <div className="text-3xl sm:text-4xl font-bold text-white mt-3">{promptText || '...'}</div>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-            <p className="text-white/70 text-sm mb-3">Your Answer</p>
-            {isQuizRound && quizOptions.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {quizOptions.map((option, idx) => (
-                  <button
-                    key={`${option}-${idx}`}
-                    type="button"
-                    onClick={() => handleQuizOption(option)}
-                    disabled={session.status !== 'playing' || player?.pendingDecision || pendingSubmit}
-                    className={getOptionButtonClass(option) + ' disabled:opacity-50 disabled:cursor-not-allowed'}
-                  >
-                    <span>{option}</span>
-                    <span className="text-white/90 font-bold tabular-nums">{idx + 1}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (answer.trim() && session.status === 'playing' && !player?.pendingDecision) handleSubmit();
-                    }
-                  }}
-                  disabled={session.status !== 'playing' || player?.pendingDecision}
-                  className="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white disabled:opacity-60"
-                  placeholder="Type your answer"
-                />
-                <button
-                  onClick={handleSubmit}
-                  disabled={session.status !== 'playing' || player?.pendingDecision}
-                  className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold disabled:opacity-50"
-                >
-                  Submit
-                </button>
-              </div>
-            )}
-            {showFeedback && (
-              <p className="text-white/60 text-sm mt-3">
-                {feedbackResult ? 'Correct! Press Ctrl+Enter for next card.' : 'Incorrect. Press Ctrl+Enter for next card.'}
-              </p>
-            )}
-          </div>
-
-          {session.mode === 'word-heist' && player && (
-            <WordHeistPanel
-              player={player}
-              players={session.players}
-              playerId={playerId}
-              stealMode={stealMode}
-              decisionVisible={decisionVisible}
-              decisionLocked={decisionLocked}
-              onBank={handleBank}
-              onRisk={handleRisk}
-              onStealStart={handleStealStart}
-              onStealTarget={handleStealTarget}
-              onStealCancel={handleStealCancel}
-            />
-          )}
-
-          {session.mode === 'lightning-ladder' && <LightningLadderPanel session={session} />}
-          {session.mode === 'survival-sprint' && <SurvivalSprintPanel session={session} />}
+      <div className="w-full space-y-6">
+        <div className="w-full bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+          <p className="text-white/60 text-sm uppercase tracking-wide">Question</p>
+          <div className="text-3xl sm:text-4xl font-bold text-white mt-3">{promptText || '...'}</div>
         </div>
 
-        <div className="space-y-6">
-          {isHost && (
-            <button
-              onClick={handleEnd}
-              className="w-full py-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white font-semibold"
-            >
-              End Game
-            </button>
-          )}
-          {displayedEvent && (
-            <div
-              className={`rounded-xl p-4 border transition-opacity duration-300 ${
-                displayedEvent.tone === 'positive'
-                  ? 'text-emerald-100 bg-emerald-500/15 border-emerald-400/30'
-                  : displayedEvent.tone === 'negative'
-                    ? 'text-rose-100 bg-rose-500/15 border-rose-400/30'
-                    : 'text-white/80 bg-white/5 border-white/10'
-              } ${displayedEvent.fadingOut ? 'opacity-0' : popupFadeIn ? 'opacity-100' : 'opacity-0'}`}
-              style={{ transitionDuration: '0.3s' }}
-            >
-              {displayedEvent.text}
+        <div className="w-full bg-white/5 border border-white/10 rounded-xl p-6">
+          <p className="text-white/70 text-sm mb-3">Your Answer</p>
+          {isQuizRound && quizOptions.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {quizOptions.map((option, idx) => (
+                <button
+                  key={`${option}-${idx}`}
+                  type="button"
+                  onClick={() => handleQuizOption(option)}
+                  disabled={session.status !== 'playing' || player?.pendingDecision || pendingSubmit}
+                  className={getOptionButtonClass(option) + ' disabled:opacity-50 disabled:cursor-not-allowed'}
+                >
+                  <span>{option}</span>
+                  <span className="text-white/90 font-bold tabular-nums">{idx + 1}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (answer.trim() && session.status === 'playing' && !player?.pendingDecision) handleSubmit();
+                  }
+                }}
+                disabled={session.status !== 'playing' || player?.pendingDecision}
+                className="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white disabled:opacity-60 min-w-0"
+                placeholder="Type your answer"
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={session.status !== 'playing' || player?.pendingDecision}
+                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold disabled:opacity-50 shrink-0"
+              >
+                Submit
+              </button>
             </div>
           )}
+          {showFeedback && (
+            <p className="text-white/60 text-sm mt-3">
+              {feedbackResult ? 'Correct! Press Ctrl+Enter for next card.' : 'Incorrect. Press Ctrl+Enter for next card.'}
+            </p>
+          )}
         </div>
+
+        {session.mode === 'word-heist' && player && (
+          <WordHeistPanel
+            player={player}
+            players={session.players}
+            playerId={playerId}
+            stealMode={stealMode}
+            decisionVisible={decisionVisible}
+            decisionLocked={decisionLocked}
+            onBank={handleBank}
+            onRisk={handleRisk}
+            onStealStart={handleStealStart}
+            onStealTarget={handleStealTarget}
+            onStealCancel={handleStealCancel}
+          />
+        )}
+
+        {session.mode === 'lightning-ladder' && <LightningLadderPanel session={session} />}
+        {session.mode === 'survival-sprint' && <SurvivalSprintPanel session={session} />}
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-start justify-end gap-4">
+        {isHost && (
+          <button
+            onClick={handleEnd}
+            className="py-3 px-6 rounded-xl bg-red-500/80 hover:bg-red-500 text-white font-semibold"
+          >
+            End Game
+          </button>
+        )}
+        {displayedEvent && (
+          <div
+            className={`rounded-xl p-4 border transition-opacity duration-300 max-w-md ${
+              displayedEvent.tone === 'positive'
+                ? 'text-emerald-100 bg-emerald-500/15 border-emerald-400/30'
+                : displayedEvent.tone === 'negative'
+                  ? 'text-rose-100 bg-rose-500/15 border-rose-400/30'
+                  : 'text-white/80 bg-white/5 border-white/10'
+            } ${displayedEvent.fadingOut ? 'opacity-0' : popupFadeIn ? 'opacity-100' : 'opacity-0'}`}
+            style={{ transitionDuration: '0.3s' }}
+          >
+            {displayedEvent.text}
+          </div>
+        )}
       </div>
 
       {leaderboardOpen && (
