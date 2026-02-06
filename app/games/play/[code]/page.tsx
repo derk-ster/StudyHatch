@@ -52,6 +52,8 @@ export default function GamePlayPage() {
   const lastEventRef = useRef<string | null>(null);
   const hasRedirectedToResultsRef = useRef(false);
   const pendingSubmitRef = useRef(false);
+  const playerIdRef = useRef<string | null>(null);
+  const lastEventRefForMessage = useRef<string | null>(null);
 
   useEffect(() => {
     setPlayerId(getStoredPlayerId(code, storageScope));
@@ -82,7 +84,54 @@ export default function GamePlayPage() {
           return;
         }
         if (message.type === 'session_state') {
-          setSession(message.payload);
+          const payload = message.payload;
+          setSession(payload);
+          const pid = playerIdRef.current;
+          const player = payload.players?.find((p: { id: string }) => p.id === pid);
+          if (payload.mode !== 'word-heist' && pid && typeof payload.modeState?.answers?.[pid] === 'boolean') {
+            const answerValue = payload.modeState.answers[pid];
+            if (pendingSubmitRef.current) {
+              pendingSubmitRef.current = false;
+              setFeedbackResult(answerValue);
+              setPendingSubmit(!answerValue);
+              playSfx(answerValue ? 'correct' : 'incorrect');
+              if (feedbackAutoAdvanceRef.current) {
+                clearTimeout(feedbackAutoAdvanceRef.current);
+                feedbackAutoAdvanceRef.current = null;
+              }
+              const nextIndex = player?.currentIndex ?? 0;
+              setTimeout(() => {
+                setFeedbackResult(null);
+                setLastSubmittedOption(null);
+              }, 2000);
+              if (answerValue) {
+                feedbackAutoAdvanceRef.current = setTimeout(() => {
+                  setDisplayIndex(nextIndex);
+                  feedbackAutoAdvanceRef.current = null;
+                }, 2000);
+              } else {
+                feedbackAutoAdvanceRef.current = setTimeout(() => {
+                  setPendingSubmit(false);
+                  setDisplayIndex(nextIndex);
+                  feedbackAutoAdvanceRef.current = null;
+                }, 3000);
+              }
+            }
+          }
+          if (payload.mode === 'word-heist' && player?.lastEvent && (player.lastEvent.startsWith('Correct') || player.lastEvent.startsWith('Incorrect')) && lastEventRefForMessage.current !== player.lastEvent) {
+            lastEventRefForMessage.current = player.lastEvent;
+            const correct = player.lastEvent.startsWith('Correct');
+            setFeedbackResult(correct);
+            playSfx(correct ? 'correct' : 'incorrect');
+            if (feedbackAutoAdvanceRef.current) {
+              clearTimeout(feedbackAutoAdvanceRef.current);
+              feedbackAutoAdvanceRef.current = null;
+            }
+            setTimeout(() => {
+              setFeedbackResult(null);
+              setLastSubmittedOption(null);
+            }, 2000);
+          }
         }
       },
       onOpen: () => {
@@ -129,6 +178,7 @@ export default function GamePlayPage() {
     () => session?.players.find(p => p.id === playerId) || null,
     [session, playerId]
   );
+  playerIdRef.current = playerId;
 
   useEffect(() => {
     if (!player?.pendingDecision) {
@@ -245,24 +295,6 @@ export default function GamePlayPage() {
     const last = lastAnswerRef.current;
     if (last && last.cardIndex === cardIndex - 1 && last.value === answerValue) return;
     lastAnswerRef.current = { cardIndex: cardIndex - 1, value: answerValue };
-    playSfx(answerValue ? 'correct' : 'incorrect');
-    if (pendingSubmitRef.current) {
-      setFeedbackResult(answerValue);
-      setPendingSubmit(false);
-      pendingSubmitRef.current = false;
-      if (feedbackAutoAdvanceRef.current) {
-        clearTimeout(feedbackAutoAdvanceRef.current);
-        feedbackAutoAdvanceRef.current = null;
-      }
-      const delay = answerValue ? 500 : 3000;
-      const nextIndex = player?.currentIndex ?? 0;
-      feedbackAutoAdvanceRef.current = setTimeout(() => {
-        setFeedbackResult(null);
-        setLastSubmittedOption(null);
-        setDisplayIndex(nextIndex);
-        feedbackAutoAdvanceRef.current = null;
-      }, delay);
-    }
   }, [session, playerId, player?.currentIndex]);
 
   useEffect(() => {
@@ -270,20 +302,6 @@ export default function GamePlayPage() {
     if (!player?.lastEvent) return;
     if (player.lastEvent === lastEventRef.current) return;
     lastEventRef.current = player.lastEvent;
-    const correct = player.lastEvent.startsWith('Correct');
-    if (correct) playSfx('correct');
-    else playSfx('incorrect');
-    setFeedbackResult(correct);
-    if (feedbackAutoAdvanceRef.current) {
-      clearTimeout(feedbackAutoAdvanceRef.current);
-      feedbackAutoAdvanceRef.current = null;
-    }
-    const delay = correct ? 500 : 3000;
-    feedbackAutoAdvanceRef.current = setTimeout(() => {
-      setFeedbackResult(null);
-      setLastSubmittedOption(null);
-      feedbackAutoAdvanceRef.current = null;
-    }, delay);
   }, [session?.mode, player?.lastEvent]);
 
   // Show in-game feedback (correct/incorrect) for 1s with 0.3s fade in/out; only for non–word-heist
