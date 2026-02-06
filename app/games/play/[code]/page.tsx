@@ -43,7 +43,9 @@ export default function GamePlayPage() {
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const [displayIndex, setDisplayIndex] = useState(0);
+  const [stableQuizOptions, setStableQuizOptions] = useState<string[]>([]);
   const displayedEventTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedbackAutoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const decisionIndexRef = useRef<number | null>(null);
   const lastAnswerRef = useRef<{ cardIndex: number; value: boolean } | null>(null);
@@ -186,8 +188,11 @@ export default function GamePlayPage() {
     return false;
   }, [session, effectiveIndex, currentCard]);
 
-  const quizOptions = useMemo(() => {
-    if (!session || !currentCard || !isQuizRound) return [];
+  useEffect(() => {
+    if (!session || !currentCard || !isQuizRound) {
+      setStableQuizOptions([]);
+      return;
+    }
     const correctAnswer =
       session.settings.direction === 'en-to-target' ? currentCard.translation : currentCard.english;
     const pool =
@@ -196,8 +201,8 @@ export default function GamePlayPage() {
         : session.deck.cards.map(c => c.english);
     const wrong = [...new Set(pool)].filter(v => v !== correctAnswer);
     const three = wrong.sort(() => Math.random() - 0.5).slice(0, 3);
-    return [correctAnswer, ...three].sort(() => Math.random() - 0.5);
-  }, [session, currentCard, isQuizRound]);
+    setStableQuizOptions([correctAnswer, ...three].sort(() => Math.random() - 0.5));
+  }, [currentCard?.id, session?.settings?.direction, isQuizRound]);
 
   const promptText = useMemo(() => {
     if (!session || !currentCard) return '';
@@ -245,6 +250,18 @@ export default function GamePlayPage() {
       setFeedbackResult(answerValue);
       setPendingSubmit(false);
       pendingSubmitRef.current = false;
+      if (feedbackAutoAdvanceRef.current) {
+        clearTimeout(feedbackAutoAdvanceRef.current);
+        feedbackAutoAdvanceRef.current = null;
+      }
+      const delay = answerValue ? 500 : 3000;
+      const nextIndex = player?.currentIndex ?? 0;
+      feedbackAutoAdvanceRef.current = setTimeout(() => {
+        setFeedbackResult(null);
+        setLastSubmittedOption(null);
+        setDisplayIndex(nextIndex);
+        feedbackAutoAdvanceRef.current = null;
+      }, delay);
     }
   }, [session, playerId, player?.currentIndex]);
 
@@ -253,11 +270,20 @@ export default function GamePlayPage() {
     if (!player?.lastEvent) return;
     if (player.lastEvent === lastEventRef.current) return;
     lastEventRef.current = player.lastEvent;
-    if (player.lastEvent.startsWith('Correct')) {
-      playSfx('correct');
-    } else if (player.lastEvent.startsWith('Incorrect')) {
-      playSfx('incorrect');
+    const correct = player.lastEvent.startsWith('Correct');
+    if (correct) playSfx('correct');
+    else playSfx('incorrect');
+    setFeedbackResult(correct);
+    if (feedbackAutoAdvanceRef.current) {
+      clearTimeout(feedbackAutoAdvanceRef.current);
+      feedbackAutoAdvanceRef.current = null;
     }
+    const delay = correct ? 500 : 3000;
+    feedbackAutoAdvanceRef.current = setTimeout(() => {
+      setFeedbackResult(null);
+      setLastSubmittedOption(null);
+      feedbackAutoAdvanceRef.current = null;
+    }, delay);
   }, [session?.mode, player?.lastEvent]);
 
   // Show in-game feedback (correct/incorrect) for 1s with 0.3s fade in/out; only for non–word-heist
@@ -342,7 +368,7 @@ export default function GamePlayPage() {
   ];
   const getOptionButtonClass = (option: string) => {
     const base = 'px-4 py-4 rounded-xl border text-white text-left font-medium transition-all flex items-center justify-between gap-2 ';
-    if (!showFeedback) return base + (quizOptionColors[quizOptions.indexOf(option) % 4] || 'bg-white/10 border-white/20');
+    if (!showFeedback) return base + (quizOptionColors[stableQuizOptions.indexOf(option) % 4] || 'bg-white/10 border-white/20');
     const isCorrect = option === correctAnswerForOptions;
     const isChosenWrong = option === lastSubmittedOption && feedbackResult === false;
     if (isCorrect) return base + 'bg-emerald-600 border-emerald-400';
@@ -352,6 +378,10 @@ export default function GamePlayPage() {
 
   useEffect(() => {
     if (!currentCard?.id) return;
+    if (feedbackAutoAdvanceRef.current) {
+      clearTimeout(feedbackAutoAdvanceRef.current);
+      feedbackAutoAdvanceRef.current = null;
+    }
     setFeedbackResult(null);
     setLastSubmittedOption(null);
   }, [currentCard?.id]);
@@ -368,7 +398,7 @@ export default function GamePlayPage() {
     handleQuizOption,
     handleSubmit,
     answer,
-    quizOptions,
+    stableQuizOptions,
     session,
     player,
     playerId,
@@ -379,7 +409,7 @@ export default function GamePlayPage() {
     handleQuizOption,
     handleSubmit,
     answer,
-    quizOptions,
+    stableQuizOptions,
     session,
     player,
     playerId,
@@ -387,25 +417,28 @@ export default function GamePlayPage() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const ref = keyHandlerRef.current;
-      if (!ref.session || ref.session.mode === 'word-heist') return;
+      if (!ref.session) return;
       if (ref.showFeedback && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
-        const nextIndex = ref.player?.currentIndex ?? 0;
-        setDisplayIndex(nextIndex);
+        if (ref.session.mode !== 'word-heist') {
+          const nextIndex = ref.player?.currentIndex ?? 0;
+          setDisplayIndex(nextIndex);
+        }
         setFeedbackResult(null);
         setLastSubmittedOption(null);
         return;
       }
       if (ref.showFeedback) return;
-      if (ref.quizOptions.length > 0 && ['1', '2', '3', '4'].includes(e.key)) {
+      if (ref.stableQuizOptions.length > 0 && ['1', '2', '3', '4'].includes(e.key)) {
         const idx = parseInt(e.key, 10) - 1;
-        if (idx >= 0 && idx < ref.quizOptions.length) {
+        if (idx >= 0 && idx < ref.stableQuizOptions.length) {
           e.preventDefault();
-          ref.handleQuizOption(ref.quizOptions[idx]);
+          ref.handleQuizOption(ref.stableQuizOptions[idx]);
         }
         return;
       }
       if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+        if (ref.stableQuizOptions.length > 0) return;
         if (ref.answer.trim() && ref.session?.status === 'playing' && !ref.player?.pendingDecision) {
           e.preventDefault();
           ref.handleSubmit();
@@ -466,9 +499,9 @@ export default function GamePlayPage() {
 
         <div className="w-full bg-white/5 border border-white/10 rounded-xl p-6">
           <p className="text-white/70 text-sm mb-3">Your Answer</p>
-          {isQuizRound && quizOptions.length > 0 ? (
+          {isQuizRound && stableQuizOptions.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {quizOptions.map((option, idx) => (
+              {stableQuizOptions.map((option, idx) => (
                 <button
                   key={`${option}-${idx}`}
                   type="button"
@@ -507,7 +540,7 @@ export default function GamePlayPage() {
           )}
           {showFeedback && (
             <p className="text-white/60 text-sm mt-3">
-              {feedbackResult ? 'Correct! Press Ctrl+Enter for next card.' : 'Incorrect. Press Ctrl+Enter for next card.'}
+              {feedbackResult ? 'Correct!' : 'Incorrect.'}
             </p>
           )}
         </div>
