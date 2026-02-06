@@ -114,7 +114,7 @@ export default function PronounceButton({
       aria-label={label}
       title={label}
       disabled={!isSupported || !text.trim()}
-      className={`text-2xl leading-none opacity-70 hover:opacity-100 transition disabled:opacity-30 ${className || ''}`}
+      className={`pronounce-button text-2xl leading-none opacity-70 hover:opacity-100 transition disabled:opacity-30 ${className || ''}`}
     >
       🔊
     </button>

@@ -55,6 +55,7 @@ type GameSession = {
   settings: {
     direction: DirectionSetting;
     timePerQuestion: number;
+    questionFormat?: 'quiz' | 'text' | 'mix';
     maxPlayers: number | null;
     gameDurationMinutes: number | null;
     classroomOnly: boolean;
@@ -67,6 +68,8 @@ type GameSession = {
     roundEndAt: number | null;
     roundRemainingMs: number | null;
     answers: Record<string, boolean>;
+    roundFormat?: 'quiz' | 'text';
+    options?: string[];
   };
   roundTimer: NodeJS.Timeout | null;
 };
@@ -251,6 +254,24 @@ const createPlayer = ({ name, userId, isHost }: { name?: string; userId?: string
   claps: 0,
 });
 
+const getRoundFormat = (session: GameSession): 'quiz' | 'text' => {
+  const format = session.settings.questionFormat;
+  if (format === 'quiz') return 'quiz';
+  if (format === 'text') return 'text';
+  if (format === 'mix') return Math.random() < 0.5 ? 'quiz' : 'text';
+  return 'text';
+};
+
+const buildQuizOptions = (session: GameSession, correctAnswer: string): string[] => {
+  const cards = session.deck?.cards || [];
+  const pool = session.settings.direction === 'en-to-target'
+    ? cards.map(c => c.translation)
+    : cards.map(c => c.english);
+  const wrong = [...new Set(pool)].filter(v => !fuzzyMatch(v, correctAnswer));
+  const shuffled = [...wrong].sort(() => Math.random() - 0.5).slice(0, 3);
+  return [correctAnswer, ...shuffled].sort(() => Math.random() - 0.5);
+};
+
 const serializeSession = (session: GameSession) => ({
   code: session.code,
   mode: session.mode,
@@ -262,6 +283,7 @@ const serializeSession = (session: GameSession) => ({
   settings: {
     direction: session.settings.direction,
     timePerQuestion: session.settings.timePerQuestion,
+    questionFormat: session.settings.questionFormat,
     maxPlayers: session.settings.maxPlayers,
     gameDurationMinutes: session.settings.gameDurationMinutes,
     classroomOnly: session.settings.classroomOnly,
@@ -274,6 +296,8 @@ const serializeSession = (session: GameSession) => ({
     roundEndAt: session.modeState.roundEndAt,
     roundRemainingMs: session.modeState.roundRemainingMs,
     answers: session.modeState.answers,
+    roundFormat: session.modeState.roundFormat,
+    options: session.modeState.options,
   },
 });
 
@@ -282,6 +306,17 @@ const scheduleRound = (session: GameSession) => {
   const timeMs = session.modeState.roundRemainingMs ?? session.settings.timePerQuestion * 1000;
   session.modeState.roundEndAt = now + timeMs;
   session.modeState.roundRemainingMs = null;
+  if (session.mode !== 'word-heist' && session.deck?.cards?.length) {
+    const format = getRoundFormat(session);
+    session.modeState.roundFormat = format;
+    const { card } = getRoundCard(session) || {};
+    if (card) {
+      const correct = session.settings.direction === 'en-to-target' ? card.translation : card.english;
+      session.modeState.options = format === 'quiz' ? buildQuizOptions(session, correct) : undefined;
+    } else {
+      session.modeState.options = undefined;
+    }
+  }
 };
 
 const pauseGame = (session: GameSession) => {
@@ -312,6 +347,8 @@ const advanceRound = (session: GameSession) => {
   if (session.status !== 'playing') return;
   session.modeState.roundIndex += 1;
   session.modeState.answers = {};
+  session.modeState.roundFormat = undefined;
+  session.modeState.options = undefined;
   const cards = session.deck?.cards || [];
   if (session.modeState.roundIndex >= cards.length) {
     session.status = 'ended';
@@ -450,6 +487,8 @@ const startGame = (session: GameSession) => {
     roundEndAt: null,
     roundRemainingMs: null,
     answers: {},
+    roundFormat: undefined,
+    options: undefined,
   };
   scheduleRound(session);
 };
@@ -593,6 +632,7 @@ const createSession = async (payload: any, memoryStore: Map<string, GameSession>
     settings: {
       direction: settings?.direction || 'en-to-target',
       timePerQuestion: Number(settings?.timePerQuestion || 20),
+      questionFormat: (settings?.questionFormat === 'quiz' || settings?.questionFormat === 'mix') ? settings.questionFormat : 'text',
       maxPlayers: settings?.maxPlayers ? Number(settings.maxPlayers) : null,
       gameDurationMinutes: settings?.gameDurationMinutes ? Number(settings.gameDurationMinutes) : null,
       classroomOnly: Boolean(settings?.classroomOnly),

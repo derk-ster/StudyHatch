@@ -4,9 +4,12 @@ export type GameMode = 'word-heist' | 'lightning-ladder' | 'survival-sprint';
 export type GameStatus = 'lobby' | 'playing' | 'paused' | 'ended';
 export type DirectionSetting = 'en-to-target' | 'target-to-en';
 
+export type QuestionFormat = 'quiz' | 'text' | 'mix';
+
 export type GameSettings = {
   direction: DirectionSetting;
   timePerQuestion: number;
+  questionFormat?: QuestionFormat;
   maxPlayers?: number | null;
   gameDurationMinutes?: number | null;
   classroomOnly?: boolean;
@@ -42,6 +45,10 @@ export type GameModeState = {
   roundEndAt?: number | null;
   roundRemainingMs?: number | null;
   answers?: Record<string, boolean>;
+  /** For quiz/mix: 'quiz' | 'text' for this round */
+  roundFormat?: 'quiz' | 'text';
+  /** For quiz rounds: [correct, wrong, ...] shuffled */
+  options?: string[];
 };
 
 export type GameSession = {

@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
@@ -186,6 +186,51 @@ export default function QuizPage() {
     }
   };
 
+  const quizKeyRef = useRef({
+    showResult,
+    selectedAnswer,
+    handleSubmit,
+    handleNext,
+    currentOptions,
+    handleAnswerSelect,
+  });
+  quizKeyRef.current = {
+    showResult,
+    selectedAnswer,
+    handleSubmit,
+    handleNext,
+    currentOptions,
+    handleAnswerSelect,
+  };
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const { showResult: sr, selectedAnswer: sa, handleSubmit: submit, handleNext: next, currentOptions: opts, handleAnswerSelect: select } = quizKeyRef.current;
+      /* Number keys 1–4: select that answer option */
+      if (!sr && opts.length > 0 && ['1', '2', '3', '4'].includes(e.key)) {
+        const idx = parseInt(e.key, 10) - 1;
+        if (idx >= 0 && idx < opts.length) {
+          e.preventDefault();
+          select(opts[idx]);
+          return;
+        }
+      }
+      const ctrlEnter = e.key === 'Enter' && (e.ctrlKey || e.metaKey);
+      if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+        if (!sr && sa !== null) {
+          e.preventDefault();
+          submit();
+        }
+        return;
+      }
+      if (ctrlEnter && sr) {
+        e.preventDefault();
+        next();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   if (!deck || quizCards.length === 0) {
     return (
       <div className="min-h-screen bg-noise">
@@ -237,8 +282,8 @@ export default function QuizPage() {
 
         {/* Quiz Complete Modal */}
         {quizComplete && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-gray-900 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-white/20 card-glow animate-slide-up">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
+            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto">
               <div className="text-center mb-6">
                 <div className="text-6xl mb-4">🎯</div>
                 <h2 className="text-3xl font-bold mb-2">Quiz Complete!</h2>
@@ -256,7 +301,7 @@ export default function QuizPage() {
               {missedWords.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-xl font-bold mb-4">Review Missed Words:</h3>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-2 max-h-[25vh] overflow-y-auto">
                     {missedWords.map((card) => (
                       <div key={card.id} className="bg-white/5 rounded-lg p-4">
                         <div className="font-bold">{card.translation}</div>
@@ -325,36 +370,51 @@ export default function QuizPage() {
             const showIncorrect = showResult && isSelected && !isCorrectOption;
 
             return (
-              <div key={index} className="relative">
+              <div key={index} className="relative flex items-center gap-3">
+                <div className="flex-1 relative">
+                  <button
+                    onClick={() => handleAnswerSelect(option)}
+                    disabled={showResult}
+                    className={`w-full rounded-xl border-2 text-left transition-all ${
+                      showCorrect
+                        ? 'bg-green-500/30 border-green-500'
+                        : showIncorrect
+                        ? 'bg-red-500/30 border-red-500 animate-shake'
+                        : isSelected
+                        ? 'bg-purple-600/30 border-purple-500'
+                        : 'bg-white/10 border-white/20 hover:bg-white/15'
+                    } ${showResult ? 'cursor-default' : 'cursor-pointer'} ${
+                      showTranslationFirst ? 'p-6' : 'pl-14 pr-6 py-6'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-medium">{option}</span>
+                      {showCorrect && <span className="text-2xl">✓</span>}
+                      {showIncorrect && <span className="text-2xl">✗</span>}
+                    </div>
+                  </button>
+                  {!showTranslationFirst && (
+                    <PronounceButton
+                      text={option}
+                      languageCode={targetLanguageCode}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-xl z-10"
+                      label={`Play ${targetLanguageName} pronunciation`}
+                    />
+                  )}
+                </div>
                 <button
-                  onClick={() => handleAnswerSelect(option)}
+                  type="button"
+                  onClick={() => !showResult && handleAnswerSelect(option)}
                   disabled={showResult}
-                  className={`w-full rounded-xl border-2 text-left transition-all ${
-                    showCorrect
-                      ? 'bg-green-500/30 border-green-500'
-                      : showIncorrect
-                      ? 'bg-red-500/30 border-red-500 animate-shake'
-                      : isSelected
-                      ? 'bg-purple-600/30 border-purple-500'
-                      : 'bg-white/10 border-white/20 hover:bg-white/15'
-                  } ${showResult ? 'cursor-default' : 'cursor-pointer'} ${
-                    showTranslationFirst ? 'p-6' : 'pl-14 pr-6 py-6'
-                  }`}
+                  className={`flex-shrink-0 w-10 h-10 rounded-lg text-lg font-bold transition-all ${
+                    isSelected
+                      ? 'bg-purple-500 text-white ring-2 ring-purple-300'
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  } ${showResult ? 'cursor-default opacity-70' : 'cursor-pointer'}`}
+                  aria-label={`Select option ${index + 1}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-medium">{option}</span>
-                    {showCorrect && <span className="text-2xl">✓</span>}
-                    {showIncorrect && <span className="text-2xl">✗</span>}
-                  </div>
+                  {index + 1}
                 </button>
-                {!showTranslationFirst && (
-                  <PronounceButton
-                    text={option}
-                    languageCode={targetLanguageCode}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-xl z-10"
-                    label={`Play ${targetLanguageName} pronunciation`}
-                  />
-                )}
               </div>
             );
           })}
@@ -372,10 +432,18 @@ export default function QuizPage() {
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleNext}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleNext();
+                }
+              }}
               className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg transition-all font-medium text-lg"
             >
-              {currentIndex < quizCards.length - 1 ? 'Next Question →' : 'View Results'}
+              {currentIndex < quizCards.length - 1 ? 'Next Card (Ctrl+Enter)' : 'View Results (Ctrl+Enter)'}
             </button>
           )}
         </div>

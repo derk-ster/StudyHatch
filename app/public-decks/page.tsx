@@ -264,8 +264,8 @@ export default function PublicDecksPage() {
         </div>
       </main>
       {previewDeck && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-3xl mx-4 border border-white/20 card-glow">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 border border-white/20 card-glow my-auto max-w-3xl">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h2 className="text-2xl font-bold text-white">{previewDeck.name}</h2>
@@ -281,7 +281,7 @@ export default function PublicDecksPage() {
                 ×
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto border border-white/10 rounded-xl">
+            <div className="max-h-[50vh] overflow-y-auto border border-white/10 rounded-xl">
               <table className="w-full text-left text-sm">
                 <thead className="sticky top-0 bg-gray-900/95 backdrop-blur border-b border-white/10">
                   <tr>

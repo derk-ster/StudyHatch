@@ -655,12 +655,12 @@ export default function FlashcardsPage() {
         {/* Results Modal */}
         {showResults && (
           <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in overflow-y-auto"
           onClick={() => setShowResults(false)}
           style={{ zIndex: 9999 }}
           >
           <div 
-            className="bg-gray-900 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-white/20 card-glow animate-slide-up"
+            className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center mb-6">

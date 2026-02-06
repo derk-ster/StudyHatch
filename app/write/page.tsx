@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
@@ -178,10 +178,27 @@ export default function WritePage() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !showAnswer) {
       handleSubmit();
-    } else if (e.key === 'Enter' && showAnswer) {
+    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && showAnswer) {
+      e.preventDefault();
       handleNext();
     }
   };
+
+  const writeKeyRef = useRef({ showAnswer, handleNext });
+  writeKeyRef.current = { showAnswer, handleNext };
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        const { showAnswer: sa, handleNext: next } = writeKeyRef.current;
+        if (sa) {
+          e.preventDefault();
+          next();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   if (!deck || shuffledCards.length === 0) {
     return (
@@ -252,7 +269,7 @@ export default function WritePage() {
                   type="text"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={handleKeyPress}
                   placeholder={`Type the ${showTranslationFirst ? 'English' : targetLanguageName} translation...`}
                   className="w-full max-w-md px-6 py-4 rounded-lg bg-white/10 text-white text-xl border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-white/40"
                   autoFocus
@@ -316,10 +333,18 @@ export default function WritePage() {
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleNext}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleNext();
+                }
+              }}
               className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg transition-all font-medium text-lg"
             >
-              {currentIndex < shuffledCards.length - 1 ? 'Next Card →' : 'View Results'}
+              {currentIndex < shuffledCards.length - 1 ? 'Next Card (Ctrl+Enter)' : 'View Results (Ctrl+Enter)'}
             </button>
           )}
         </div>
@@ -328,11 +353,11 @@ export default function WritePage() {
       {/* Results Modal */}
       {showResults && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] animate-fade-in overflow-y-auto"
           onClick={() => setShowResults(false)}
         >
           <div 
-            className="bg-gray-900 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-white/20 card-glow animate-slide-up"
+            className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="text-center mb-6">

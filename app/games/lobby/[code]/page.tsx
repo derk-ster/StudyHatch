@@ -85,12 +85,18 @@ export default function GameLobbyPage() {
     };
   }, []);
 
+  const hasRedirectedRef = useRef(false);
   useEffect(() => {
     if (!session) return;
     if (session.status === 'playing') {
-      router.push(`/games/play/${session.code}`);
+      if (!hasRedirectedRef.current) {
+        hasRedirectedRef.current = true;
+        router.push(`/games/play/${session.code}`);
+      }
+      return;
     }
-    if (session.status === 'ended') {
+    if (session.status === 'ended' && session.endedAt && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
       router.push(`/games/results/${session.code}`);
     }
   }, [session, router]);

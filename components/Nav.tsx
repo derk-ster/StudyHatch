@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
@@ -493,14 +494,14 @@ export default function Nav() {
         </div>
       </div>
 
-      {/* Progress Modal */}
-      {showProgress && (
+      {/* Progress Modal - portaled to body so it's not clipped by nav's transform */}
+      {typeof document !== 'undefined' && showProgress && createPortal(
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in min-h-screen"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] animate-fade-in overflow-y-auto"
           onClick={() => setShowProgress(false)}
         >
           <div 
-            className="bg-gray-900 rounded-2xl p-8 max-w-2xl w-full mx-4 border border-white/20 card-glow animate-slide-up my-auto"
+            className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-6">
@@ -582,7 +583,8 @@ export default function Nav() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </nav>
   );

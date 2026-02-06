@@ -298,11 +298,11 @@ export default function ViewDecksPage() {
           >
             Public Decks
           </Link>
-          <details className="relative">
+          <details className="relative z-[100]">
             <summary className="px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-100 text-sm font-medium transition-all text-center cursor-pointer list-none inline-flex items-center justify-center hover-lift-only [&::-webkit-details-marker]:hidden">
               Leaderboards
             </summary>
-            <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-20">
+            <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-[100]">
               <Link
                 href="/leaderboards?scope=public"
                 className="block px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10 transition-all"
@@ -550,8 +550,8 @@ export default function ViewDecksPage() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-white/20 card-glow animate-slide-up">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
+            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
               <h2 className="text-2xl font-bold mb-4">Delete Deck?</h2>
               <p className="text-white/70 mb-6">
                 Are you sure you want to delete this deck? This action cannot be undone.

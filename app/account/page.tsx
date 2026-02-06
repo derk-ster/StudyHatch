@@ -433,8 +433,8 @@ export default function AccountPage() {
         </div>
       </main>
       {showDeletionWarning && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-xl rounded-2xl border border-white/20 bg-gray-900 p-6 shadow-xl">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="modal-panel max-w-xl rounded-2xl border border-white/20 bg-gray-900 p-4 sm:p-6 shadow-xl my-auto">
             <h3 className="text-2xl font-bold text-white mb-3">Confirm Data Deletion</h3>
             <p className="text-white/70 mb-4">
               Deleting your data will permanently remove:

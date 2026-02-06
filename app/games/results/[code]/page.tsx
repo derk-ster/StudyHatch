@@ -188,15 +188,15 @@ export default function GameResultsPage() {
             </div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3 min-h-[140px] flex flex-col justify-between">
             <p className="text-white/70 text-sm uppercase tracking-wide">Claps</p>
-            <div className="flex items-center justify-between text-white/80 text-sm">
-              <span>Your Claps</span>
-              <span className="font-semibold">{player?.claps ?? 0}</span>
+            <div className="flex items-center justify-between text-white/80 text-sm gap-4">
+              <span className="flex-shrink-0">Your Claps</span>
+              <span className="font-semibold tabular-nums">{player?.claps ?? 0}</span>
             </div>
-            <div className="flex items-center justify-between text-white/80 text-sm">
-              <span>Total Claps</span>
-              <span className="font-semibold">{totalClaps}</span>
+            <div className="flex items-center justify-between text-white/80 text-sm gap-4">
+              <span className="flex-shrink-0">Total Claps</span>
+              <span className="font-semibold tabular-nums">{totalClaps}</span>
             </div>
             <button
               onClick={handleClap}

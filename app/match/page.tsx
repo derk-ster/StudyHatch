@@ -280,8 +280,8 @@ export default function MatchPage() {
 
         {/* Game Complete Modal */}
         {gameComplete && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-white/20 card-glow animate-slide-up">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
+            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto max-w-md">
               <div className="text-center">
                 <div className="text-6xl mb-4">🎉</div>
                 <h2 className="text-3xl font-bold mb-4">Congratulations!</h2>

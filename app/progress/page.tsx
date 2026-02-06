@@ -232,8 +232,8 @@ export default function ProgressPage() {
 
         {/* Reset Confirmation Modal */}
         {showResetConfirm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full mx-4 border border-white/20 card-glow animate-slide-up">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
+            <div className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
               <h2 className="text-2xl font-bold mb-4">Reset Progress?</h2>
               <p className="text-white/70 mb-6">
                 This will permanently delete all your progress, including learned words, scores, and statistics. This action cannot be undone.

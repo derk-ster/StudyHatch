@@ -37,10 +37,14 @@ export default function GamePlayPage() {
   const [decisionLocked, setDecisionLocked] = useState(false);
   const [decisionVisible, setDecisionVisible] = useState(false);
   const [gameTimeLeft, setGameTimeLeft] = useState<string | null>(null);
+  const [displayedEvent, setDisplayedEvent] = useState<{ text: string; tone?: 'positive' | 'negative'; fadingOut: boolean } | null>(null);
+  const [popupFadeIn, setPopupFadeIn] = useState(false);
+  const displayedEventTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const socketRef = useRef<ReturnType<typeof createGameSocket> | null>(null);
   const decisionIndexRef = useRef<number | null>(null);
   const lastAnswerRef = useRef<{ roundIndex: number; value: boolean } | null>(null);
   const lastEventRef = useRef<string | null>(null);
+  const hasRedirectedToResultsRef = useRef(false);
 
   useEffect(() => {
     setPlayerId(getStoredPlayerId(code, storageScope));
@@ -90,10 +94,11 @@ export default function GamePlayPage() {
 
   useEffect(() => {
     if (!session) return;
-    if (session.status === 'ended') {
-      clearLastGameCode(storageScope);
-      router.push(`/games/results/${session.code}`);
-    }
+    if (session.status !== 'ended' || !session.endedAt) return;
+    if (hasRedirectedToResultsRef.current) return;
+    hasRedirectedToResultsRef.current = true;
+    clearLastGameCode(storageScope);
+    router.push(`/games/results/${session.code}`);
   }, [session, router, storageScope]);
 
   useEffect(() => {
@@ -174,6 +179,16 @@ export default function GamePlayPage() {
     return session.deck.cards[roundIndex % session.deck.cards.length];
   }, [session, player]);
 
+  const isQuizRound = useMemo(() => {
+    if (!session || session.mode === 'word-heist') return false;
+    const format = session.settings?.questionFormat;
+    if (format === 'quiz') return true;
+    if (format === 'mix' && session.modeState?.roundFormat === 'quiz') return true;
+    return false;
+  }, [session]);
+
+  const quizOptions = useMemo(() => session?.modeState?.options ?? [], [session?.modeState?.options]);
+
   const promptText = useMemo(() => {
     if (!session || !currentCard) return '';
     if (session.settings.direction === 'en-to-target') {
@@ -192,6 +207,16 @@ export default function GamePlayPage() {
       answerTimeMs: Date.now(),
     });
     setAnswer('');
+  };
+
+  const handleQuizOption = (option: string) => {
+    if (!playerId) return;
+    socketRef.current?.send('submit_answer', {
+      code,
+      playerId,
+      answer: option,
+      answerTimeMs: Date.now(),
+    });
   };
 
   useEffect(() => {
@@ -216,6 +241,39 @@ export default function GamePlayPage() {
       playSfx('incorrect');
     }
   }, [session?.mode, player?.lastEvent]);
+
+  // Show in-game feedback (correct/incorrect) for 1s with 0.3s fade in/out; only for non–word-heist
+  useEffect(() => {
+    if (!player?.lastEvent || session?.mode === 'word-heist') return;
+    if (player.lastEvent === lastEventRef.current) return;
+    lastEventRef.current = player.lastEvent;
+    if (displayedEventTimeoutRef.current) {
+      clearTimeout(displayedEventTimeoutRef.current);
+      displayedEventTimeoutRef.current = null;
+    }
+    setPopupFadeIn(false);
+    setDisplayedEvent({
+      text: player.lastEvent,
+      tone: player.lastEventTone,
+      fadingOut: false,
+    });
+    const fadeInId = setTimeout(() => setPopupFadeIn(true), 10);
+    displayedEventTimeoutRef.current = setTimeout(() => {
+      setDisplayedEvent((prev) => (prev ? { ...prev, fadingOut: true } : null));
+      displayedEventTimeoutRef.current = setTimeout(() => {
+        setDisplayedEvent(null);
+        setPopupFadeIn(false);
+        displayedEventTimeoutRef.current = null;
+      }, 300);
+    }, 1000);
+    return () => {
+      clearTimeout(fadeInId);
+      if (displayedEventTimeoutRef.current) {
+        clearTimeout(displayedEventTimeoutRef.current);
+        displayedEventTimeoutRef.current = null;
+      }
+    };
+  }, [player?.lastEvent, player?.lastEventTone, session?.mode]);
 
   const handleBank = () => {
     if (!playerId) return;
@@ -300,22 +358,46 @@ export default function GamePlayPage() {
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-6">
             <p className="text-white/70 text-sm mb-3">Your Answer</p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                disabled={session.status !== 'playing' || player?.pendingDecision || hasAnswered}
-                className="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white disabled:opacity-60"
-                placeholder="Type your answer"
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={session.status !== 'playing' || player?.pendingDecision || hasAnswered}
-                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold disabled:opacity-50"
-              >
-                Submit
-              </button>
-            </div>
+            {isQuizRound && quizOptions.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {quizOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => handleQuizOption(option)}
+                    disabled={session.status !== 'playing' || player?.pendingDecision || hasAnswered}
+                    className="px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white text-left font-medium hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (answer.trim() && session.status === 'playing' && !player?.pendingDecision && !hasAnswered) {
+                        handleSubmit();
+                      }
+                    }
+                  }}
+                  disabled={session.status !== 'playing' || player?.pendingDecision || hasAnswered}
+                  className="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white disabled:opacity-60"
+                  placeholder="Type your answer"
+                />
+                <button
+                  onClick={handleSubmit}
+                  disabled={session.status !== 'playing' || player?.pendingDecision || hasAnswered}
+                  className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold disabled:opacity-50"
+                >
+                  Submit
+                </button>
+              </div>
+            )}
             {hasAnswered && session.mode !== 'word-heist' && (
               <p className="text-white/60 text-sm mt-2">Answer locked for this round.</p>
             )}
@@ -356,17 +438,18 @@ export default function GamePlayPage() {
               </button>
             )}
           </div>
-          {player?.lastEvent && (
+          {displayedEvent && (
             <div
-              className={`rounded-xl p-4 border ${
-                player.lastEventTone === 'positive'
+              className={`rounded-xl p-4 border transition-opacity duration-300 ${
+                displayedEvent.tone === 'positive'
                   ? 'text-emerald-100 bg-emerald-500/15 border-emerald-400/30'
-                  : player.lastEventTone === 'negative'
+                  : displayedEvent.tone === 'negative'
                     ? 'text-rose-100 bg-rose-500/15 border-rose-400/30'
                     : 'text-white/80 bg-white/5 border-white/10'
-              }`}
+              } ${displayedEvent.fadingOut ? 'opacity-0' : popupFadeIn ? 'opacity-100' : 'opacity-0'}`}
+              style={{ transitionDuration: '0.3s' }}
             >
-              {player.lastEvent}
+              {displayedEvent.text}
             </div>
           )}
         </div>

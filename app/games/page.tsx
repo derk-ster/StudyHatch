@@ -21,7 +21,7 @@ import {
 } from '@/lib/games/session-store';
 import { backupDecks, getAllDecks, getClassesForSchool, getClassesForStudent, getSchoolForUser, getStudentsForClass, getDeckById, restoreDecksFromBackup } from '@/lib/storage';
 import type { ClassRoom, Deck } from '@/types/vocab';
-import type { DirectionSetting, GameMode } from '@/types/games';
+import type { DirectionSetting, GameMode, QuestionFormat } from '@/types/games';
 import { WORD_HEIST_MODE } from '@/lib/games/engines/word-heist';
 import { LIGHTNING_LADDER_MODE } from '@/lib/games/engines/lightning-ladder';
 import { SURVIVAL_SPRINT_MODE } from '@/lib/games/engines/survival-sprint';
@@ -38,6 +38,7 @@ export default function GamesPage() {
   const [hostMode, setHostMode] = useState<GameMode>('word-heist');
   const [direction, setDirection] = useState<DirectionSetting>('en-to-target');
   const [timePerQuestion, setTimePerQuestion] = useState<number>(20);
+  const [questionFormat, setQuestionFormat] = useState<QuestionFormat>('text');
   const [maxPlayers, setMaxPlayers] = useState<string>('');
   const [gameDurationMinutes, setGameDurationMinutes] = useState<string>('');
   const [classroomOnly, setClassroomOnly] = useState(false);
@@ -186,6 +187,7 @@ export default function GamesPage() {
           settings: {
             direction,
             timePerQuestion,
+            questionFormat,
             maxPlayers: maxPlayers ? Number(maxPlayers) : null,
             gameDurationMinutes: gameDurationMinutes ? Number(gameDurationMinutes) : null,
             classroomOnly,
@@ -405,6 +407,31 @@ export default function GamesPage() {
                   >
                     <div className="font-semibold">{mode.name}</div>
                     <div className="text-xs text-white/60">{mode.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-white/70 text-sm">Answer format</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[
+                  { id: 'text' as const, label: 'Type answer', desc: 'Players type the translation' },
+                  { id: 'quiz' as const, label: 'Multiple choice', desc: 'Players pick from 4 options' },
+                  { id: 'mix' as const, label: 'Mix', desc: 'Random quiz or type each round' },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setQuestionFormat(opt.id)}
+                    className={`text-left px-4 py-2 rounded-lg border transition-all ${
+                      questionFormat === opt.id
+                        ? 'bg-purple-600/40 border-purple-400/60 text-white'
+                        : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="font-medium block">{opt.label}</span>
+                    <span className="text-xs opacity-80">{opt.desc}</span>
                   </button>
                 ))}
               </div>
