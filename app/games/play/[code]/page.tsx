@@ -175,7 +175,7 @@ export default function GamePlayPage() {
   }, [session, player, effectiveIndex]);
 
   const isQuizRound = useMemo(() => {
-    if (!session || session.mode === 'word-heist' || !currentCard) return false;
+    if (!session || !currentCard) return false;
     const format = (session.settings && 'questionFormat' in session.settings)
       ? (session.settings.questionFormat ?? 'text')
       : 'text';
@@ -558,7 +558,7 @@ export default function GamePlayPage() {
       </div>
 
       {leaderboardOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60" onClick={() => setLeaderboardOpen(false)}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-transparent" onClick={() => setLeaderboardOpen(false)}>
           <div className="bg-gray-900 border border-white/20 rounded-2xl p-6 max-w-md w-full shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-white">Leaderboard</h2>
