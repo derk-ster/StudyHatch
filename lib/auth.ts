@@ -275,7 +275,13 @@ export function getCurrentSession(): AuthSession | null {
   if (typeof window === 'undefined') return null;
   
   try {
-    const stored = sessionStorage.getItem(CURRENT_SESSION_KEY) || localStorage.getItem(LAST_SESSION_KEY);
+    let stored = sessionStorage.getItem(CURRENT_SESSION_KEY);
+    if (!stored) {
+      stored = localStorage.getItem(LAST_SESSION_KEY);
+      if (stored) {
+        sessionStorage.setItem(CURRENT_SESSION_KEY, stored);
+      }
+    }
     if (stored) {
       const session = JSON.parse(stored) as AuthSession;
       if (session?.userId) {
