@@ -87,8 +87,13 @@ export default function PublicDecksPage() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        const newEntry: Deck = { ...payload, visibility: 'public' };
+        setPublicDecks(prev => {
+          const filtered = prev.filter(d => d.id !== newEntry.id);
+          return [...filtered, newEntry];
+        });
         await fetchPublicDecks();
-        setMessage('Deck published to Public Decks. It will appear on all your devices.');
+        setMessage('Deck published to Public Decks.');
         setError('');
       } else {
         setError('Failed to publish to server. Try again.');

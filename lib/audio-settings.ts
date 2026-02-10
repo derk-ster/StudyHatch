@@ -19,7 +19,7 @@ const STORAGE_KEY = 'studyhatch_audio_settings';
 const clampVolume = (value: number) => Math.max(0, Math.min(1, value));
 
 const defaultSettings: AudioSettings = {
-  homeMusic: { muted: false, volume: 0.35 },
+  homeMusic: { muted: true, volume: 0.35 },
   gameMusic: { muted: false, volume: 0.35 },
   correctSfx: { muted: false, volume: 0.6 },
   incorrectSfx: { muted: false, volume: 0.6 },
