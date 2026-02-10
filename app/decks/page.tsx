@@ -71,8 +71,13 @@ export default function ViewDecksPage() {
   const [isDragging, setIsDragging] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [shareDecksOpen, setShareDecksOpen] = useState(false);
+  const [shareDecksSearch, setShareDecksSearch] = useState('');
   const [shareLinkCopiedForDeck, setShareLinkCopiedForDeck] = useState<string | null>(null);
   const shareDecksPopupRef = useScrollPopupIntoView(shareDecksOpen);
+
+  useEffect(() => {
+    if (!shareDecksOpen) setShareDecksSearch('');
+  }, [shareDecksOpen]);
 
   useEffect(() => {
     const allDecks = getAllDecks();
@@ -146,6 +151,13 @@ export default function ViewDecksPage() {
   };
 
   const decksToShare = visiblePersonalDecks.filter(d => d.ownerUserId === session?.userId);
+  const shareDecksFiltered = shareDecksSearch.trim()
+    ? decksToShare.filter(
+        d =>
+          d.name.toLowerCase().includes(shareDecksSearch.trim().toLowerCase()) ||
+          (d.description ?? '').toLowerCase().includes(shareDecksSearch.trim().toLowerCase())
+      )
+    : decksToShare;
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString();
@@ -303,8 +315,8 @@ export default function ViewDecksPage() {
           </Link>
         </div>
 
-        {/* Secondary Links */}
-        <div className="mb-8 flex flex-col sm:flex-row justify-center gap-3">
+        {/* Secondary Links - relative z-10 so dropdown paints above deck grid (avoids backdrop-blur covering it) */}
+        <div className="relative z-10 mb-8 flex flex-col sm:flex-row justify-center gap-3">
           <Link
             href="/classrooms"
             className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-sm font-medium transition-all text-center"
@@ -582,11 +594,22 @@ export default function ViewDecksPage() {
               <p className="text-white/60 text-sm mb-4">
                 Copy a link to share a deck with specific people (e.g. paste in Google Slides or email). To share with a whole class, use &quot;Publish to Classroom&quot; on each deck card.
               </p>
+              {decksToShare.length > 0 && (
+                <input
+                  type="text"
+                  value={shareDecksSearch}
+                  onChange={e => setShareDecksSearch(e.target.value)}
+                  placeholder="Search decks by name or description..."
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-sm mb-3"
+                />
+              )}
               {decksToShare.length === 0 ? (
                 <p className="text-white/50 text-sm">You don’t have any decks to share yet. Create a deck first.</p>
+              ) : shareDecksFiltered.length === 0 ? (
+                <p className="text-white/50 text-sm">No decks match your search.</p>
               ) : (
                 <ul className="space-y-3 overflow-y-auto flex-1 min-h-0">
-                  {decksToShare.map(deck => (
+                  {shareDecksFiltered.map(deck => (
                     <li key={deck.id} className="flex items-center justify-between gap-3 bg-white/5 rounded-lg p-3 border border-white/10">
                       <div className="min-w-0 flex-1">
                         <p className="text-white/90 font-medium truncate">{deck.name}</p>
