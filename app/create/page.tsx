@@ -13,6 +13,7 @@ import { ClassRoom } from '@/types/vocab';
 import { checkClientRateLimit, recordClientRateLimit } from '@/lib/client-rate-limit';
 import { sanitizeText } from '@/lib/sanitize';
 import { recordStudentActivityForClasses } from '@/lib/activity-log';
+import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function CreateDeckPage() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function CreateDeckPage() {
   const selectedLanguage = getLanguageByCode(targetLanguage);
   const dailyUsage = getDailyUsage();
   const presetClassId = searchParams.get('classId');
+  const errorPopupRef = useScrollPopupIntoView(!!error);
 
   useEffect(() => {
     if (session?.role !== 'teacher' || !session.userId) return;
@@ -357,7 +359,7 @@ export default function CreateDeckPage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg animate-fade-in">
+            <div ref={errorPopupRef} className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg animate-fade-in">
               <p className="text-red-400 font-medium">{error}</p>
             </div>
           )}

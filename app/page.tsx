@@ -359,11 +359,11 @@ export default function Home() {
           >
             Public Decks
           </Link>
-          <details className="relative z-[100]">
+          <details className="relative z-10">
             <summary className="px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-100 text-sm font-medium transition-all text-center cursor-pointer list-none inline-flex items-center justify-center hover-lift-only [&::-webkit-details-marker]:hidden">
               Leaderboards
             </summary>
-            <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-[100]">
+            <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-[200]">
               <Link
                 href="/leaderboards?scope=public"
                 className="block px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10 transition-all"

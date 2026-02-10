@@ -317,11 +317,11 @@ export default function ViewDecksPage() {
           >
             Public Decks
           </Link>
-          <details className="relative z-[100]">
+          <details className="relative z-10">
             <summary className="px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-100 text-sm font-medium transition-all text-center cursor-pointer list-none inline-flex items-center justify-center hover-lift-only [&::-webkit-details-marker]:hidden">
               Leaderboards
             </summary>
-            <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-[100]">
+            <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-[200]">
               <Link
                 href="/leaderboards?scope=public"
                 className="block px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10 transition-all"
@@ -339,7 +339,7 @@ export default function ViewDecksPage() {
           <button
             type="button"
             onClick={() => setShareDecksOpen(true)}
-            className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-sm font-medium transition-all text-center"
+            className="px-4 py-2 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-100 text-sm font-medium transition-all text-center"
           >
             Share Decks
           </button>
@@ -595,7 +595,7 @@ export default function ViewDecksPage() {
                       <button
                         type="button"
                         onClick={() => handleCopyShareLink(deck)}
-                        className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all"
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 text-amber-100 text-sm font-medium transition-all border border-amber-400/40"
                       >
                         {shareLinkCopiedForDeck === deck.id ? '✓ Copied!' : 'Copy share link'}
                       </button>
