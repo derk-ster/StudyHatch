@@ -294,7 +294,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       )}
 
       {showIosHelp && (
-        <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[10000] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
           <div ref={iosHelpPopupRef} className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
             <div className="text-lg font-semibold mb-2">Install StudyHatch on iOS</div>
             <div className="text-sm text-white/70 mb-4">
@@ -311,7 +311,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       )}
 
       {showBrowserInstallHelp && (
-        <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[10000] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
           <div ref={browserInstallHelpPopupRef} className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
             <div className="text-lg font-semibold mb-2">Install StudyHatch</div>
             <div className="text-sm text-white/70 mb-4">
@@ -329,7 +329,7 @@ export default function PWAProvider({ children }: { children: React.ReactNode })
       )}
 
       {updateAvailable && isInstalled && (
-        <div className="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[10000] bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
           <div ref={updateAvailablePopupRef} className="modal-panel max-w-md rounded-2xl bg-gray-900 border border-white/10 p-4 sm:p-6 animate-slide-up my-auto">
             <div className="text-lg font-semibold mb-2">Update available</div>
             <div className="text-sm text-white/70 mb-4">

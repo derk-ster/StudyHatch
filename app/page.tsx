@@ -516,7 +516,7 @@ export default function Home() {
 
         {/* Share Decks Modal */}
         {shareDecksOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto" onClick={() => setShareDecksOpen(false)}>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000] animate-fade-in overflow-y-auto" onClick={() => setShareDecksOpen(false)}>
             <div ref={shareDecksPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-lg border border-white/20 card-glow animate-slide-up my-auto w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
               <h2 className="text-2xl font-bold mb-2">Share Decks</h2>
               <p className="text-white/60 text-sm mb-4">
@@ -558,7 +558,7 @@ export default function Home() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000] animate-fade-in overflow-y-auto">
             <div ref={deleteConfirmPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-md border border-white/20 card-glow animate-slide-up my-auto">
               <h2 className="text-2xl font-bold mb-4">Delete Deck?</h2>
               <p className="text-white/70 mb-6">

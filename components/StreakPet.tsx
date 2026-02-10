@@ -132,7 +132,7 @@ export function StreakPetWidget() {
 
       {showModal && (
         <div
-          className="fixed inset-0 bg-transparent flex items-center justify-center p-4 pt-[80px] animate-fade-in overflow-y-auto"
+          className="fixed inset-0 z-[10000] bg-transparent flex items-center justify-center p-4 pt-[80px] animate-fade-in overflow-y-auto"
           onClick={() => setShowModal(false)}
           style={{ zIndex: 10000, position: 'fixed' }}
         >

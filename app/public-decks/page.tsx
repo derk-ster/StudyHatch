@@ -304,7 +304,7 @@ export default function PublicDecksPage() {
         </div>
       </main>
       {previewDeck && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[10000] overflow-y-auto">
           <div ref={previewPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 border border-white/20 card-glow my-auto max-w-3xl">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>

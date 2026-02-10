@@ -499,7 +499,7 @@ export default function Nav() {
       {/* Progress Modal - portaled to body so it's not clipped by nav's transform */}
       {typeof document !== 'undefined' && showProgress && createPortal(
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] animate-fade-in overflow-y-auto"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000] animate-fade-in overflow-y-auto"
           onClick={() => setShowProgress(false)}
         >
           <div 

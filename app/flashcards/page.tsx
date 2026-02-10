@@ -657,7 +657,7 @@ export default function FlashcardsPage() {
         {/* Results Modal */}
         {showResults && (
           <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in overflow-y-auto"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000] animate-fade-in overflow-y-auto"
           onClick={() => setShowResults(false)}
           style={{ zIndex: 9999 }}
           >
