@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import { Deck } from '@/types/vocab';
-import { duplicateDeck, getAllDecks, getDailyUsage, getDeckOwnerName, getPublicDecks, getUserLimits, incrementDailyPublicSearches, setDeckVisibility } from '@/lib/storage';
+import { copyDeckToUser, getAllDecks, getDailyUsage, getDeckOwnerName, getPublicDecks, getUserLimits, incrementDailyPublicSearches, setDeckVisibility, syncStoredPublicDecksFromServer } from '@/lib/storage';
 import { useAuth } from '@/lib/auth-context';
 import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
@@ -26,10 +26,26 @@ export default function PublicDecksPage() {
   const visibleDecks = filteredDecks.slice(0, 100);
   const previewPopupRef = useScrollPopupIntoView(!!previewDeck);
 
+  const fetchPublicDecks = async () => {
+    try {
+      const res = await fetch('/api/public-decks');
+      if (res.ok) {
+        const decks = (await res.json()) as Deck[];
+        if (Array.isArray(decks)) {
+          syncStoredPublicDecksFromServer(decks);
+          setPublicDecks(decks);
+          return;
+        }
+      }
+    } catch {
+      // fallback to local
+    }
+    const local = getPublicDecks();
+    setPublicDecks(local);
+  };
+
   useEffect(() => {
-    const decks = getPublicDecks();
-    setPublicDecks(decks);
-    setFilteredDecks(decks);
+    fetchPublicDecks();
     const allDecks = getAllDecks();
     const owned = session?.userId ? allDecks.filter(deck => deck.ownerUserId === session.userId) : allDecks.filter(deck => !deck.ownerUserId);
     setMyDecks(owned);
@@ -37,27 +53,48 @@ export default function PublicDecksPage() {
     setDailyUsage(getDailyUsage());
   }, [session?.userId]);
 
-  const handleCopyDeck = (deckId: string) => {
-    const copied = duplicateDeck(deckId, session?.userId);
-    if (copied) {
-      setMessage(`Copied "${copied.name}" to My Decks.`);
-      setError('');
-    }
+  useEffect(() => {
+    setFilteredDecks(filterDecks(publicDecks, query, showMyPublished));
+  }, [publicDecks, query, showMyPublished]);
+
+  const handleCopyDeck = (deck: Deck) => {
+    const copied = copyDeckToUser(deck, session?.userId);
+    setMessage(`Copied "${copied.name}" to My Decks.`);
+    setError('');
   };
 
-  const handlePublicUpload = () => {
+  const handlePublicUpload = async () => {
     if (!selectedDeckId) {
       setError('Select a deck to publish.');
       setMessage('');
       return;
     }
-    const updated = setDeckVisibility(selectedDeckId, 'public');
-    if (updated) {
-      const decks = getPublicDecks();
-      setPublicDecks(decks);
-      setFilteredDecks(decks);
-      setMessage('Deck published to Public Decks.');
-      setError('');
+    const deck = getAllDecks().find(d => d.id === selectedDeckId);
+    if (!deck) {
+      setError('Deck not found.');
+      return;
+    }
+    setDeckVisibility(selectedDeckId, 'public');
+    const payload = {
+      ...deck,
+      visibility: 'public' as const,
+      ownerUsername: session?.username ?? undefined,
+    };
+    try {
+      const res = await fetch('/api/public-decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await fetchPublicDecks();
+        setMessage('Deck published to Public Decks. It will appear on all your devices.');
+        setError('');
+      } else {
+        setError('Failed to publish to server. Try again.');
+      }
+    } catch {
+      setError('Failed to publish to server. Try again.');
     }
   };
 
@@ -87,9 +124,7 @@ export default function PublicDecksPage() {
   };
 
   const refreshDecks = () => {
-    const decks = getPublicDecks();
-    setPublicDecks(decks);
-    setFilteredDecks(filterDecks(decks, query, showMyPublished));
+    fetchPublicDecks();
   };
 
   const handleSearch = () => {
@@ -114,19 +149,17 @@ export default function PublicDecksPage() {
     }
   };
 
-  const handleRemovePublished = (deckId: string) => {
-    const updated = setDeckVisibility(deckId, 'private');
-    if (updated) {
-      refreshDecks();
-      setMessage('Deck removed from Public Decks.');
-      setError('');
+  const handleRemovePublished = async (deckId: string) => {
+    setDeckVisibility(deckId, 'private');
+    try {
+      await fetch(`/api/public-decks?deckId=${encodeURIComponent(deckId)}`, { method: 'DELETE' });
+    } catch {
+      // still refresh local list
     }
+    await fetchPublicDecks();
+    setMessage('Deck removed from Public Decks.');
+    setError('');
   };
-
-  useEffect(() => {
-    if (query.trim()) return;
-    setFilteredDecks(filterDecks(publicDecks, '', showMyPublished));
-  }, [publicDecks, query, showMyPublished]);
 
   return (
     <div className="min-h-screen bg-noise">
@@ -253,7 +286,7 @@ export default function PublicDecksPage() {
                       View Translations
                     </button>
                     <button
-                      onClick={() => handleCopyDeck(deck.id)}
+                      onClick={() => handleCopyDeck(deck)}
                       className="px-3 py-2 rounded-lg text-sm font-medium transition-all bg-white/10 hover:bg-white/20"
                     >
                       Copy to My Decks

@@ -18,6 +18,13 @@ This document lists all environment variables used in the StudyHatch application
 
 ## Optional (App works without these)
 
+### Public Decks (cross-device sync)
+**For the Public Decks library to show the same decks on all your devices (PC, phone, Chromebook):**
+- `REDIS_URL` - Redis connection URL (e.g. from Upstash, Redis Cloud, or your own Redis)
+  - **Required for cross-device**: Yes, if you want public decks to sync across devices
+  - **Default**: None (without it, public decks are stored per-device in browser storage only)
+  - **Note**: Same variable is used by the games API when set
+
 ### Translation API
 **For real-time translations (app works with free APIs if not set):**
 - `DEEPL_API_KEY` - DeepL API key (recommended for high-quality translations)

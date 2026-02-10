@@ -9,6 +9,7 @@ import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { StreakPetWidget } from '@/components/StreakPet';
 import { getAllDecks, deleteDeck, getUserLimits, getOwnedClassrooms, getPublishedDecksForDeck, publishDeckToClassroom, getClassesForStudent, getClassDeckIdsForStudent, getActiveClassDecks, reorderDecksByIds } from '@/lib/storage';
+import { buildShareDeckUrl } from '@/lib/share-deck';
 import { Deck, ActivityType, Classroom } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
 import { getDeckXP } from '@/lib/xp';
@@ -69,6 +70,9 @@ export default function ViewDecksPage() {
   const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const [shareDecksOpen, setShareDecksOpen] = useState(false);
+  const [shareLinkCopiedForDeck, setShareLinkCopiedForDeck] = useState<string | null>(null);
+  const shareDecksPopupRef = useScrollPopupIntoView(shareDecksOpen);
 
   useEffect(() => {
     const allDecks = getAllDecks();
@@ -129,6 +133,19 @@ export default function ViewDecksPage() {
     params.set('deck', deckId);
     return `/${activity}?${params.toString()}`;
   };
+
+  const handleCopyShareLink = async (deck: Deck) => {
+    const url = buildShareDeckUrl(deck);
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareLinkCopiedForDeck(deck.id);
+      setTimeout(() => setShareLinkCopiedForDeck(null), 2000);
+    } catch {
+      setShareLinkCopiedForDeck(null);
+    }
+  };
+
+  const decksToShare = visiblePersonalDecks.filter(d => d.ownerUserId === session?.userId);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString();
@@ -319,6 +336,13 @@ export default function ViewDecksPage() {
               </Link>
             </div>
           </details>
+          <button
+            type="button"
+            onClick={() => setShareDecksOpen(true)}
+            className="px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-100 text-sm font-medium transition-all text-center"
+          >
+            Share Decks
+          </button>
         </div>
 
         {/* Limits Info */}
@@ -546,6 +570,48 @@ export default function ViewDecksPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Share Decks Modal */}
+        {shareDecksOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in overflow-y-auto" onClick={() => setShareDecksOpen(false)}>
+            <div ref={shareDecksPopupRef} className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 max-w-lg border border-white/20 card-glow animate-slide-up my-auto w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-2">Share Decks</h2>
+              <p className="text-white/60 text-sm mb-4">
+                Copy a link to share a deck with specific people (e.g. paste in Google Slides or email). To share with a whole class, use &quot;Publish to Classroom&quot; on each deck card.
+              </p>
+              {decksToShare.length === 0 ? (
+                <p className="text-white/50 text-sm">You don’t have any decks to share yet. Create a deck first.</p>
+              ) : (
+                <ul className="space-y-3 overflow-y-auto flex-1 min-h-0">
+                  {decksToShare.map(deck => (
+                    <li key={deck.id} className="flex items-center justify-between gap-3 bg-white/5 rounded-lg p-3 border border-white/10">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white/90 font-medium truncate">{deck.name}</p>
+                        <p className="text-white/50 text-xs">{deck.cards.length} cards</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyShareLink(deck)}
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-all"
+                      >
+                        {shareLinkCopiedForDeck === deck.id ? '✓ Copied!' : 'Copy share link'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-4 pt-4 border-t border-white/10 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShareDecksOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

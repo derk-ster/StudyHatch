@@ -8,6 +8,7 @@ import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { getDeckById, saveDeck, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
+import { getSharePayloadFromHash, decodeAndSaveSharedDeck, buildShareDeckUrl } from '@/lib/share-deck';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
@@ -60,6 +61,34 @@ export default function StudyPage() {
   const [editedCards, setEditedCards] = useState(deck?.cards || []);
   const [saveMessage, setSaveMessage] = useState('');
   const [limitMessage, setLimitMessage] = useState('');
+  const [processingShare, setProcessingShare] = useState(false);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+
+  const handleCopyShareLink = async () => {
+    if (!deck) return;
+    const url = buildShareDeckUrl(deck);
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareLinkCopied(true);
+      setTimeout(() => setShareLinkCopied(false), 2000);
+    } catch {
+      setShareLinkCopied(false);
+    }
+  };
+
+  // When opening a shared link (e.g. from Google Slides), decode deck from hash and save it
+  useEffect(() => {
+    const sharePayload = getSharePayloadFromHash();
+    if (sharePayload) {
+      setProcessingShare(true);
+      const newId = decodeAndSaveSharedDeck(sharePayload);
+      if (newId) {
+        router.replace(`/study?deck=${newId}`);
+        return;
+      }
+    }
+    setProcessingShare(false);
+  }, [router]);
 
   useEffect(() => {
     if (deck) {
@@ -83,13 +112,22 @@ export default function StudyPage() {
         <Nav />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
-            <p className="text-xl text-white/70">Deck not found.</p>
-            <button
-              onClick={() => router.push('/decks')}
-              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
-            >
-              Go to Decks
-            </button>
+            {processingShare ? (
+              <p className="text-xl text-white/70">Opening shared deck…</p>
+            ) : (
+              <>
+                <p className="text-xl text-white/70">Deck not found.</p>
+                <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">
+                  If your teacher shared this link, ask them to use &quot;Copy share link&quot; from the deck (or Share Decks) so you receive the deck when you open the link.
+                </p>
+                <button
+                  onClick={() => router.push('/decks')}
+                  className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+                >
+                  Go to Decks
+                </button>
+              </>
+            )}
           </div>
         </main>
       </div>
@@ -168,13 +206,23 @@ export default function StudyPage() {
           {deck.description && (
             <p className="text-xl text-white/80 mb-4">{deck.description}</p>
           )}
-          <div className="flex items-center justify-center gap-4 text-white/70">
+          <div className="flex flex-wrap items-center justify-center gap-4 text-white/70">
             <span>{deck.cards.length} cards</span>
             <span>•</span>
             <LanguageBadge languageCode={deck.targetLanguage} />
             <span>•</span>
             <span>{targetLanguageName}</span>
+            <button
+              type="button"
+              onClick={handleCopyShareLink}
+              className="ml-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium transition-all"
+            >
+              {shareLinkCopied ? '✓ Link copied!' : 'Copy share link'}
+            </button>
           </div>
+          <p className="text-white/50 text-xs mt-2">
+            Use &quot;Copy share link&quot; to paste in Google Slides or send to students — they’ll get the deck when they open the link.
+          </p>
         </div>
 
         {/* Study Activities Grid */}

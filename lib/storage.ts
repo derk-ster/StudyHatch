@@ -437,7 +437,15 @@ export const getPublicDecks = (): Deck[] => {
   return merged;
 };
 
+/** Sync public decks from server into local storage so getDeckById/Study Now work for API-sourced decks. */
+export const syncStoredPublicDecksFromServer = (decks: Deck[]): void => {
+  if (typeof window === 'undefined' || !Array.isArray(decks)) return;
+  const withVisibility = decks.map(d => ({ ...d, visibility: 'public' as const }));
+  saveStoredPublicDecks(withVisibility);
+};
+
 export const getDeckOwnerName = (deck: Deck): string => {
+  if (deck.ownerUsername) return deck.ownerUsername;
   if (deck.ownerUserId) {
     const user = getUserById(deck.ownerUserId);
     if (user?.username) return user.username;
@@ -448,10 +456,15 @@ export const getDeckOwnerName = (deck: Deck): string => {
 export const duplicateDeck = (deckId: string, ownerUserId?: string): Deck | null => {
   const deck = getDeckById(deckId) || getStoredPublicDecks().find(entry => entry.id === deckId);
   if (!deck) return null;
+  return copyDeckToUser(deck, ownerUserId);
+};
+
+/** Copy a deck object into the current user's library (e.g. from API public decks). */
+export const copyDeckToUser = (deck: Deck, ownerUserId?: string): Deck => {
   const copiedDeck: Deck = {
     ...deck,
     id: `deck-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: `${deck.name} (Copy)`,
+    name: deck.name.endsWith(' (Copy)') ? deck.name : `${deck.name} (Copy)`,
     createdDate: Date.now(),
     visibility: 'private',
     ownerUserId,

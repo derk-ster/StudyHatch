@@ -17,6 +17,8 @@ export type Deck = {
   targetLanguage: string; // Language code (e.g., 'es', 'fr', 'zh')
   visibility?: 'private' | 'public';
   ownerUserId?: string;
+  /** Display name for owner when stored on server (e.g. public decks) so other devices can show it without the user record. */
+  ownerUsername?: string;
   schoolId?: string;
 };
 
