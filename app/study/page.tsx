@@ -244,27 +244,6 @@ export default function StudyPage() {
             ← Back to Decks
           </a>
         </div>
-        {/* Shared deck: Copy to my decks (no auto-save, one time per link) */}
-        {isPreviewMode && (
-          <div className="mb-8 rounded-2xl border-2 border-amber-400/50 bg-amber-500/20 p-6 text-center">
-            {sharedPayload && hasUserCopiedDeck(getSharePayloadStableId(sharedPayload)) ? (
-              <p className="text-lg text-amber-100">You’ve already copied this deck to your decks.</p>
-            ) : (
-              <>
-                <p className="text-lg text-amber-100 mb-3">This deck was shared with you. Copy it to your decks to save and practice.</p>
-                <button
-                  type="button"
-                  onClick={handleCopyToMyDecks}
-                  disabled={copyingToDecks}
-                  className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                  {copyingToDecks ? 'Copying…' : 'Copy to my decks'}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
         {/* Header */}
         <div className="text-center mb-12" data-reveal>
           <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
@@ -413,25 +392,47 @@ export default function StudyPage() {
         )}
 
         {/* Back to Decks + Copy to my deck (for shared decks) */}
-        <div className="mt-12 text-center flex flex-wrap items-center justify-center gap-4">
-          <a
-            href={homeHref}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white inline-block"
-          >
-            ← Back to Decks
-          </a>
-          {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && !hasUserCopiedDeck(displayDeck.id) && (
-            <button
-              type="button"
-              onClick={handleCopySharedToMyDeck}
-              disabled={copyingToDeck}
-              className="px-6 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+        <div className="mt-12 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <a
+              href={homeHref}
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white inline-block"
             >
-              {copyingToDeck ? 'Copying…' : 'Copy to my deck'}
-            </button>
-          )}
-          {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && hasUserCopiedDeck(displayDeck.id) && (
-            <span className="text-white/60 text-sm">Already in your decks</span>
+              ← Back to Decks
+            </a>
+            {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && !hasUserCopiedDeck(displayDeck.id) && (
+              <button
+                type="button"
+                onClick={handleCopySharedToMyDeck}
+                disabled={copyingToDeck}
+                className="px-6 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {copyingToDeck ? 'Copying…' : 'Copy to my deck'}
+              </button>
+            )}
+            {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && hasUserCopiedDeck(displayDeck.id) && (
+              <span className="text-white/60 text-sm">Already in your decks</span>
+            )}
+          </div>
+          {/* Shared deck (preview): Copy to my decks — below Back to Decks */}
+          {isPreviewMode && (
+            <div className="mt-6 rounded-2xl border-2 border-amber-400/50 bg-amber-500/20 p-6 text-center">
+              {sharedPayload && hasUserCopiedDeck(getSharePayloadStableId(sharedPayload)) ? (
+                <p className="text-lg text-amber-100">You’ve already copied this deck to your decks.</p>
+              ) : (
+                <>
+                  <p className="text-lg text-amber-100 mb-3">This deck was shared with you. Copy it to your decks to save and practice.</p>
+                  <button
+                    type="button"
+                    onClick={handleCopyToMyDecks}
+                    disabled={copyingToDecks}
+                    className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {copyingToDecks ? 'Copying…' : 'Copy to my decks'}
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
       </main>
