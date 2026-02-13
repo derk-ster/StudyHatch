@@ -5,7 +5,7 @@ const SHARE_HASH_PREFIX = 'share=';
 
 /**
  * Encode a deck for use in a share URL (hash fragment).
- * Decoded deck will be saved with a new id when opened by the recipient.
+ * Recipients see a preview and must click "Copy to my decks" to save — no auto-save on open.
  */
 export function encodeDeckForShare(deck: Deck): string {
   const payload: Omit<Deck, 'id'> & { id?: string } = {
@@ -49,7 +49,7 @@ export function decodeSharePayload(encoded: string): Deck | null {
 
 /**
  * Decode a share payload, save the deck with a new id, and return the new deck id.
- * Call this when the user clicks "Copy to my decks".
+ * Only call this from a user click handler (e.g. "Copy to my decks"). Never call from useEffect or on load.
  */
 export function decodeAndSaveSharedDeck(encoded: string): string | null {
   if (typeof window === 'undefined' || !encoded) return null;
@@ -73,6 +73,16 @@ export function decodeAndSaveSharedDeck(encoded: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Stable id for a share payload so we can track "already copied" per link (one copy per student). */
+export function getSharePayloadStableId(payload: string): string {
+  if (!payload) return '';
+  let h = 0;
+  for (let i = 0; i < payload.length; i++) {
+    h = ((h << 5) - h + payload.charCodeAt(i)) | 0;
+  }
+  return `share-${Math.abs(h).toString(36)}`;
 }
 
 /**

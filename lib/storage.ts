@@ -63,6 +63,44 @@ const getProgressStorageKey = (): string => {
   return STORAGE_KEY;
 };
 
+const COPIED_SOURCES_KEY = 'studyhatch-copied-source-deck-ids';
+
+const getCopiedSourcesStorageKey = (): string => {
+  if (typeof window === 'undefined') return COPIED_SOURCES_KEY;
+  const session = getCurrentSession();
+  if (session?.userId) {
+    return `${COPIED_SOURCES_KEY}-${session.userId}`;
+  }
+  return COPIED_SOURCES_KEY;
+};
+
+/** Deck IDs (shared deck sources) this user has already copied to their decks. One copy per source allowed. */
+export const getCopiedSourceDeckIds = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(getCopiedSourcesStorageKey());
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const hasUserCopiedDeck = (sourceDeckId: string): boolean =>
+  getCopiedSourceDeckIds().includes(sourceDeckId);
+
+export const markDeckAsCopiedByUser = (sourceDeckId: string): void => {
+  if (typeof window === 'undefined' || !sourceDeckId) return;
+  try {
+    const ids = getCopiedSourceDeckIds();
+    if (ids.includes(sourceDeckId)) return;
+    localStorage.setItem(getCopiedSourcesStorageKey(), JSON.stringify([...ids, sourceDeckId]));
+  } catch {
+    // ignore
+  }
+};
+
 export const backupDecks = (): void => {
   if (typeof window === 'undefined') return;
   const decks = getAllDecks();

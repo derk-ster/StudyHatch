@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
@@ -16,7 +17,6 @@ import { addXP, XP_REWARDS } from '@/lib/xp';
 
 export default function ScramblePage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [scrambledWord, setScrambledWord] = useState('');
   const [userInput, setUserInput] = useState('');
@@ -180,12 +180,12 @@ export default function ScramblePage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Deck not found.</p>
-            <button
-              onClick={() => router.push('/')}
-              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+            <Link
+              href="/"
+              className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
             >
               Go Home
-            </button>
+            </Link>
           </div>
         </main>
       </div>

@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
@@ -17,7 +18,6 @@ import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 export default function FlashcardsPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showTranslationFirst, setShowTranslationFirst] = useState(() => {
@@ -408,12 +408,12 @@ export default function FlashcardsPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">No cards found. Try adjusting your filters.</p>
-            <button
-              onClick={() => router.push('/')}
-              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+            <Link
+              href="/"
+              className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
             >
               Go Home
-            </button>
+            </Link>
           </div>
         </main>
       </div>
@@ -432,19 +432,13 @@ export default function FlashcardsPage() {
               <p className="text-white/70">Card {currentIndex + 1} of {filteredCards.length}</p>
               {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
             </div>
-            <button
-              onClick={() => {
-                if (deckId) {
-                  router.push(`/study?deck=${deckId}`);
-                } else {
-                  router.push('/');
-                }
-              }}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium"
+            <Link
+              href={deckId ? `/study?deck=${deckId}` : '/'}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block"
               style={{ position: 'relative', zIndex: 10 }}
             >
               ← Back to Activities
-            </button>
+            </Link>
           </div>
           <div className="flex flex-wrap gap-4 items-center relative z-10">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -757,12 +751,12 @@ export default function FlashcardsPage() {
               >
                 Study Again
               </button>
-              <button
-                onClick={() => router.push('/')}
-                className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
+              <Link
+                href="/"
+                className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium text-center"
               >
                 Home
-              </button>
+              </Link>
             </div>
           </div>
         </div>

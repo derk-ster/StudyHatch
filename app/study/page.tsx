@@ -7,8 +7,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave, copyDeckToUser } from '@/lib/storage';
-import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl } from '@/lib/share-deck';
+import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave, copyDeckToUser, hasUserCopiedDeck, markDeckAsCopiedByUser, getAllDecks } from '@/lib/storage';
+import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl, getSharePayloadStableId } from '@/lib/share-deck';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
@@ -67,7 +67,7 @@ export default function StudyPage() {
   const [copyingToDecks, setCopyingToDecks] = useState(false);
   const [copyingToDeck, setCopyingToDeck] = useState(false);
 
-  // Decode share link for preview (no auto-save). User can choose "Copy to my decks".
+  // Decode share link for preview only. Do NOT save here — save only when user clicks "Copy to my decks".
   const shareHash =
     typeof window !== 'undefined' ? window.location.hash : '';
   useEffect(() => {
@@ -76,6 +76,7 @@ export default function StudyPage() {
       setSharedPayload(payload);
       const preview = decodeSharePayload(payload);
       setSharedPreviewDeck(preview ?? null);
+      // Never call decodeAndSaveSharedDeck or saveDeck here — prevents auto-duplicate.
     } else {
       setSharedPayload(null);
       setSharedPreviewDeck(null);
@@ -85,9 +86,25 @@ export default function StudyPage() {
   const handleCopyToMyDecks = () => {
     if (!sharedPayload) return;
     setCopyingToDecks(true);
+    const preview = decodeSharePayload(sharedPayload);
+    if (preview) {
+      const existing = getAllDecks().find(
+        (d) =>
+          d.name === preview.name &&
+          d.cards.length === preview.cards.length &&
+          (d.ownerUserId === session?.userId || (!d.ownerUserId && !session?.userId))
+      );
+      if (existing) {
+        markDeckAsCopiedByUser(getSharePayloadStableId(sharedPayload));
+        setCopyingToDecks(false);
+        router.replace(`/study?deck=${existing.id}`);
+        return;
+      }
+    }
     const newId = decodeAndSaveSharedDeck(sharedPayload);
     setCopyingToDecks(false);
     if (newId) {
+      markDeckAsCopiedByUser(getSharePayloadStableId(sharedPayload));
       router.replace(`/study?deck=${newId}`);
     }
   };
@@ -97,6 +114,7 @@ export default function StudyPage() {
     if (!displayDeck || displayDeck.id === 'shared-preview' || isPreviewMode) return;
     setCopyingToDeck(true);
     const copied = copyDeckToUser(displayDeck, session?.userId);
+    markDeckAsCopiedByUser(displayDeck.id);
     setCopyingToDeck(false);
     router.replace(`/study?deck=${copied.id}`);
   };
@@ -141,12 +159,12 @@ export default function StudyPage() {
             <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">
               If your teacher shared this link, ask them to use &quot;Copy share link&quot; from the deck (or Share Decks) so you receive the deck when you open the link.
             </p>
-            <button
-              onClick={() => router.push('/decks')}
-              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+            <Link
+              href="/"
+              className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
             >
               Go to Decks
-            </button>
+            </Link>
           </div>
         </main>
       </div>
@@ -208,18 +226,24 @@ export default function StudyPage() {
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-6xl mx-auto px-4 py-12">
-        {/* Shared deck: Copy to my decks (no auto-save) */}
+        {/* Shared deck: Copy to my decks (no auto-save, one time per link) */}
         {isPreviewMode && (
           <div className="mb-8 rounded-2xl border-2 border-amber-400/50 bg-amber-500/20 p-6 text-center">
-            <p className="text-lg text-amber-100 mb-3">This deck was shared with you. Copy it to your decks to save and practice.</p>
-            <button
-              type="button"
-              onClick={handleCopyToMyDecks}
-              disabled={copyingToDecks}
-              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {copyingToDecks ? 'Copying…' : 'Copy to my decks'}
-            </button>
+            {sharedPayload && hasUserCopiedDeck(getSharePayloadStableId(sharedPayload)) ? (
+              <p className="text-lg text-amber-100">You’ve already copied this deck to your decks.</p>
+            ) : (
+              <>
+                <p className="text-lg text-amber-100 mb-3">This deck was shared with you. Copy it to your decks to save and practice.</p>
+                <button
+                  type="button"
+                  onClick={handleCopyToMyDecks}
+                  disabled={copyingToDecks}
+                  className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {copyingToDecks ? 'Copying…' : 'Copy to my decks'}
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -373,13 +397,13 @@ export default function StudyPage() {
 
         {/* Back to Decks + Copy to my deck (for shared decks) */}
         <div className="mt-12 text-center flex flex-wrap items-center justify-center gap-4">
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white"
+          <Link
+            href="/"
+            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white inline-block"
           >
             ← Back to Decks
-          </button>
-          {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && (
+          </Link>
+          {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && !hasUserCopiedDeck(displayDeck.id) && (
             <button
               type="button"
               onClick={handleCopySharedToMyDeck}
@@ -388,6 +412,9 @@ export default function StudyPage() {
             >
               {copyingToDeck ? 'Copying…' : 'Copy to my deck'}
             </button>
+          )}
+          {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && hasUserCopiedDeck(displayDeck.id) && (
+            <span className="text-white/60 text-sm">Already in your decks</span>
           )}
         </div>
       </main>

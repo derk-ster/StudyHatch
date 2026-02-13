@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
@@ -25,7 +26,6 @@ type CardState = {
 
 export default function MatchPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [spanishCards, setSpanishCards] = useState<CardState[]>([]);
   const [englishCards, setEnglishCards] = useState<CardState[]>([]);
   const [selectedSpanish, setSelectedSpanish] = useState<string | null>(null);
@@ -236,12 +236,12 @@ export default function MatchPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Deck not found.</p>
-            <button
-              onClick={() => router.push('/')}
-              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+            <Link
+              href="/"
+              className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
             >
               Go Home
-            </button>
+            </Link>
           </div>
         </main>
       </div>
@@ -299,12 +299,12 @@ export default function MatchPage() {
                   >
                     Play Again
                   </button>
-                  <button
-                    onClick={() => router.push('/')}
-                    className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                  <Link
+                    href="/"
+                    className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-center"
                   >
                     Home
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
