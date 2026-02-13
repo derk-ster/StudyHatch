@@ -12,6 +12,12 @@ import { isSchoolModeEnabled } from '@/lib/school-mode';
 import { RESOURCES } from '@/app/resources/resources';
 import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
+// Full-page home URL so nav "Home" / logo always work (avoids client router + hash issues on /study)
+const homeHref = (() => {
+  const bp = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
+  return bp ? (bp.endsWith('/') ? bp : bp + '/') : '/';
+})();
+
 export default function Nav() {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const pathname = usePathname();
@@ -209,8 +215,8 @@ export default function Nav() {
             className="flex items-center justify-between h-16 min-w-max gap-4" 
             style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
           >
-            <Link 
-              href="/" 
+            <a 
+              href={homeHref} 
               className="flex items-center gap-2 min-w-0"
               style={{ 
                 position: 'relative', 
@@ -230,7 +236,7 @@ export default function Nav() {
               <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 whitespace-nowrap">
                 StudyHatch
               </span>
-            </Link>
+            </a>
 
             {isResourcesRoute ? (
               <div className="flex items-center flex-1">
@@ -261,23 +267,23 @@ export default function Nav() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Link
-                    href="/"
+                  <a
+                    href={homeHref}
                     className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
                   >
                     Home
-                  </Link>
+                  </a>
                 </div>
               </div>
             ) : !session ? (
               <div className="flex items-center gap-3">
                 {shouldShowGoBack && (
-                  <Link
-                    href="/"
+                  <a
+                    href={homeHref}
                     className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
                   >
                     ← Go Back
-                  </Link>
+                  </a>
                 )}
                 <Link
                   href="/games"
@@ -331,14 +337,14 @@ export default function Nav() {
                     </div>
                   )}
 
-                  {/* Home Link */}
-                  <Link
-                    href="/"
+                  {/* Home Link — native anchor so it works from /study#share=... */}
+                  <a
+                    href={homeHref}
                     className={`px-4 py-1 rounded-lg transition-colors inline-block text-sm relative z-10 ${
                       pathname === '/' ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
                     }`}
                     ref={(node) => {
-                      navLinkRefs.current.home = node;
+                      navLinkRefs.current.home = node as HTMLAnchorElement | null;
                     }}
                     style={{ 
                       position: 'relative', 
@@ -349,11 +355,11 @@ export default function Nav() {
                     }}
                   >
                     Home
-                  </Link>
+                  </a>
 
                   {shouldShowGoBack && (
-                    <Link
-                      href="/"
+                    <a
+                      href={homeHref}
                       className="px-4 py-1 rounded-lg transition-all inline-block text-sm bg-white/10 hover:bg-white/20"
                       style={{ 
                         position: 'relative', 
@@ -364,7 +370,7 @@ export default function Nav() {
                       }}
                     >
                       ← Go Back
-                    </Link>
+                    </a>
                   )}
                   <Link
                     href="/games"

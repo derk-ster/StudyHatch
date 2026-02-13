@@ -6,6 +6,10 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
+
+// Full-page home URL so "Back to Decks" always works (avoids client router + hash issues)
+const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
+const homeHref = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : '/';
 import LanguageBadge from '@/components/LanguageBadge';
 import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave, copyDeckToUser, hasUserCopiedDeck, markDeckAsCopiedByUser, getAllDecks } from '@/lib/storage';
 import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl, getSharePayloadStableId } from '@/lib/share-deck';
@@ -151,20 +155,20 @@ export default function StudyPage() {
 
   if (!displayDeck) {
     return (
-      <div className="min-h-screen bg-noise">
+      <div className="min-h-screen bg-noise" style={{ position: 'relative', zIndex: 0 }}>
         <Nav />
-        <main className="max-w-4xl mx-auto px-4 py-12">
+        <main className="max-w-4xl mx-auto px-4 py-12" style={{ position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Deck not found.</p>
             <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">
               If your teacher shared this link, ask them to use &quot;Copy share link&quot; from the deck (or Share Decks) so you receive the deck when you open the link.
             </p>
-            <Link
-              href="/"
+            <a
+              href={homeHref}
               className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
             >
               Go to Decks
-            </Link>
+            </a>
           </div>
         </main>
       </div>
@@ -223,9 +227,18 @@ export default function StudyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-noise">
+    <div className="min-h-screen bg-noise" style={{ position: 'relative', zIndex: 0 }}>
       <Nav />
-      <main className="max-w-6xl mx-auto px-4 py-12">
+      <main className="max-w-6xl mx-auto px-4 py-12" style={{ position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
+        {/* Always-visible escape: Back to Decks (native link = full page load, works even with hash URLs) */}
+        <div className="mb-6 flex justify-start">
+          <a
+            href={homeHref}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white/90 text-sm font-medium transition-all inline-flex items-center gap-2"
+          >
+            ← Back to Decks
+          </a>
+        </div>
         {/* Shared deck: Copy to my decks (no auto-save, one time per link) */}
         {isPreviewMode && (
           <div className="mb-8 rounded-2xl border-2 border-amber-400/50 bg-amber-500/20 p-6 text-center">
@@ -397,12 +410,12 @@ export default function StudyPage() {
 
         {/* Back to Decks + Copy to my deck (for shared decks) */}
         <div className="mt-12 text-center flex flex-wrap items-center justify-center gap-4">
-          <Link
-            href="/"
+          <a
+            href={homeHref}
             className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white inline-block"
           >
             ← Back to Decks
-          </Link>
+          </a>
           {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && !hasUserCopiedDeck(displayDeck.id) && (
             <button
               type="button"
