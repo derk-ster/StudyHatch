@@ -9,7 +9,8 @@ import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
-import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
+import { getProgress, updateProgress } from '@/lib/storage';
+import { useDeckForActivity, isPreviewDeck } from '@/lib/useDeckForActivity';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
@@ -39,7 +40,7 @@ export default function MatchPage() {
   const gameCompletePopupRef = useScrollPopupIntoView(gameComplete);
 
   const deckId = searchParams.get('deck');
-  const deck = deckId ? getDeckById(deckId) : null;
+  const deck = useDeckForActivity(deckId);
 
   useEffect(() => {
     if (deckId) {
@@ -59,7 +60,7 @@ export default function MatchPage() {
 
   // Helper to update per-deck progress
   const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
-    if (!deckId) return;
+    if (!deckId || isPreviewDeck(deck)) return;
     const newProgress = { ...getProgress() };
     if (!newProgress.deckProgress) {
       newProgress.deckProgress = {};
@@ -300,10 +301,10 @@ export default function MatchPage() {
                     Play Again
                   </button>
                   <Link
-                    href="/"
+                    href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : (deckId ? `/study?deck=${deckId}` : '/')}
                     className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-center"
                   >
-                    Home
+                    {deckId === 'shared-preview' ? 'Back to Activities' : 'Home'}
                   </Link>
                 </div>
               </div>

@@ -147,7 +147,12 @@ export default function StudyPage() {
     if (activity === 'ai-chat') {
       return '/ai-chat';
     }
-    if (isPreviewMode || !displayDeck?.id) return '#';
+    if (!displayDeck?.id) return '#';
+    if (isPreviewMode && sharedPayload) {
+      // Allow activities in preview: pass share hash so activity page can decode deck
+      return `/${activity}?deck=shared-preview#share=${encodeURIComponent(sharedPayload)}`;
+    }
+    if (isPreviewMode) return '#';
     const params = new URLSearchParams();
     params.set('deck', displayDeck.id);
     return `/${activity}?${params.toString()}`;
@@ -297,10 +302,9 @@ export default function StudyPage() {
             <Link
               key={activity.id}
               href={createActivityUrl(activity.id)}
-              className={`group backdrop-blur-md rounded-2xl p-8 border-2 transition-all card-glow opacity-0 animate-slide-up ${isPreviewMode ? 'border-white/10 bg-white/5 cursor-not-allowed' : 'bg-white/10 border-white/20 card-glow-hover hover:border-purple-500 hover:bg-purple-500/10'}`}
+              className="group backdrop-blur-md rounded-2xl p-8 border-2 transition-all card-glow opacity-0 animate-slide-up bg-white/10 border-white/20 card-glow-hover hover:border-purple-500 hover:bg-purple-500/10"
               style={{ animationDelay: `${index * 0.1}s` }}
-              onClick={isPreviewMode ? (e) => e.preventDefault() : undefined}
-              title={isPreviewMode ? 'Copy to my decks first to practice' : undefined}
+              title={isPreviewMode ? 'Practice with shared deck (progress not saved)' : undefined}
             >
               <div className="text-6xl mb-4 text-center group-hover:scale-110 transition-transform">
                 {activity.icon}

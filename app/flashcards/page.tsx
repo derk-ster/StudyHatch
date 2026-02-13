@@ -9,7 +9,8 @@ import Nav from '@/components/Nav';
 import PronounceButton from '@/components/PronounceButton';
 import LanguageBadge from '@/components/LanguageBadge';
 import { VocabCard } from '@/types/vocab';
-import { getDeckById, getProgress, updateProgress } from '@/lib/storage';
+import { getProgress, updateProgress } from '@/lib/storage';
+import { useDeckForActivity, isPreviewDeck } from '@/lib/useDeckForActivity';
 import { updateStreakOnStudy } from '@/lib/streak';
 import { getLanguageName } from '@/lib/languages';
 import { playSfx } from '@/lib/sfx';
@@ -48,7 +49,7 @@ export default function FlashcardsPage() {
   const resultsPopupRef = useScrollPopupIntoView(showResults);
 
   const deckId = searchParams.get('deck');
-  const deck = deckId ? getDeckById(deckId) : null;
+  const deck = useDeckForActivity(deckId);
 
   useEffect(() => {
     if (deckId) {
@@ -124,7 +125,7 @@ export default function FlashcardsPage() {
   };
 
   const updateDeckProgress = (updates: Partial<typeof deckProgress>) => {
-    if (!deckId) return;
+    if (!deckId || isPreviewDeck(deck)) return;
     const newProgress = { ...getProgress() };
     if (!newProgress.deckProgress) {
       newProgress.deckProgress = {};
@@ -407,12 +408,14 @@ export default function FlashcardsPage() {
         <Nav />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
-            <p className="text-xl text-white/70">No cards found. Try adjusting your filters.</p>
+            <p className="text-xl text-white/70">
+              {deckId === 'shared-preview' && !deck ? 'Loading shared deck…' : 'No cards found. Try adjusting your filters.'}
+            </p>
             <Link
-              href="/"
+              href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : '/'}
               className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
             >
-              Go Home
+              {deckId === 'shared-preview' ? 'Back to Activities' : 'Go Home'}
             </Link>
           </div>
         </main>
@@ -433,7 +436,7 @@ export default function FlashcardsPage() {
               {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
             </div>
             <Link
-              href={deckId ? `/study?deck=${deckId}` : '/'}
+              href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : (deckId ? `/study?deck=${deckId}` : '/')}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block"
               style={{ position: 'relative', zIndex: 10 }}
             >
