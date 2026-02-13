@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave, copyDeckToUser } from '@/lib/storage';
 import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl } from '@/lib/share-deck';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
@@ -65,6 +65,7 @@ export default function StudyPage() {
   const [sharedPreviewDeck, setSharedPreviewDeck] = useState<typeof deck>(null);
   const [sharedPayload, setSharedPayload] = useState<string | null>(null);
   const [copyingToDecks, setCopyingToDecks] = useState(false);
+  const [copyingToDeck, setCopyingToDeck] = useState(false);
 
   // Decode share link for preview (no auto-save). User can choose "Copy to my decks".
   useEffect(() => {
@@ -87,6 +88,15 @@ export default function StudyPage() {
     if (newId) {
       router.replace(`/study?deck=${newId}`);
     }
+  };
+
+  // Copy an already-saved shared deck to user's decks as an editable copy (from study?deck=xxx view)
+  const handleCopySharedToMyDeck = () => {
+    if (!displayDeck || displayDeck.id === 'shared-preview' || isPreviewMode) return;
+    setCopyingToDeck(true);
+    const copied = copyDeckToUser(displayDeck, session?.userId);
+    setCopyingToDeck(false);
+    router.replace(`/study?deck=${copied.id}`);
   };
 
   const handleCopyShareLink = async () => {
@@ -146,7 +156,13 @@ export default function StudyPage() {
   const canEditBySource = canEditDeckBySource(displayDeck, session);
   const canEdit = isTeacher ? true : canEditBySource;
   const canSave = canEdit;
-  const isSharedViewOnly = !isTeacher && displayDeck.source === 'shared';
+  // Shared = from share link (source 'shared') or deck owned by someone else (teacher/class) — hide Edit Deck Terms
+  const isSharedViewOnly =
+    !isTeacher &&
+    (displayDeck.source === 'shared' ||
+      (!!displayDeck.ownerUserId &&
+        displayDeck.ownerUserId !== session?.userId &&
+        displayDeck.source !== 'public-copy'));
   const showEditDeckTerms = !isSharedViewOnly;
 
   const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
@@ -353,14 +369,24 @@ export default function StudyPage() {
           </div>
         )}
 
-        {/* Back Button */}
-        <div className="mt-12 text-center">
+        {/* Back to Decks + Copy to my deck (for shared decks) */}
+        <div className="mt-12 text-center flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={() => router.push('/')}
             className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white"
           >
             ← Back to Decks
           </button>
+          {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && (
+            <button
+              type="button"
+              onClick={handleCopySharedToMyDeck}
+              disabled={copyingToDeck}
+              className="px-6 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {copyingToDeck ? 'Copying…' : 'Copy to my deck'}
+            </button>
+          )}
         </div>
       </main>
     </div>
