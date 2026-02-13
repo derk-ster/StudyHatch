@@ -33,7 +33,7 @@ export default function TranslateDefinitionsPage() {
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
   const isTeacher = session?.role === 'teacher';
-  const canEditBySource = canEditDeckBySource(deck, session);
+  const canEditBySource = canEditDeckBySource(deck ?? undefined, session);
   const canEdit = isTeacher ? true : canEditBySource;
   const canSave = canEdit;
   const isSharedViewOnly = !isTeacher && deck?.source === 'shared';

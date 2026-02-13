@@ -27,7 +27,7 @@ export default function EditTranslationsPage() {
   }, [deckId]);
 
   const isTeacher = session?.role === 'teacher';
-  const canEditBySource = canEditDeckBySource(deck, session);
+  const canEditBySource = canEditDeckBySource(deck ?? undefined, session);
   const canEdit = isTeacher ? true : canEditBySource;
   const canSave = canEdit;
   const isSharedViewOnly = !isTeacher && deck?.source === 'shared';

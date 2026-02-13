@@ -68,6 +68,8 @@ export default function StudyPage() {
   const [copyingToDeck, setCopyingToDeck] = useState(false);
 
   // Decode share link for preview (no auto-save). User can choose "Copy to my decks".
+  const shareHash =
+    typeof window !== 'undefined' ? window.location.hash : '';
   useEffect(() => {
     const payload = getSharePayloadFromHash();
     if (payload) {
@@ -78,7 +80,7 @@ export default function StudyPage() {
       setSharedPayload(null);
       setSharedPreviewDeck(null);
     }
-  }, [typeof window !== 'undefined' ? window.location.hash : '']);
+  }, [shareHash]);
 
   const handleCopyToMyDecks = () => {
     if (!sharedPayload) return;
