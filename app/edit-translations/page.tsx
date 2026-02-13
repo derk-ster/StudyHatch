@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
-import { getDeckById, saveDeck, canEditDeckBySource, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave } from '@/lib/storage';
 import { VocabCard } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
 
@@ -28,17 +28,12 @@ export default function EditTranslationsPage() {
 
   const isTeacher = session?.role === 'teacher';
   const canEditBySource = canEditDeckBySource(deck, session);
-  const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
-  const canEdit = isTeacher ? true : (canEditBySource && editStatus.allowed);
-  const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
-  const canSave = canEdit && saveStatus.allowed;
+  const canEdit = isTeacher ? true : canEditBySource;
+  const canSave = canEdit;
   const isSharedViewOnly = !isTeacher && deck?.source === 'shared';
 
   const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
     if (!canEdit || !deckId) return;
-    if (!isTeacher) {
-      markDeckEditedToday(deckId);
-    }
     setEditedCards(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -47,12 +42,7 @@ export default function EditTranslationsPage() {
   };
 
   const handleSave = () => {
-    if (!deck || !deckId) return;
-    if (!canSave) {
-      setSaveMessage('');
-      setLimitMessage(saveStatus.reason || 'Daily save limit reached.');
-      return;
-    }
+    if (!deck || !deckId || !canSave) return;
     const cleanedCards = editedCards
       .map(card => ({
         ...card,
@@ -62,9 +52,7 @@ export default function EditTranslationsPage() {
       }))
       .filter(card => card.english && card.translation);
     saveDeck({ ...deck, cards: cleanedCards });
-    if (!isTeacher) {
-      recordDeckSave();
-    }
+    if (!isTeacher) recordDeckSave();
     setLimitMessage('');
     setSaveMessage('Changes saved.');
     setTimeout(() => setSaveMessage(''), 1500);
@@ -101,16 +89,6 @@ export default function EditTranslationsPage() {
           {isSharedViewOnly && (
             <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/20 px-4 py-3 text-sm text-amber-200">
               This deck was shared with you for practice. Editing is not available.
-            </div>
-          )}
-          {!isTeacher && !isSharedViewOnly && !editStatus.allowed && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {editStatus.reason || 'Daily edit limit reached.'}
-            </div>
-          )}
-          {!isTeacher && !saveStatus.allowed && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {saveStatus.reason || 'Daily save limit reached.'}
             </div>
           )}
           {!isTeacher && limitMessage && (

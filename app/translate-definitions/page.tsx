@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
-import { getDeckById, saveDeck, canEditDeckBySource, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave } from '@/lib/storage';
 import { getLanguageName } from '@/lib/languages';
 import { VocabCard } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
@@ -34,18 +34,12 @@ export default function TranslateDefinitionsPage() {
 
   const isTeacher = session?.role === 'teacher';
   const canEditBySource = canEditDeckBySource(deck, session);
-  const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
-  const canEdit = isTeacher ? true : (canEditBySource && editStatus.allowed);
-  const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
-  const canSave = canEdit && saveStatus.allowed;
+  const canEdit = isTeacher ? true : canEditBySource;
+  const canSave = canEdit;
   const isSharedViewOnly = !isTeacher && deck?.source === 'shared';
 
   const handleTranslateDefinitions = async () => {
-    if (!deck) return;
-    if (!canEdit || !deckId) {
-      setMessage(editStatus.reason || 'Daily edit limit reached.');
-      return;
-    }
+    if (!deck || !canEdit || !deckId) return;
     const trimmedInputs = definitionInputs.map(input => input.trim());
     const indicesToTranslate = trimmedInputs
       .map((value, index) => (value ? index : -1))
@@ -59,9 +53,6 @@ export default function TranslateDefinitionsPage() {
     const englishWords = indicesToTranslate.map(index => trimmedInputs[index]);
     setIsTranslating(true);
     setMessage('');
-    if (!isTeacher) {
-      markDeckEditedToday(deckId);
-    }
 
     try {
       const response = await fetch(`${apiBase}/api/translate`, {
@@ -99,28 +90,19 @@ export default function TranslateDefinitionsPage() {
   };
 
   const handleSave = () => {
-    if (!deck || !deckId) return;
-    if (!canSave) {
-      setMessage(saveStatus.reason || 'Daily save limit reached.');
-      return;
-    }
+    if (!deck || !deckId || !canSave) return;
     const cleanedCards = editedCards.map(card => ({
       ...card,
       definition: card.definition?.trim() || undefined,
     }));
     saveDeck({ ...deck, cards: cleanedCards });
-    if (!isTeacher) {
-      recordDeckSave();
-    }
+    if (!isTeacher) recordDeckSave();
     setMessage('Definitions saved.');
     setTimeout(() => setMessage(''), 1500);
   };
 
   const updateDefinition = (index: number, value: string) => {
     if (!canEdit || !deckId) return;
-    if (!isTeacher) {
-      markDeckEditedToday(deckId);
-    }
     setEditedCards(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], definition: value };
@@ -161,16 +143,6 @@ export default function TranslateDefinitionsPage() {
               This deck was shared with you for practice. Editing is not available.
             </div>
           )}
-          {!isTeacher && !isSharedViewOnly && !editStatus.allowed && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {editStatus.reason || 'Daily edit limit reached.'}
-            </div>
-          )}
-          {!isTeacher && !saveStatus.allowed && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {saveStatus.reason || 'Daily save limit reached.'}
-            </div>
-          )}
           <p className="text-white/70 mb-6">
             Add English definitions, then translate them into {targetLanguageName}.
           </p>
@@ -184,9 +156,6 @@ export default function TranslateDefinitionsPage() {
                     value={definitionInputs[index] || ''}
                     onChange={(e) => {
                       if (!canEdit || !deckId) return;
-                      if (!isTeacher) {
-                        markDeckEditedToday(deckId);
-                      }
                       const value = e.target.value;
                       setDefinitionInputs(prev => {
                         const updated = [...prev];

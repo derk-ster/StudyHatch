@@ -7,7 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, saveDeck, canEditDeckBySource, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave } from '@/lib/storage';
 import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl } from '@/lib/share-deck';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
@@ -144,17 +144,13 @@ export default function StudyPage() {
   const targetLanguageName = getLanguageName(displayDeck.targetLanguage);
   const isTeacher = session?.role === 'teacher';
   const canEditBySource = canEditDeckBySource(displayDeck, session);
-  const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
-  const canEdit = isTeacher ? true : (canEditBySource && editStatus.allowed);
-  const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
-  const canSave = canEdit && saveStatus.allowed;
+  const canEdit = isTeacher ? true : canEditBySource;
+  const canSave = canEdit;
   const isSharedViewOnly = !isTeacher && displayDeck.source === 'shared';
+  const showEditDeckTerms = !isSharedViewOnly;
 
   const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
     if (!canEdit || isPreviewMode || !displayDeck?.id) return;
-    if (!isTeacher) {
-      markDeckEditedToday(deckId);
-    }
     setEditedCards(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
@@ -164,9 +160,6 @@ export default function StudyPage() {
 
   const handleAddRow = () => {
     if (!canEdit || isPreviewMode) return;
-    if (!isTeacher) {
-      markDeckEditedToday(deckId);
-    }
     const newCard = {
       id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       english: '',
@@ -178,14 +171,6 @@ export default function StudyPage() {
 
   const handleSaveEdits = () => {
     if (!canEdit || isPreviewMode || !displayDeck?.id || displayDeck.id === 'shared-preview') return;
-    if (!isTeacher) {
-      const saveCheck = canSaveDeckToday();
-      if (!saveCheck.allowed) {
-        setSaveMessage('');
-        setLimitMessage(saveCheck.reason || 'Daily save limit reached.');
-        return;
-      }
-    }
     const cleanedCards = editedCards
       .map(card => ({
         ...card,
@@ -195,9 +180,7 @@ export default function StudyPage() {
       }))
       .filter(card => card.english && card.translation);
     saveDeck({ ...displayDeck, cards: cleanedCards });
-    if (!isTeacher) {
-      recordDeckSave();
-    }
+    if (!isTeacher) recordDeckSave();
     setLimitMessage('');
     setSaveMessage('Edits saved.');
     setTimeout(() => setSaveMessage(''), 1500);
@@ -277,111 +260,98 @@ export default function StudyPage() {
           ))}
         </div>
 
-        {/* Inline Editing */}
-        <div className="mt-12 bg-white/10 rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
-            {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
-          </div>
-          {isSharedViewOnly && (
-            <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/20 px-4 py-3 text-sm text-amber-200">
-              This deck was shared with you for practice. Editing is not available.
+        {/* Edit Deck Terms — only for own decks or public copies, not shared/teacher decks */}
+        {showEditDeckTerms && (
+          <div className="mt-12 bg-white/10 rounded-2xl p-6 border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
+              {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
             </div>
-          )}
-          {!isTeacher && !isSharedViewOnly && !editStatus.allowed && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {editStatus.reason || 'Daily edit limit reached.'}
-            </div>
-          )}
-          {!isTeacher && !saveStatus.allowed && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {saveStatus.reason || 'Daily save limit reached.'}
-            </div>
-          )}
-          {!isTeacher && limitMessage && (
-            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
-              {limitMessage}
-            </div>
-          )}
-          <div className="flex flex-wrap gap-3 mb-4">
-            <Link
-              href={canEdit && !isPreviewMode ? `/edit-translations?deck=${displayDeck.id}` : '#'}
-              onClick={(e) => {
-                if (!canEdit) {
-                  e.preventDefault();
-                  setLimitMessage(isSharedViewOnly ? 'This deck was shared for practice only.' : (editStatus.reason || 'Daily edit limit reached.'));
-                }
-              }}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
-            >
-              Edit Translations
-            </Link>
-            <Link
-              href={canEdit && !isPreviewMode ? `/translate-definitions?deck=${displayDeck.id}` : '#'}
-              onClick={(e) => {
-                if (!canEdit) {
-                  e.preventDefault();
-                  setLimitMessage(isSharedViewOnly ? 'This deck was shared for practice only.' : (editStatus.reason || 'Daily edit limit reached.'));
-                }
-              }}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
-            >
-              Translate Definitions
-            </Link>
-          </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[600px] space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-white/60 font-medium mb-2">
-                <span>English</span>
-                <span>{targetLanguageName}</span>
-                <span>Definition (optional)</span>
+            {!isTeacher && limitMessage && (
+              <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
+                {limitMessage}
               </div>
-              {editedCards.map((card, index) => (
-                <div key={card.id} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input
-                    value={card.english}
-                    onChange={(e) => handleCardChange(index, 'english', e.target.value)}
-                    disabled={!canEdit}
-                    placeholder="English"
-                    className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-                  />
-                  <input
-                    value={card.translation}
-                    onChange={(e) => handleCardChange(index, 'translation', e.target.value)}
-                    disabled={!canEdit}
-                    placeholder={targetLanguageName}
-                    className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-                  />
-                  <input
-                    value={card.definition ?? ''}
-                    onChange={(e) => handleCardChange(index, 'definition', e.target.value)}
-                    disabled={!canEdit}
-                    placeholder="Definition"
-                    className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
-                  />
+            )}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <Link
+                href={canEdit && !isPreviewMode ? `/edit-translations?deck=${displayDeck.id}` : '#'}
+                onClick={(e) => {
+                  if (!canEdit) {
+                    e.preventDefault();
+                    setLimitMessage('Editing is not available for this deck.');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
+              >
+                Edit Translations
+              </Link>
+              <Link
+                href={canEdit && !isPreviewMode ? `/translate-definitions?deck=${displayDeck.id}` : '#'}
+                onClick={(e) => {
+                  if (!canEdit) {
+                    e.preventDefault();
+                    setLimitMessage('Editing is not available for this deck.');
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
+              >
+                Translate Definitions
+              </Link>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px] space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-white/60 font-medium mb-2">
+                  <span>English</span>
+                  <span>{targetLanguageName}</span>
+                  <span>Definition (optional)</span>
                 </div>
-              ))}
+                {editedCards.map((card, index) => (
+                  <div key={card.id} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input
+                      value={card.english}
+                      onChange={(e) => handleCardChange(index, 'english', e.target.value)}
+                      disabled={!canEdit}
+                      placeholder="English"
+                      className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                    />
+                    <input
+                      value={card.translation}
+                      onChange={(e) => handleCardChange(index, 'translation', e.target.value)}
+                      disabled={!canEdit}
+                      placeholder={targetLanguageName}
+                      className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                    />
+                    <input
+                      value={card.definition ?? ''}
+                      onChange={(e) => handleCardChange(index, 'definition', e.target.value)}
+                      disabled={!canEdit}
+                      placeholder="Definition"
+                      className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-all text-sm font-medium"
+                >
+                  + Add row
+                </button>
+              )}
+              <button
+                onClick={handleSaveEdits}
+                disabled={!canSave}
+                className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {canEdit && (
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-all text-sm font-medium"
-              >
-                + Add row
-              </button>
-            )}
-            <button
-              onClick={handleSaveEdits}
-              disabled={!canSave}
-              className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Back Button */}
         <div className="mt-12 text-center">
