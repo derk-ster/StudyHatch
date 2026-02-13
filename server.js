@@ -1,7 +1,23 @@
 const http = require('http');
 const next = require('next');
 const WebSocket = require('ws');
+const os = require('os');
 const { randomBytes } = require('crypto');
+
+const getLocalIPs = () => {
+  try {
+    const interfaces = os.networkInterfaces();
+    const ips = [];
+    for (const name of Object.keys(interfaces || {})) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.family === 'IPv4' && !iface.internal) ips.push(iface.address);
+      }
+    }
+    return ips;
+  } catch {
+    return [];
+  }
+};
 
 const port = parseInt(process.env.PORT, 10) || 3001;
 const dev = process.env.NODE_ENV !== 'production';
@@ -762,8 +778,18 @@ app.prepare().then(() => {
     upgradeHandler(req, socket, head);
   });
 
-  server.listen(port, (err) => {
+  server.listen(port, '0.0.0.0', (err) => {
     if (err) throw err;
     console.log(`> Ready on http://localhost:${port}`);
+    try {
+      const ips = getLocalIPs();
+      if (ips.length) {
+        console.log(`> On this network (e.g. from another device): http://${ips[0]}:${port}`);
+      } else {
+        console.log(`> To access from another device: use this machine's IP and port ${port}`);
+      }
+    } catch (e) {
+      console.log(`> To access from another device: use this machine's IP and port ${port}`);
+    }
   });
 });

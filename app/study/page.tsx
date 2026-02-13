@@ -7,8 +7,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
-import { getDeckById, saveDeck, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
-import { getSharePayloadFromHash, decodeAndSaveSharedDeck, buildShareDeckUrl } from '@/lib/share-deck';
+import { getDeckById, saveDeck, canEditDeckBySource, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
+import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl } from '@/lib/share-deck';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
@@ -61,8 +61,33 @@ export default function StudyPage() {
   const [editedCards, setEditedCards] = useState(deck?.cards || []);
   const [saveMessage, setSaveMessage] = useState('');
   const [limitMessage, setLimitMessage] = useState('');
-  const [processingShare, setProcessingShare] = useState(false);
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [sharedPreviewDeck, setSharedPreviewDeck] = useState<typeof deck>(null);
+  const [sharedPayload, setSharedPayload] = useState<string | null>(null);
+  const [copyingToDecks, setCopyingToDecks] = useState(false);
+
+  // Decode share link for preview (no auto-save). User can choose "Copy to my decks".
+  useEffect(() => {
+    const payload = getSharePayloadFromHash();
+    if (payload) {
+      setSharedPayload(payload);
+      const preview = decodeSharePayload(payload);
+      setSharedPreviewDeck(preview ?? null);
+    } else {
+      setSharedPayload(null);
+      setSharedPreviewDeck(null);
+    }
+  }, [typeof window !== 'undefined' ? window.location.hash : '']);
+
+  const handleCopyToMyDecks = () => {
+    if (!sharedPayload) return;
+    setCopyingToDecks(true);
+    const newId = decodeAndSaveSharedDeck(sharedPayload);
+    setCopyingToDecks(false);
+    if (newId) {
+      router.replace(`/study?deck=${newId}`);
+    }
+  };
 
   const handleCopyShareLink = async () => {
     if (!deck) return;
@@ -76,73 +101,57 @@ export default function StudyPage() {
     }
   };
 
-  // When opening a shared link (e.g. from Google Slides), decode deck from hash and save it
   useEffect(() => {
-    const sharePayload = getSharePayloadFromHash();
-    if (sharePayload) {
-      setProcessingShare(true);
-      const newId = decodeAndSaveSharedDeck(sharePayload);
-      if (newId) {
-        router.replace(`/study?deck=${newId}`);
-        return;
-      }
-    }
-    setProcessingShare(false);
-  }, [router]);
+    const d = deck ?? sharedPreviewDeck;
+    if (d) setEditedCards(d.cards);
+  }, [deckId, sharedPreviewDeck, deck]);
 
-  useEffect(() => {
-    if (deck) {
-      setEditedCards(deck.cards);
-    }
-  }, [deckId]);
+  const displayDeck = deck ?? sharedPreviewDeck;
+  const isPreviewMode = Boolean(sharedPreviewDeck && !deck);
 
   const createActivityUrl = (activity: ActivityType | 'ai-chat') => {
     if (activity === 'ai-chat') {
       return '/ai-chat';
     }
-    if (!deckId) return '#';
+    if (isPreviewMode || !displayDeck?.id) return '#';
     const params = new URLSearchParams();
-    params.set('deck', deckId);
+    params.set('deck', displayDeck.id);
     return `/${activity}?${params.toString()}`;
   };
 
-  if (!deck) {
+  if (!displayDeck) {
     return (
       <div className="min-h-screen bg-noise">
         <Nav />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
-            {processingShare ? (
-              <p className="text-xl text-white/70">Opening shared deck…</p>
-            ) : (
-              <>
-                <p className="text-xl text-white/70">Deck not found.</p>
-                <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">
-                  If your teacher shared this link, ask them to use &quot;Copy share link&quot; from the deck (or Share Decks) so you receive the deck when you open the link.
-                </p>
-                <button
-                  onClick={() => router.push('/decks')}
-                  className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
-                >
-                  Go to Decks
-                </button>
-              </>
-            )}
+            <p className="text-xl text-white/70">Deck not found.</p>
+            <p className="text-white/50 text-sm mt-2 max-w-md mx-auto">
+              If your teacher shared this link, ask them to use &quot;Copy share link&quot; from the deck (or Share Decks) so you receive the deck when you open the link.
+            </p>
+            <button
+              onClick={() => router.push('/decks')}
+              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+            >
+              Go to Decks
+            </button>
           </div>
         </main>
       </div>
     );
   }
 
-  const targetLanguageName = getLanguageName(deck.targetLanguage);
+  const targetLanguageName = getLanguageName(displayDeck.targetLanguage);
   const isTeacher = session?.role === 'teacher';
+  const canEditBySource = canEditDeckBySource(displayDeck, session);
   const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
-  const canEdit = isTeacher ? true : editStatus.allowed;
+  const canEdit = isTeacher ? true : (canEditBySource && editStatus.allowed);
   const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
   const canSave = canEdit && saveStatus.allowed;
+  const isSharedViewOnly = !isTeacher && displayDeck.source === 'shared';
 
   const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
-    if (!canEdit || !deckId) return;
+    if (!canEdit || isPreviewMode || !displayDeck?.id) return;
     if (!isTeacher) {
       markDeckEditedToday(deckId);
     }
@@ -154,7 +163,7 @@ export default function StudyPage() {
   };
 
   const handleAddRow = () => {
-    if (!canEdit || !deckId) return;
+    if (!canEdit || isPreviewMode) return;
     if (!isTeacher) {
       markDeckEditedToday(deckId);
     }
@@ -168,7 +177,7 @@ export default function StudyPage() {
   };
 
   const handleSaveEdits = () => {
-    if (!canEdit || !deckId || !deck) return;
+    if (!canEdit || isPreviewMode || !displayDeck?.id || displayDeck.id === 'shared-preview') return;
     if (!isTeacher) {
       const saveCheck = canSaveDeckToday();
       if (!saveCheck.allowed) {
@@ -185,7 +194,7 @@ export default function StudyPage() {
         definition: card.definition?.trim() || undefined,
       }))
       .filter(card => card.english && card.translation);
-    saveDeck({ ...deck, cards: cleanedCards });
+    saveDeck({ ...displayDeck, cards: cleanedCards });
     if (!isTeacher) {
       recordDeckSave();
     }
@@ -198,31 +207,50 @@ export default function StudyPage() {
     <div className="min-h-screen bg-noise">
       <Nav />
       <main className="max-w-6xl mx-auto px-4 py-12">
+        {/* Shared deck: Copy to my decks (no auto-save) */}
+        {isPreviewMode && (
+          <div className="mb-8 rounded-2xl border-2 border-amber-400/50 bg-amber-500/20 p-6 text-center">
+            <p className="text-lg text-amber-100 mb-3">This deck was shared with you. Copy it to your decks to save and practice.</p>
+            <button
+              type="button"
+              onClick={handleCopyToMyDecks}
+              disabled={copyingToDecks}
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {copyingToDecks ? 'Copying…' : 'Copy to my decks'}
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-12" data-reveal>
           <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400">
-            Study: {deck.name}
+            Study: {displayDeck.name}
           </h1>
-          {deck.description && (
-            <p className="text-xl text-white/80 mb-4">{deck.description}</p>
+          {displayDeck.description && (
+            <p className="text-xl text-white/80 mb-4">{displayDeck.description}</p>
           )}
           <div className="flex flex-wrap items-center justify-center gap-4 text-white/70">
-            <span>{deck.cards.length} cards</span>
+            <span>{displayDeck.cards.length} cards</span>
             <span>•</span>
-            <LanguageBadge languageCode={deck.targetLanguage} />
+            <LanguageBadge languageCode={displayDeck.targetLanguage} />
             <span>•</span>
             <span>{targetLanguageName}</span>
-            <button
-              type="button"
-              onClick={handleCopyShareLink}
-              className="ml-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium transition-all"
-            >
-              {shareLinkCopied ? '✓ Link copied!' : 'Copy share link'}
-            </button>
+            {!isPreviewMode && (
+              <button
+                type="button"
+                onClick={handleCopyShareLink}
+                className="ml-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-sm font-medium transition-all"
+              >
+                {shareLinkCopied ? '✓ Link copied!' : 'Copy share link'}
+              </button>
+            )}
           </div>
-          <p className="text-white/50 text-xs mt-2">
-            Use &quot;Copy share link&quot; to paste in Google Slides or send to students — they’ll get the deck when they open the link.
-          </p>
+          {!isPreviewMode && (
+            <p className="text-white/50 text-xs mt-2">
+              Use &quot;Copy share link&quot; to paste in Google Slides or send to students — they can open the link and choose to copy the deck.
+            </p>
+          )}
         </div>
 
         {/* Study Activities Grid */}
@@ -231,8 +259,10 @@ export default function StudyPage() {
             <Link
               key={activity.id}
               href={createActivityUrl(activity.id)}
-              className="group bg-white/10 backdrop-blur-md rounded-2xl p-8 border-2 border-white/20 transition-all card-glow card-glow-hover opacity-0 animate-slide-up hover:border-purple-500 hover:bg-purple-500/10"
+              className={`group backdrop-blur-md rounded-2xl p-8 border-2 transition-all card-glow opacity-0 animate-slide-up ${isPreviewMode ? 'border-white/10 bg-white/5 cursor-not-allowed' : 'bg-white/10 border-white/20 card-glow-hover hover:border-purple-500 hover:bg-purple-500/10'}`}
               style={{ animationDelay: `${index * 0.1}s` }}
+              onClick={isPreviewMode ? (e) => e.preventDefault() : undefined}
+              title={isPreviewMode ? 'Copy to my decks first to practice' : undefined}
             >
               <div className="text-6xl mb-4 text-center group-hover:scale-110 transition-transform">
                 {activity.icon}
@@ -253,7 +283,12 @@ export default function StudyPage() {
             <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
             {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
           </div>
-          {!isTeacher && !editStatus.allowed && (
+          {isSharedViewOnly && (
+            <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/20 px-4 py-3 text-sm text-amber-200">
+              This deck was shared with you for practice. Editing is not available.
+            </div>
+          )}
+          {!isTeacher && !isSharedViewOnly && !editStatus.allowed && (
             <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
               {editStatus.reason || 'Daily edit limit reached.'}
             </div>
@@ -270,26 +305,26 @@ export default function StudyPage() {
           )}
           <div className="flex flex-wrap gap-3 mb-4">
             <Link
-              href={`/edit-translations?deck=${deckId}`}
+              href={canEdit && !isPreviewMode ? `/edit-translations?deck=${displayDeck.id}` : '#'}
               onClick={(e) => {
                 if (!canEdit) {
                   e.preventDefault();
-                  setLimitMessage(editStatus.reason || 'Daily edit limit reached.');
+                  setLimitMessage(isSharedViewOnly ? 'This deck was shared for practice only.' : (editStatus.reason || 'Daily edit limit reached.'));
                 }
               }}
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
             >
               Edit Translations
             </Link>
             <Link
-              href={`/translate-definitions?deck=${deckId}`}
+              href={canEdit && !isPreviewMode ? `/translate-definitions?deck=${displayDeck.id}` : '#'}
               onClick={(e) => {
                 if (!canEdit) {
                   e.preventDefault();
-                  setLimitMessage(editStatus.reason || 'Daily edit limit reached.');
+                  setLimitMessage(isSharedViewOnly ? 'This deck was shared for practice only.' : (editStatus.reason || 'Daily edit limit reached.'));
                 }
               }}
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm transition-all"
+              className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
             >
               Translate Definitions
             </Link>

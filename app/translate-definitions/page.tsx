@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Nav from '@/components/Nav';
-import { getDeckById, saveDeck, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
+import { getDeckById, saveDeck, canEditDeckBySource, canEditDeckToday, markDeckEditedToday, canSaveDeckToday, recordDeckSave } from '@/lib/storage';
 import { getLanguageName } from '@/lib/languages';
 import { VocabCard } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
@@ -33,10 +33,12 @@ export default function TranslateDefinitionsPage() {
   const targetLanguageName = deck ? getLanguageName(deck.targetLanguage) : 'Translation';
 
   const isTeacher = session?.role === 'teacher';
+  const canEditBySource = canEditDeckBySource(deck, session);
   const editStatus = !isTeacher && deckId ? canEditDeckToday(deckId) : { allowed: true };
-  const canEdit = isTeacher ? true : editStatus.allowed;
+  const canEdit = isTeacher ? true : (canEditBySource && editStatus.allowed);
   const saveStatus = !isTeacher ? canSaveDeckToday() : { allowed: true };
   const canSave = canEdit && saveStatus.allowed;
+  const isSharedViewOnly = !isTeacher && deck?.source === 'shared';
 
   const handleTranslateDefinitions = async () => {
     if (!deck) return;
@@ -154,7 +156,12 @@ export default function TranslateDefinitionsPage() {
             <h1 className="text-3xl font-bold">Translate Definitions</h1>
             {message && <span className="text-green-300 text-sm">{message}</span>}
           </div>
-          {!isTeacher && !editStatus.allowed && (
+          {isSharedViewOnly && (
+            <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/20 px-4 py-3 text-sm text-amber-200">
+              This deck was shared with you for practice. Editing is not available.
+            </div>
+          )}
+          {!isTeacher && !isSharedViewOnly && !editStatus.allowed && (
             <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/20 px-4 py-3 text-sm text-red-200">
               {editStatus.reason || 'Daily edit limit reached.'}
             </div>

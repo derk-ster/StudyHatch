@@ -20,9 +20,36 @@ export function encodeDeckForShare(deck: Deck): string {
   return typeof btoa !== 'undefined' ? btoa(encodeURIComponent(json)) : '';
 }
 
+const PREVIEW_DECK_ID = 'shared-preview';
+
 /**
- * Decode a share payload from the URL hash, save the deck with a new id, and return the new deck id.
- * Returns null if decoding fails.
+ * Decode a share payload from the URL without saving. Returns a deck suitable for preview.
+ * Use when showing "Copy to my decks" so the user can choose whether to save.
+ */
+export function decodeSharePayload(encoded: string): Deck | null {
+  if (typeof window === 'undefined' || !encoded) return null;
+  try {
+    const json = decodeURIComponent(atob(encoded));
+    const parsed = JSON.parse(json) as Partial<Deck> & { cards: Deck['cards']; name: string };
+    if (!parsed.name || !Array.isArray(parsed.cards)) return null;
+    return {
+      id: PREVIEW_DECK_ID,
+      name: parsed.name,
+      description: parsed.description,
+      cards: parsed.cards,
+      createdDate: parsed.createdDate ?? Date.now(),
+      targetLanguage: parsed.targetLanguage ?? 'es',
+      visibility: 'private',
+      source: 'shared',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decode a share payload, save the deck with a new id, and return the new deck id.
+ * Call this when the user clicks "Copy to my decks".
  */
 export function decodeAndSaveSharedDeck(encoded: string): string | null {
   if (typeof window === 'undefined' || !encoded) return null;
@@ -39,6 +66,7 @@ export function decodeAndSaveSharedDeck(encoded: string): string | null {
       createdDate: parsed.createdDate ?? Date.now(),
       targetLanguage: parsed.targetLanguage ?? 'es',
       visibility: 'private',
+      source: 'shared', // View-only: from teacher/Share Decks link; students can practice but not edit.
     };
     saveDeck(deck);
     return newId;

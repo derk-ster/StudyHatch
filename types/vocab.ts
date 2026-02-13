@@ -8,6 +8,9 @@ export type VocabCard = {
   notes?: string;
 };
 
+/** How the user got this deck. 'shared' = from share link (teacher/Share Decks) — view-only. 'public-copy' = copied from public library — editable. */
+export type DeckSource = 'shared' | 'public-copy';
+
 export type Deck = {
   id: string;
   name: string;
@@ -20,6 +23,8 @@ export type Deck = {
   /** Display name for owner when stored on server (e.g. public decks) so other devices can show it without the user record. */
   ownerUsername?: string;
   schoolId?: string;
+  /** If 'shared', deck was received via share link (teacher/class/Share Decks) and is view-only for students. */
+  source?: DeckSource;
 };
 
 export type Classroom = {

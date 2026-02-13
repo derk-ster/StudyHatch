@@ -459,7 +459,7 @@ export const duplicateDeck = (deckId: string, ownerUserId?: string): Deck | null
   return copyDeckToUser(deck, ownerUserId);
 };
 
-/** Copy a deck object into the current user's library (e.g. from API public decks). */
+/** Copy a deck object into the current user's library (e.g. from API public decks). Editable. */
 export const copyDeckToUser = (deck: Deck, ownerUserId?: string): Deck => {
   const copiedDeck: Deck = {
     ...deck,
@@ -469,6 +469,7 @@ export const copyDeckToUser = (deck: Deck, ownerUserId?: string): Deck => {
     visibility: 'private',
     ownerUserId,
     schoolId: undefined,
+    source: 'public-copy', // Copied from public library — user can edit.
   };
   saveDeck(copiedDeck);
   return copiedDeck;
@@ -1195,6 +1196,22 @@ export const incrementDailyPublicSearches = (): void => {
   const usage = getDailyUsage();
   usage.publicSearchesToday = (usage.publicSearchesToday || 0) + 1;
   saveDailyUsage(usage);
+};
+
+/**
+ * Whether the user is allowed to edit this deck at all (ignoring daily limits).
+ * Teachers can always edit. Students/guests can edit their own decks and decks copied from the
+ * public library, but NOT decks received via share link (teacher/class/Share Decks).
+ */
+export const canEditDeckBySource = (
+  deck: Deck | undefined,
+  session: { role?: string; userId?: string } | null
+): boolean => {
+  if (!deck) return false;
+  if (session?.role === 'teacher') return true;
+  // Shared decks (from share link / class / Share Decks) are view-only for students.
+  if (deck.source === 'shared') return false;
+  return true;
 };
 
 export const canEditDeckToday = (deckId: string): { allowed: boolean; reason?: string } => {
