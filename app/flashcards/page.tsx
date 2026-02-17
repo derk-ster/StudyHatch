@@ -49,7 +49,8 @@ export default function FlashcardsPage() {
   const resultsPopupRef = useScrollPopupIntoView(showResults);
 
   const deckId = searchParams.get('deck');
-  const deck = useDeckForActivity(deckId);
+  const { deck, isSharedPreviewLoading } = useDeckForActivity(deckId);
+  const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
 
   useEffect(() => {
     if (deckId) {
@@ -402,21 +403,32 @@ export default function FlashcardsPage() {
     }, 300);
   };
 
+  if (isSharedPreviewLoading) {
+    return (
+      <div className="min-h-screen bg-noise">
+        <Nav />
+        <main className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white/10 rounded-2xl p-8 text-center">
+            <p className="text-xl text-white/70">Loading shared deck…</p>
+            <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+              ← Back to Activities
+            </a>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!deck || filteredCards.length === 0) {
     return (
       <div className="min-h-screen bg-noise">
         <Nav />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
-            <p className="text-xl text-white/70">
-              {deckId === 'shared-preview' && !deck ? 'Loading shared deck…' : 'No cards found. Try adjusting your filters.'}
-            </p>
-            <Link
-              href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : '/'}
-              className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
-            >
-              {deckId === 'shared-preview' ? 'Back to Activities' : 'Go Home'}
-            </Link>
+            <p className="text-xl text-white/70">No cards found. Try adjusting your filters.</p>
+            <a href={deckId === 'shared-preview' ? `${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}` : (basePath || '/')} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+              {deckId === 'shared-preview' ? '← Back to Activities' : 'Go Home'}
+            </a>
           </div>
         </main>
       </div>
@@ -435,13 +447,15 @@ export default function FlashcardsPage() {
               <p className="text-white/70">Card {currentIndex + 1} of {filteredCards.length}</p>
               {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
             </div>
-            <Link
-              href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : (deckId ? `/study?deck=${deckId}` : '/')}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block"
-              style={{ position: 'relative', zIndex: 10 }}
-            >
-              ← Back to Activities
-            </Link>
+            {deckId === 'shared-preview' ? (
+              <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block" style={{ position: 'relative', zIndex: 10 }}>
+                ← Back to Activities
+              </a>
+            ) : (
+              <Link href={deckId ? `/study?deck=${deckId}` : '/'} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block" style={{ position: 'relative', zIndex: 10 }}>
+                ← Back to Activities
+              </Link>
+            )}
           </div>
           <div className="flex flex-wrap gap-4 items-center relative z-10">
             <label className="flex items-center gap-2 cursor-pointer">

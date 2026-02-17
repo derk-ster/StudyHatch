@@ -31,7 +31,8 @@ export default function WritePage() {
   const resultsPopupRef = useScrollPopupIntoView(showResults);
 
   const deckId = searchParams.get('deck');
-  const deck = useDeckForActivity(deckId);
+  const { deck, isSharedPreviewLoading } = useDeckForActivity(deckId);
+  const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
 
   useEffect(() => {
     if (deckId) {
@@ -93,7 +94,7 @@ export default function WritePage() {
   const shuffledCards = useMemo(() => {
     if (!deck) return [];
     return [...deck.cards].sort(() => Math.random() - 0.5);
-  }, [deckId]);
+  }, [deckId, deck]);
 
   const currentCard = shuffledCards[currentIndex];
   const targetLanguageCode = deck?.targetLanguage || 'es';
@@ -203,6 +204,22 @@ export default function WritePage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  if (isSharedPreviewLoading) {
+    return (
+      <div className="min-h-screen bg-noise">
+        <Nav />
+        <main className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white/10 rounded-2xl p-8 text-center">
+            <p className="text-xl text-white/70">Loading shared deck…</p>
+            <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+              ← Back to Activities
+            </a>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!deck || shuffledCards.length === 0) {
     return (
       <div className="min-h-screen bg-noise">
@@ -210,12 +227,9 @@ export default function WritePage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Deck not found.</p>
-            <Link
-              href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : '/'}
-              className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
-            >
-              {deckId === 'shared-preview' ? 'Back to Activities' : 'Go Home'}
-            </Link>
+            <a href={deckId === 'shared-preview' ? `${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}` : (basePath || '/')} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+              {deckId === 'shared-preview' ? '← Back to Activities' : 'Go Home'}
+            </a>
           </div>
         </main>
       </div>
@@ -432,12 +446,15 @@ export default function WritePage() {
               >
                 Practice Again
               </button>
-              <Link
-                href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `/study${window.location.hash}` : (deckId ? `/study?deck=${deckId}` : '/')}
-                className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium text-center"
-              >
-                {deckId === 'shared-preview' ? 'Back to Activities' : 'Home'}
-              </Link>
+              {deckId === 'shared-preview' ? (
+                <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium text-center inline-block">
+                  Back to Activities
+                </a>
+              ) : (
+                <Link href={deckId ? `/study?deck=${deckId}` : '/'} className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium text-center">
+                  Home
+                </Link>
+              )}
             </div>
           </div>
         </div>

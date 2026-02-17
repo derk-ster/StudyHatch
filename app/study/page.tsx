@@ -70,6 +70,7 @@ export default function StudyPage() {
   const [sharedPayload, setSharedPayload] = useState<string | null>(null);
   const [copyingToDecks, setCopyingToDecks] = useState(false);
   const [copyingToDeck, setCopyingToDeck] = useState(false);
+  const [showCopyLoginPrompt, setShowCopyLoginPrompt] = useState(false);
 
   // Decode share link for preview only. Do NOT save here — save only when user clicks "Copy to my decks".
   const shareHash =
@@ -89,6 +90,11 @@ export default function StudyPage() {
 
   const handleCopyToMyDecks = () => {
     if (!sharedPayload) return;
+    if (!isLoggedIn) {
+      setShowCopyLoginPrompt(true);
+      return;
+    }
+    setShowCopyLoginPrompt(false);
     setCopyingToDecks(true);
     const preview = decodeSharePayload(sharedPayload);
     if (preview) {
@@ -116,6 +122,11 @@ export default function StudyPage() {
   // Copy an already-saved shared deck to user's decks as an editable copy (from study?deck=xxx view)
   const handleCopySharedToMyDeck = () => {
     if (!displayDeck || displayDeck.id === 'shared-preview' || isPreviewMode) return;
+    if (!isLoggedIn) {
+      setShowCopyLoginPrompt(true);
+      return;
+    }
+    setShowCopyLoginPrompt(false);
     setCopyingToDeck(true);
     const copied = copyDeckToUser(displayDeck, session?.userId);
     markDeckAsCopiedByUser(displayDeck.id);
@@ -185,14 +196,17 @@ export default function StudyPage() {
   const canEditBySource = canEditDeckBySource(displayDeck, session);
   const canEdit = isTeacher ? true : canEditBySource;
   const canSave = canEdit;
-  // Shared = from share link (source 'shared') or deck owned by someone else (teacher/class) — hide Edit Deck Terms
+  // Logged in = has session and not guest (required to copy shared decks)
+  const isLoggedIn = session != null && !session.isGuest;
+  // Shared = from share link or deck owned by someone else — show deck terms but read-only
   const isSharedViewOnly =
     !isTeacher &&
     (displayDeck.source === 'shared' ||
       (!!displayDeck.ownerUserId &&
         displayDeck.ownerUserId !== session?.userId &&
         displayDeck.source !== 'public-copy'));
-  const showEditDeckTerms = !isSharedViewOnly;
+  // Always show deck terms; for shared decks they are visible but not editable
+  const showEditDeckTerms = true;
 
   const handleCardChange = (index: number, field: 'english' | 'translation' | 'definition', value: string) => {
     if (!canEdit || isPreviewMode || !displayDeck?.id) return;
@@ -298,11 +312,11 @@ export default function StudyPage() {
           ))}
         </div>
 
-        {/* Edit Deck Terms — only for own decks or public copies, not shared/teacher decks */}
+        {/* Deck Terms — editable for own decks; visible but read-only for shared decks */}
         {showEditDeckTerms && (
           <div className="mt-12 bg-white/10 rounded-2xl p-6 border border-white/20">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Edit Deck Terms</h2>
+              <h2 className="text-2xl font-semibold">{isSharedViewOnly ? 'Deck Terms' : 'Edit Deck Terms'}</h2>
               {saveMessage && <span className="text-green-300 text-sm">{saveMessage}</span>}
             </div>
             {!isTeacher && limitMessage && (
@@ -310,32 +324,34 @@ export default function StudyPage() {
                 {limitMessage}
               </div>
             )}
-            <div className="flex flex-wrap gap-3 mb-4">
-              <Link
-                href={canEdit && !isPreviewMode ? `/edit-translations?deck=${displayDeck.id}` : '#'}
-                onClick={(e) => {
-                  if (!canEdit) {
-                    e.preventDefault();
-                    setLimitMessage('Editing is not available for this deck.');
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
-              >
-                Edit Translations
-              </Link>
-              <Link
-                href={canEdit && !isPreviewMode ? `/translate-definitions?deck=${displayDeck.id}` : '#'}
-                onClick={(e) => {
-                  if (!canEdit) {
-                    e.preventDefault();
-                    setLimitMessage('Editing is not available for this deck.');
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
-              >
-                Translate Definitions
-              </Link>
-            </div>
+            {!isSharedViewOnly && (
+              <div className="flex flex-wrap gap-3 mb-4">
+                <Link
+                  href={canEdit && !isPreviewMode ? `/edit-translations?deck=${displayDeck.id}` : '#'}
+                  onClick={(e) => {
+                    if (!canEdit) {
+                      e.preventDefault();
+                      setLimitMessage('Editing is not available for this deck.');
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
+                >
+                  Edit Translations
+                </Link>
+                <Link
+                  href={canEdit && !isPreviewMode ? `/translate-definitions?deck=${displayDeck.id}` : '#'}
+                  onClick={(e) => {
+                    if (!canEdit) {
+                      e.preventDefault();
+                      setLimitMessage('Editing is not available for this deck.');
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm transition-all ${canEdit ? 'bg-white/10 hover:bg-white/20' : 'bg-white/5 text-white/50 cursor-not-allowed'}`}
+                >
+                  Translate Definitions
+                </Link>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <div className="min-w-[600px] space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-white/60 font-medium mb-2">
@@ -370,24 +386,26 @@ export default function StudyPage() {
                 ))}
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {canEdit && (
+            {!isSharedViewOnly && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={handleAddRow}
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-all text-sm font-medium"
+                  >
+                    + Add row
+                  </button>
+                )}
                 <button
-                  type="button"
-                  onClick={handleAddRow}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-all text-sm font-medium"
+                  onClick={handleSaveEdits}
+                  disabled={!canSave}
+                  className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  + Add row
+                  Save Changes
                 </button>
-              )}
-              <button
-                onClick={handleSaveEdits}
-                disabled={!canSave}
-                className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Save Changes
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -414,21 +432,38 @@ export default function StudyPage() {
               <span className="text-white/60 text-sm">Already in your decks</span>
             )}
           </div>
-          {/* Shared deck (preview): Copy to my decks — below Back to Decks */}
+          {showCopyLoginPrompt && !isLoggedIn && !isPreviewMode && (
+            <p className="mt-3 text-amber-200 text-sm">
+              Please <Link href="/login" className="underline hover:text-amber-100">log in or create an account</Link> to copy this deck.
+            </p>
+          )}
+          {/* Shared deck (preview): Copy to my decks — below Back to Decks; requires login */}
           {isPreviewMode && (
             <div className="mt-6 rounded-2xl border-2 border-amber-400/50 bg-amber-500/20 p-6 text-center">
               {sharedPayload && hasUserCopiedDeck(getSharePayloadStableId(sharedPayload)) ? (
                 <p className="text-lg text-amber-100">You’ve already copied this deck to your decks.</p>
               ) : (
                 <>
-                  <p className="text-lg text-amber-100 mb-3">This deck was shared with you. Copy it to your decks to save and practice.</p>
+                  <p className="text-lg text-amber-100 mb-3">
+                    {isLoggedIn
+                      ? 'This deck was shared with you. Copy it to your decks to save and practice.'
+                      : 'This deck was shared with you. Create an account or log in to copy it to your decks and save your progress.'}
+                  </p>
+                  {showCopyLoginPrompt && !isLoggedIn && (
+                    <p className="text-amber-200 font-medium mb-2">Please create an account or log in first.</p>
+                  )}
+                  {showCopyLoginPrompt && !isLoggedIn && (
+                    <Link href="/login" className="text-amber-200 underline hover:text-amber-100 text-sm mb-3 inline-block">
+                      Log in or create account
+                    </Link>
+                  )}
                   <button
                     type="button"
-                    onClick={handleCopyToMyDecks}
-                    disabled={copyingToDecks}
+                    onClick={isLoggedIn ? handleCopyToMyDecks : () => setShowCopyLoginPrompt(true)}
+                    disabled={isLoggedIn && copyingToDecks}
                     className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    {copyingToDecks ? 'Copying…' : 'Copy to my decks'}
+                    {isLoggedIn && copyingToDecks ? 'Copying…' : 'Copy to my decks'}
                   </button>
                 </>
               )}

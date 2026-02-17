@@ -10,18 +10,21 @@ import type { Deck } from '@/types/vocab';
  * URL hash (#share=...) so shared-link users can do activities without copying first.
  * Progress for shared-preview is not persisted (session-only).
  */
-export function useDeckForActivity(deckId: string | null): Deck | null {
+export function useDeckForActivity(deckId: string | null): { deck: Deck | null; isSharedPreviewLoading: boolean } {
   const [hashPayload, setHashPayload] = useState<string | null>(null);
+  const [hashChecked, setHashChecked] = useState(false);
 
   useEffect(() => {
     if (deckId === 'shared-preview' && typeof window !== 'undefined') {
       setHashPayload(getSharePayloadFromHash());
+      setHashChecked(true);
     } else {
       setHashPayload(null);
+      setHashChecked(deckId !== 'shared-preview');
     }
   }, [deckId]);
 
-  return useMemo((): Deck | null => {
+  const deck = useMemo((): Deck | null => {
     if (!deckId) return null;
     if (deckId === 'shared-preview') {
       if (!hashPayload) return null;
@@ -34,6 +37,10 @@ export function useDeckForActivity(deckId: string | null): Deck | null {
     }
     return getDeckById(deckId) ?? null;
   }, [deckId, hashPayload]);
+
+  const isSharedPreviewLoading = deckId === 'shared-preview' && !hashChecked;
+
+  return { deck, isSharedPreviewLoading };
 }
 
 /** True when the deck is from a share link preview (don't persist progress). */
