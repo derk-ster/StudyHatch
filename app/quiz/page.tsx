@@ -120,7 +120,7 @@ export default function QuizPage() {
     const allOptions = [correctAnswer, ...wrongAnswers];
     const shuffled = [...allOptions].sort(() => Math.random() - 0.5);
     setCurrentOptions(shuffled);
-  }, [currentIndex, showTranslationFirst, deckId]); // Use deckId instead of deck object, and currentIndex instead of currentCard
+  }, [currentIndex, showTranslationFirst, deckId, deck, currentCard]);
 
   useEffect(() => {
     setSelectedAnswer(null);
@@ -242,7 +242,7 @@ export default function QuizPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Loading shared deck…</p>
-            <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+            <a href={typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : `${basePath}/study`} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
               ← Back to Activities
             </a>
           </div>
@@ -258,7 +258,7 @@ export default function QuizPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Deck not found.</p>
-            <a href={deckId === 'shared-preview' ? `${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}` : (basePath || '/')} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+            <a href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : (basePath || '/')} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
               {deckId === 'shared-preview' ? '← Back to Activities' : 'Go Home'}
             </a>
           </div>
@@ -275,11 +275,22 @@ export default function QuizPage() {
       <main className="max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-8 bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Quiz Mode</h1>
-              <p className="text-white/70">Question {currentIndex + 1} of {quizCards.length}</p>
-              {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">Quiz Mode</h1>
+                <p className="text-white/70">Question {currentIndex + 1} of {quizCards.length}</p>
+                {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
+              </div>
+              {deckId === 'shared-preview' ? (
+                <a href={typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : `${basePath}/study`} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block shrink-0">
+                  ← Back to Activities
+                </a>
+              ) : (
+                <Link href={deckId ? `/study?deck=${deckId}` : '/'} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block shrink-0">
+                  ← Back to Activities
+                </Link>
+              )}
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-purple-400">Score: {score}</div>
@@ -346,7 +357,7 @@ export default function QuizPage() {
                   Try Again
                 </button>
                 {deckId === 'shared-preview' ? (
-                  <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-center inline-block">
+                  <a href={typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : `${basePath}/study`} className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-center inline-block">
                     Back to Activities
                   </a>
                 ) : (

@@ -169,6 +169,24 @@ export default function StudyPage() {
     return `/${activity}?${params.toString()}`;
   };
 
+  // When URL has #share=... we need one tick to decode — show loading so we don't flash "Deck not found"
+  const hasShareHashInUrl = typeof window !== 'undefined' && window.location.hash?.startsWith('#share=');
+  if (hasShareHashInUrl && !displayDeck) {
+    return (
+      <div className="min-h-screen bg-noise" style={{ position: 'relative', zIndex: 0 }}>
+        <Nav />
+        <main className="max-w-4xl mx-auto px-4 py-12" style={{ position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
+          <div className="bg-white/10 rounded-2xl p-8 text-center">
+            <p className="text-xl text-white/70">Loading shared deck…</p>
+            <a href={homeHref} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+              Go to Decks
+            </a>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!displayDeck) {
     return (
       <div className="min-h-screen bg-noise" style={{ position: 'relative', zIndex: 0 }}>

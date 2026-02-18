@@ -410,7 +410,7 @@ export default function FlashcardsPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">Loading shared deck…</p>
-            <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+            <a href={typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : `${basePath}/study`} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
               ← Back to Activities
             </a>
           </div>
@@ -426,7 +426,7 @@ export default function FlashcardsPage() {
         <main className="max-w-4xl mx-auto px-4 py-12">
           <div className="bg-white/10 rounded-2xl p-8 text-center">
             <p className="text-xl text-white/70">No cards found. Try adjusting your filters.</p>
-            <a href={deckId === 'shared-preview' ? `${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}` : (basePath || '/')} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
+            <a href={deckId === 'shared-preview' && typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : (basePath || '/')} className="mt-4 inline-block px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all">
               {deckId === 'shared-preview' ? '← Back to Activities' : 'Go Home'}
             </a>
           </div>
@@ -448,7 +448,7 @@ export default function FlashcardsPage() {
               {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
             </div>
             {deckId === 'shared-preview' ? (
-              <a href={`${basePath}/study${typeof window !== 'undefined' ? window.location.hash : ''}`} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block" style={{ position: 'relative', zIndex: 10 }}>
+              <a href={typeof window !== 'undefined' ? `${window.location.origin}${basePath}/study${window.location.hash || ''}` : `${basePath}/study`} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-medium inline-block" style={{ position: 'relative', zIndex: 10 }}>
                 ← Back to Activities
               </a>
             ) : (
