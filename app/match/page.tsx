@@ -37,7 +37,20 @@ export default function MatchPage() {
   const [gameComplete, setGameComplete] = useState(false);
   const [incorrectCards, setIncorrectCards] = useState<Set<string>>(new Set());
   const [sessionXp, setSessionXp] = useState(0);
+  const [translationOnTop, setTranslationOnTop] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('match_translationOnTop');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
   const gameCompletePopupRef = useScrollPopupIntoView(gameComplete);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('match_translationOnTop', String(translationOnTop));
+    }
+  }, [translationOnTop]);
 
   const deckId = searchParams.get('deck');
   const { deck, isSharedPreviewLoading } = useDeckForActivity(deckId);
@@ -153,10 +166,16 @@ export default function MatchPage() {
   }, [startTime, gameComplete]);
 
   const handleSpanishClick = (cardId: string) => {
-    if (gameComplete || selectedSpanish) return;
+    if (gameComplete) return;
     
     const card = spanishCards.find(c => c.id === cardId);
     if (!card || card.isMatched) return;
+
+    // Clicking the already-selected card deselects it so the player can choose a different one
+    if (selectedSpanish === cardId) {
+      setSelectedSpanish(null);
+      return;
+    }
 
     if (!startTime) {
       setStartTime(Date.now());
@@ -304,6 +323,15 @@ export default function MatchPage() {
               )}
             </div>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer mt-4 text-sm text-white/80">
+            <input
+              type="checkbox"
+              checked={translationOnTop}
+              onChange={(e) => setTranslationOnTop(e.target.checked)}
+              className="w-4 h-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-500"
+            />
+            <span>{targetLanguageName} on top (uncheck for English on top)</span>
+          </label>
         </div>
 
         {/* Game Complete Modal */}
@@ -340,67 +368,77 @@ export default function MatchPage() {
           </div>
         )}
 
-        {/* Game Grid - 4x4 */}
+        {/* Game Grid - 4x4 (top/bottom order controlled by translationOnTop) */}
         <div className="max-w-4xl mx-auto">
-          {/* Translation Cards - Top 2 rows */}
+          {/* Top 2 rows */}
           <div className="grid grid-cols-4 gap-4 mb-4">
-            {spanishCards.map((card) => {
+            {(translationOnTop ? spanishCards : englishCards).map((card) => {
+              const isTranslation = translationOnTop;
               const isIncorrect = incorrectCards.has(card.id);
               return (
                 <div key={card.id} className="relative aspect-square">
                   <button
-                    onClick={() => handleSpanishClick(card.id)}
-                    disabled={card.isMatched || selectedSpanish !== null || isIncorrect}
+                    onClick={() => isTranslation ? handleSpanishClick(card.id) : handleEnglishClick(card.id)}
+                    disabled={isTranslation ? (card.isMatched || isIncorrect) : (card.isMatched || !selectedSpanish || isIncorrect)}
                     className={`absolute inset-0 rounded-xl p-4 border-2 transition-all ${
                       card.isMatched
                         ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
                         : isIncorrect
                         ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
-                        : selectedSpanish === card.id
-                        ? 'bg-purple-500/50 border-purple-500'
-                        : selectedSpanish !== null
-                        ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
-                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
+                        : isTranslation
+                        ? (selectedSpanish === card.id ? 'bg-purple-500/50 border-purple-500 ring-2 ring-purple-300' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
+                        : (!selectedSpanish ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
                     }`}
                   >
                     <div className="text-center h-full flex items-center justify-center">
                       <span className="text-sm font-medium break-words">{card.text}</span>
                     </div>
                   </button>
-                  <PronounceButton
-                    text={card.text}
-                    languageCode={deck.targetLanguage}
-                    className="absolute top-2 left-2 text-xl"
-                    label={`Play ${targetLanguageName} pronunciation`}
-                  />
+                  {isTranslation && (
+                    <PronounceButton
+                      text={card.text}
+                      languageCode={deck.targetLanguage}
+                      className="absolute top-2 left-2 text-xl"
+                      label={`Play ${targetLanguageName} pronunciation`}
+                    />
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* English Cards - Bottom 2 rows */}
+          {/* Bottom 2 rows */}
           <div className="grid grid-cols-4 gap-4">
-            {englishCards.map((card) => {
+            {(translationOnTop ? englishCards : spanishCards).map((card) => {
+              const isTranslation = !translationOnTop;
               const isIncorrect = incorrectCards.has(card.id);
               return (
                 <div key={card.id} className="relative aspect-square">
                   <button
-                    onClick={() => handleEnglishClick(card.id)}
-                    disabled={card.isMatched || !selectedSpanish || isIncorrect}
+                    onClick={() => isTranslation ? handleSpanishClick(card.id) : handleEnglishClick(card.id)}
+                    disabled={isTranslation ? (card.isMatched || isIncorrect) : (card.isMatched || !selectedSpanish || isIncorrect)}
                     className={`absolute inset-0 rounded-xl p-4 border-2 transition-all ${
                       card.isMatched
                         ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
                         : isIncorrect
                         ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
-                        : !selectedSpanish
-                        ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
-                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
+                        : isTranslation
+                        ? (selectedSpanish === card.id ? 'bg-purple-500/50 border-purple-500 ring-2 ring-purple-300' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
+                        : (!selectedSpanish ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
                     }`}
                   >
                     <div className="text-center h-full flex items-center justify-center">
                       <span className="text-sm font-medium break-words">{card.text}</span>
                     </div>
                   </button>
+                  {isTranslation && (
+                    <PronounceButton
+                      text={card.text}
+                      languageCode={deck.targetLanguage}
+                      className="absolute top-2 left-2 text-xl"
+                      label={`Play ${targetLanguageName} pronunciation`}
+                    />
+                  )}
                 </div>
               );
             })}

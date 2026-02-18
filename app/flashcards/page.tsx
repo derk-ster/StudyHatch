@@ -295,8 +295,9 @@ export default function FlashcardsPage() {
   };
 
   const handlePrev = () => {
+    if (currentIndex <= 0) return;
     setLastClickedCard(null);
-    setCurrentIndex((prev) => (prev - 1 + filteredCards.length) % filteredCards.length);
+    setCurrentIndex((prev) => prev - 1);
     setIsFlipped(false);
   };
 
@@ -649,7 +650,12 @@ export default function FlashcardsPage() {
         <div className="flex flex-wrap gap-4 justify-center relative z-10">
           <button
             onClick={handlePrev}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
+            disabled={currentIndex === 0}
+            className={`px-6 py-3 rounded-lg transition-all font-medium ${
+              currentIndex === 0
+                ? 'bg-white/5 text-white/30 cursor-not-allowed'
+                : 'bg-white/10 hover:bg-white/20'
+            }`}
           >
             ← Previous
           </button>

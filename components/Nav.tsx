@@ -121,6 +121,11 @@ export default function Nav() {
   const shouldShowGoBack = Boolean(
     pathname?.startsWith('/games') && fromMarketingSite && (!session || session.isGuest)
   );
+  const isSharedDeckActivity = Boolean(
+    pathname && searchParams?.get('deck') === 'shared-preview' &&
+    ['/flashcards', '/match', '/quiz', '/write', '/scramble'].some(route => pathname === route || pathname.startsWith(route + '/'))
+  );
+  const backToActivitiesHref = typeof window !== 'undefined' ? `${basePath}/study${window.location.hash || ''}` : `${basePath}/study`;
   const activeNavKey = useMemo(() => {
     if (!session || session.isGuest) return null;
     if (pathname === '/') return 'home';
@@ -216,7 +221,7 @@ export default function Nav() {
             style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
           >
             <a 
-              href={homeHref} 
+              href={isSharedDeckActivity ? backToActivitiesHref : homeHref} 
               className="flex items-center gap-2 min-w-0"
               style={{ 
                 position: 'relative', 
@@ -268,10 +273,10 @@ export default function Nav() {
                 </div>
                 <div className="flex items-center gap-3">
                   <a
-                    href={homeHref}
+                    href={isSharedDeckActivity ? backToActivitiesHref : homeHref}
                     className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
                   >
-                    Home
+                    {isSharedDeckActivity ? '← Back to Activities' : 'Home'}
                   </a>
                 </div>
               </div>
@@ -337,11 +342,11 @@ export default function Nav() {
                     </div>
                   )}
 
-                  {/* Home Link — native anchor so it works from /study#share=... */}
+                  {/* Home Link — when in shared-deck activity, show "Back to Activities" and link to study */}
                   <a
-                    href={homeHref}
+                    href={isSharedDeckActivity ? backToActivitiesHref : homeHref}
                     className={`px-4 py-1 rounded-lg transition-colors inline-block text-sm relative z-10 ${
-                      pathname === '/' ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
+                      pathname === '/' && !isSharedDeckActivity ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
                     }`}
                     ref={(node) => {
                       navLinkRefs.current.home = node as HTMLAnchorElement | null;
@@ -354,7 +359,7 @@ export default function Nav() {
                       display: 'inline-block',
                     }}
                   >
-                    Home
+                    {isSharedDeckActivity ? '← Back to Activities' : 'Home'}
                   </a>
 
                   {shouldShowGoBack && (

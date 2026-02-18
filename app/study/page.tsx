@@ -433,14 +433,14 @@ export default function StudyPage() {
           </div>
         )}
 
-        {/* Back to Decks + Copy to my deck (for shared decks) */}
+        {/* Bottom: Go to Home when shared deck, Back to Decks when own deck */}
         <div className="mt-12 text-center">
           <div className="flex flex-wrap items-center justify-center gap-4">
             <a
               href={homeHref}
               className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-white inline-block"
             >
-              ← Back to Decks
+              {(isPreviewMode || isSharedViewOnly) ? '← Go to Home' : '← Back to Decks'}
             </a>
             {isSharedViewOnly && !isPreviewMode && displayDeck.id !== 'shared-preview' && !hasUserCopiedDeck(displayDeck.id) && (
               <button
