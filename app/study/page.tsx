@@ -73,15 +73,21 @@ export default function StudyPage() {
   const [showCopyLoginPrompt, setShowCopyLoginPrompt] = useState(false);
 
   // Decode share link for preview only. Do NOT save here — save only when user clicks "Copy to my decks".
+  // When returning from an activity, the hash is percent-encoded (#share=... from encodeURIComponent), so we must decode first.
   const shareHash =
     typeof window !== 'undefined' ? window.location.hash : '';
   useEffect(() => {
-    const payload = getSharePayloadFromHash();
-    if (payload) {
-      setSharedPayload(payload);
-      const preview = decodeSharePayload(payload);
-      setSharedPreviewDeck(preview ?? null);
-      // Never call decodeAndSaveSharedDeck or saveDeck here — prevents auto-duplicate.
+    const raw = getSharePayloadFromHash();
+    if (raw) {
+      try {
+        const payload = decodeURIComponent(raw);
+        setSharedPayload(payload);
+        const preview = decodeSharePayload(payload);
+        setSharedPreviewDeck(preview ?? null);
+      } catch {
+        setSharedPayload(null);
+        setSharedPreviewDeck(null);
+      }
     } else {
       setSharedPayload(null);
       setSharedPreviewDeck(null);

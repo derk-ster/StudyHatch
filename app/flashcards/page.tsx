@@ -76,32 +76,51 @@ export default function FlashcardsPage() {
     }
   }, [showDefinitions]);
 
-  // Fetch definition for a word
-  const fetchDefinition = async (word: string) => {
-    if (!word || definitions.has(word) || loadingDefinitions.has(word)) {
-      return;
+  // Pick the best definition from API response: prefer substantive definitions (skip "To X." circular), prefer noun then verb
+  const pickBestDefinition = (data: Array<{ meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string }> }> }>): string | null => {
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const entry = data[0];
+    const meanings = entry.meanings || [];
+    const MIN_LENGTH = 15; // skip trivial/circular definitions like "To run."
+    const byPart: Array<{ def: string; pos: string }> = [];
+    for (const m of meanings) {
+      const defs = m.definitions || [];
+      const pos = (m.partOfSpeech || '').toLowerCase();
+      for (const d of defs) {
+        const def = (d.definition || '').trim();
+        if (def.length >= MIN_LENGTH) byPart.push({ def, pos });
+      }
     }
+    const noun = byPart.find(({ pos }) => pos === 'noun');
+    const verb = byPart.find(({ pos }) => pos === 'verb');
+    const first = byPart[0];
+    return (noun || verb || first)?.def ?? null;
+  };
+
+  // Fetch definition for an English term only (free dictionary API, no GROQ)
+  const fetchDefinition = async (word: string) => {
+    if (!word || definitions.has(word) || loadingDefinitions.has(word)) return;
 
     setLoadingDefinitions(prev => new Set(prev).add(word));
 
+    const normalized = word.trim().toLowerCase().replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+    const firstWord = normalized.split(/\s+/)[0];
+    if (!firstWord) {
+      setLoadingDefinitions(prev => { const s = new Set(prev); s.delete(word); return s; });
+      return;
+    }
+
     try {
-      // Clean the word (remove special characters, lowercase)
-      const cleanWord = word.trim().toLowerCase().replace(/[^\w\s-]/g, '').split(/\s+/)[0];
-      
-      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanWord)}`);
-      
+      // Try full phrase first (e.g. "run away"), then first word if 404
+      let response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(normalized)}`);
+      if (!response.ok && normalized !== firstWord) {
+        response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(firstWord)}`);
+      }
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          // Get the first definition from the first meaning
-          const firstEntry = data[0];
-          if (firstEntry.meanings && firstEntry.meanings.length > 0) {
-            const firstMeaning = firstEntry.meanings[0];
-            if (firstMeaning.definitions && firstMeaning.definitions.length > 0) {
-              const definition = firstMeaning.definitions[0].definition;
-              setDefinitions(prev => new Map(prev).set(word, definition));
-            }
-          }
+        const definition = pickBestDefinition(data);
+        if (definition) {
+          setDefinitions(prev => new Map(prev).set(word, definition));
         }
       }
     } catch (error) {
@@ -206,14 +225,15 @@ export default function FlashcardsPage() {
     setSessionXp(0);
   }, [deckId]);
 
-  // Fetch definition when current card changes (always fetch for English word)
+  // Fetch definition only for English term, and only when card has no stored definition
   useEffect(() => {
-    if (currentCard && currentCard.english) {
-      const wordToDefine = currentCard.english;
-      if (wordToDefine && !definitions.has(wordToDefine) && !loadingDefinitions.has(wordToDefine)) {
-        fetchDefinition(wordToDefine);
-      }
-    }
+    if (!currentCard?.english) return;
+    const wordToDefine = currentCard.english.trim();
+    if (!wordToDefine) return;
+    const hasStored = Boolean(currentCard.definition?.trim());
+    if (hasStored) return; // Prefer stored definition; no API call
+    if (definitions.has(wordToDefine) || loadingDefinitions.has(wordToDefine)) return;
+    fetchDefinition(wordToDefine);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actualIndex]);
 
@@ -526,22 +546,16 @@ export default function FlashcardsPage() {
                   <h2 className="text-5xl font-bold text-white text-center">
                     {showTranslationFirst ? currentCard.translation : currentCard.english}
                   </h2>
-                  {/* Definition under English words */}
+                  {/* Definition only under English (front shows English here) */}
                   {!showTranslationFirst && showDefinitions && (
                     <div className="mt-2 px-4 py-2 bg-white/5 rounded-lg max-w-md">
-                      <div className="text-xs text-white/50 mb-1">Definition</div>
+                      <div className="text-xs text-white/50 mb-1">Definition (English)</div>
                       <p className="text-white/80 text-base">
-                        {(() => {
-                          const wordToDefine = currentCard.english;
-                          const definition = definitions.get(wordToDefine);
-                          if (definition) {
-                            return definition;
-                          }
-                          if (loadingDefinitions.has(wordToDefine)) {
-                            return 'Loading definition...';
-                          }
-                          return currentCard.notes || wordToDefine;
-                        })()}
+                        {currentCard.definition?.trim() ||
+                          definitions.get(currentCard.english) ||
+                          (loadingDefinitions.has(currentCard.english) ? 'Loading definition…' : null) ||
+                          currentCard.notes?.trim() ||
+                          ''}
                       </p>
                     </div>
                   )}
@@ -566,22 +580,16 @@ export default function FlashcardsPage() {
                   <h2 className="text-5xl font-bold text-white text-center">
                     {showTranslationFirst ? currentCard.english : currentCard.translation}
                   </h2>
-                  {/* Definition under English words on back */}
+                  {/* Definition only under English (back shows English here) */}
                   {showTranslationFirst && showDefinitions && (
                     <div className="mt-2 px-4 py-2 bg-white/5 rounded-lg max-w-md">
-                      <div className="text-xs text-white/50 mb-1">Definition</div>
+                      <div className="text-xs text-white/50 mb-1">Definition (English)</div>
                       <p className="text-white/80 text-base">
-                        {(() => {
-                          const wordToDefine = currentCard.english;
-                          const definition = definitions.get(wordToDefine);
-                          if (definition) {
-                            return definition;
-                          }
-                          if (loadingDefinitions.has(wordToDefine)) {
-                            return 'Loading definition...';
-                          }
-                          return currentCard.notes || wordToDefine;
-                        })()}
+                        {currentCard.definition?.trim() ||
+                          definitions.get(currentCard.english) ||
+                          (loadingDefinitions.has(currentCard.english) ? 'Loading definition…' : null) ||
+                          currentCard.notes?.trim() ||
+                          ''}
                       </p>
                     </div>
                   )}
