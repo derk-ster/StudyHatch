@@ -29,7 +29,7 @@ export default function MatchPage() {
   const searchParams = useSearchParams();
   const [spanishCards, setSpanishCards] = useState<CardState[]>([]);
   const [englishCards, setEnglishCards] = useState<CardState[]>([]);
-  const [selectedSpanish, setSelectedSpanish] = useState<string | null>(null);
+  const [selectedTopRowCardId, setSelectedTopRowCardId] = useState<string | null>(null);
   const [matchedPairs, setMatchedPairs] = useState(0);
   const [currentRound, setCurrentRound] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -138,7 +138,7 @@ export default function MatchPage() {
 
     setSpanishCards(shuffledTranslation);
     setEnglishCards(shuffledEnglish);
-    setSelectedSpanish(null);
+    setSelectedTopRowCardId(null);
     setMatchedPairs(0);
     setIncorrectCards(new Set());
     setGameComplete(false);
@@ -165,48 +165,40 @@ export default function MatchPage() {
     }
   }, [startTime, gameComplete]);
 
-  const handleSpanishClick = (cardId: string) => {
+  // First click is always on the top row; second click on the bottom row.
+  const topRowCards = translationOnTop ? spanishCards : englishCards;
+  const bottomRowCards = translationOnTop ? englishCards : spanishCards;
+
+  const handleTopRowClick = (cardId: string) => {
     if (gameComplete) return;
-    
-    const card = spanishCards.find(c => c.id === cardId);
+    const card = topRowCards.find(c => c.id === cardId);
     if (!card || card.isMatched) return;
 
-    // Clicking the already-selected card deselects it so the player can choose a different one
-    if (selectedSpanish === cardId) {
-      setSelectedSpanish(null);
+    if (selectedTopRowCardId === cardId) {
+      setSelectedTopRowCardId(null);
       return;
     }
-
-    if (!startTime) {
-      setStartTime(Date.now());
-    }
-
-    setSelectedSpanish(cardId);
+    if (!startTime) setStartTime(Date.now());
+    setSelectedTopRowCardId(cardId);
   };
 
-  const handleEnglishClick = (cardId: string) => {
-    if (gameComplete || !selectedSpanish) return;
-    
-    const englishCard = englishCards.find(c => c.id === cardId);
-    const spanishCard = spanishCards.find(c => c.id === selectedSpanish);
-    
-    if (!englishCard || !spanishCard || englishCard.isMatched) return;
+  const handleBottomRowClick = (cardId: string) => {
+    if (gameComplete || !selectedTopRowCardId) return;
+    const topCard = topRowCards.find(c => c.id === selectedTopRowCardId);
+    const bottomCard = bottomRowCards.find(c => c.id === cardId);
+    if (!topCard || !bottomCard || bottomCard.isMatched) return;
 
-    // Check if they match (same cardId)
-    if (englishCard.cardId === spanishCard.cardId) {
-      // Match!
+    if (topCard.cardId === bottomCard.cardId) {
       playSfx('correct');
-      setSpanishCards(prev => prev.map(c => 
-        c.id === selectedSpanish ? { ...c, isMatched: true } : c
+      setSpanishCards(prev => prev.map(c =>
+        c.id === topCard.id || c.id === bottomCard.id ? { ...c, isMatched: true } : c
       ));
-      setEnglishCards(prev => prev.map(c => 
-        c.id === cardId ? { ...c, isMatched: true } : c
+      setEnglishCards(prev => prev.map(c =>
+        c.id === topCard.id || c.id === bottomCard.id ? { ...c, isMatched: true } : c
       ));
-      
       setMatchedPairs(prev => {
         const newCount = prev + 1;
         const roundPairs = Math.min(pairsPerRound, deck ? deck.cards.length - currentRound * pairsPerRound : pairsPerRound);
-
         if (newCount === roundPairs) {
           const isLastRound = currentRound + 1 >= totalRounds;
           if (isLastRound) {
@@ -217,28 +209,21 @@ export default function MatchPage() {
               updateDeckProgress({ matchBestTime: finalTime });
             }
           } else {
-            const nextRound = currentRound + 1;
-            setCurrentRound(nextRound);
-            setupRound(nextRound, false);
+            setCurrentRound(currentRound + 1);
+            setupRound(currentRound + 1, false);
           }
         }
         return newCount;
       });
-
       addXP(XP_REWARDS.CORRECT_ANSWER, deckId || undefined);
       setSessionXp(prev => prev + XP_REWARDS.CORRECT_ANSWER);
-      
-      // Reset selection immediately for correct match
-      setSelectedSpanish(null);
+      setSelectedTopRowCardId(null);
     } else {
-      // Wrong match - show red feedback
       playSfx('incorrect');
-      setIncorrectCards(new Set([selectedSpanish, cardId]));
-      
-      // After 1 second, clear red feedback and reset selection
+      setIncorrectCards(new Set([selectedTopRowCardId, cardId]));
       setTimeout(() => {
         setIncorrectCards(new Set());
-        setSelectedSpanish(null);
+        setSelectedTopRowCardId(null);
       }, 1000);
     }
   };
@@ -368,33 +353,34 @@ export default function MatchPage() {
           </div>
         )}
 
-        {/* Game Grid - 4x4 (top/bottom order controlled by translationOnTop) */}
+        {/* Game Grid - 4x4: first click always on top row, second on bottom row */}
         <div className="max-w-4xl mx-auto">
-          {/* Top 2 rows */}
+          {/* Top 2 rows — always clickable first */}
           <div className="grid grid-cols-4 gap-4 mb-4">
-            {(translationOnTop ? spanishCards : englishCards).map((card) => {
-              const isTranslation = translationOnTop;
+            {topRowCards.map((card) => {
+              const isTargetLanguage = translationOnTop; // top row shows target language when checkbox checked
               const isIncorrect = incorrectCards.has(card.id);
+              const isSelected = selectedTopRowCardId === card.id;
               return (
                 <div key={card.id} className="relative aspect-square">
                   <button
-                    onClick={() => isTranslation ? handleSpanishClick(card.id) : handleEnglishClick(card.id)}
-                    disabled={isTranslation ? (card.isMatched || isIncorrect) : (card.isMatched || !selectedSpanish || isIncorrect)}
+                    onClick={() => handleTopRowClick(card.id)}
+                    disabled={card.isMatched || isIncorrect}
                     className={`absolute inset-0 rounded-xl p-4 border-2 transition-all ${
                       card.isMatched
                         ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
                         : isIncorrect
                         ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
-                        : isTranslation
-                        ? (selectedSpanish === card.id ? 'bg-purple-500/50 border-purple-500 ring-2 ring-purple-300' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
-                        : (!selectedSpanish ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
+                        : isSelected
+                        ? 'bg-purple-500/50 border-purple-500 ring-2 ring-purple-300 cursor-pointer'
+                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
                     }`}
                   >
                     <div className="text-center h-full flex items-center justify-center">
                       <span className="text-sm font-medium break-words">{card.text}</span>
                     </div>
                   </button>
-                  {isTranslation && (
+                  {isTargetLanguage && (
                     <PronounceButton
                       text={card.text}
                       languageCode={deck.targetLanguage}
@@ -407,31 +393,31 @@ export default function MatchPage() {
             })}
           </div>
 
-          {/* Bottom 2 rows */}
+          {/* Bottom 2 rows — clickable only after a top row card is selected */}
           <div className="grid grid-cols-4 gap-4">
-            {(translationOnTop ? englishCards : spanishCards).map((card) => {
-              const isTranslation = !translationOnTop;
+            {bottomRowCards.map((card) => {
+              const isTargetLanguage = !translationOnTop;
               const isIncorrect = incorrectCards.has(card.id);
               return (
                 <div key={card.id} className="relative aspect-square">
                   <button
-                    onClick={() => isTranslation ? handleSpanishClick(card.id) : handleEnglishClick(card.id)}
-                    disabled={isTranslation ? (card.isMatched || isIncorrect) : (card.isMatched || !selectedSpanish || isIncorrect)}
+                    onClick={() => handleBottomRowClick(card.id)}
+                    disabled={card.isMatched || !selectedTopRowCardId || isIncorrect}
                     className={`absolute inset-0 rounded-xl p-4 border-2 transition-all ${
                       card.isMatched
                         ? 'bg-green-500/50 border-green-500 cursor-not-allowed'
                         : isIncorrect
                         ? 'bg-red-500/50 border-red-500 cursor-not-allowed'
-                        : isTranslation
-                        ? (selectedSpanish === card.id ? 'bg-purple-500/50 border-purple-500 ring-2 ring-purple-300' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
-                        : (!selectedSpanish ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed' : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer')
+                        : !selectedTopRowCardId
+                        ? 'bg-white/10 border-white/20 opacity-50 cursor-not-allowed'
+                        : 'bg-white/10 border-white/20 hover:bg-white/15 hover:border-white/30 cursor-pointer'
                     }`}
                   >
                     <div className="text-center h-full flex items-center justify-center">
                       <span className="text-sm font-medium break-words">{card.text}</span>
                     </div>
                   </button>
-                  {isTranslation && (
+                  {isTargetLanguage && (
                     <PronounceButton
                       text={card.text}
                       languageCode={deck.targetLanguage}
