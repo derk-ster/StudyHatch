@@ -152,10 +152,12 @@ export default function StudyPage() {
     }
   };
 
+  // Sync editedCards only when switching deck or loading shared preview — not on every render.
+  // (getDeckById returns a new object each time via JSON.parse, so including `deck` would reset edits as you type.)
   useEffect(() => {
     const d = deck ?? sharedPreviewDeck;
     if (d) setEditedCards(d.cards);
-  }, [deckId, sharedPreviewDeck, deck]);
+  }, [deckId, sharedPreviewDeck]);
 
   const displayDeck = deck ?? sharedPreviewDeck;
   const isPreviewMode = Boolean(sharedPreviewDeck && !deck);

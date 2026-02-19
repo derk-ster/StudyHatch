@@ -132,13 +132,15 @@ export function StreakPetWidget() {
 
       {showModal && (
         <div
-          className="fixed inset-0 z-[10000] bg-transparent flex items-center justify-center p-4 pt-[80px] animate-fade-in overflow-y-auto"
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 animate-fade-in overflow-hidden"
           onClick={() => setShowModal(false)}
-          style={{ zIndex: 10000, position: 'fixed' }}
+          style={{ zIndex: 10000 }}
+          aria-modal="true"
+          role="dialog"
         >
           <div
             ref={streakModalPopupRef}
-            className="modal-panel bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up my-auto max-w-md"
+            className="w-full max-w-md max-h-[85vh] overflow-y-auto overflow-x-hidden flex-shrink-0 bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up shadow-xl"
             onClick={(e) => e.stopPropagation()}
             style={{ position: 'relative', zIndex: 10001 }}
           >
