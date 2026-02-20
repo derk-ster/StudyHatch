@@ -42,14 +42,18 @@ export async function POST(request: NextRequest) {
     const baseSlug = slugify(deckName);
     let shortId = `${baseSlug}-${randomId(6)}`;
     let attempts = 0;
-    while (hasShareId(shortId) && attempts < 10) {
+    while ((await hasShareId(shortId)) && attempts < 10) {
       shortId = `${baseSlug}-${randomId(6)}`;
       attempts++;
     }
-    setSharePayload(shortId, payload);
+    await setSharePayload(shortId, payload);
     return NextResponse.json({ id: shortId });
   } catch (e) {
     console.error('Share POST error:', e);
-    return NextResponse.json({ error: 'Failed to create share link' }, { status: 500 });
+    const message = (e as Error).message || 'Failed to create share link';
+    return NextResponse.json(
+      { error: message.includes('REDIS_URL') ? message : 'Failed to create share link' },
+      { status: 500 }
+    );
   }
 }

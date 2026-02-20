@@ -10,7 +10,7 @@ export async function GET(
   if (!id || typeof id !== 'string') {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
-  const payload = getSharePayload(id.trim());
+  const payload = await getSharePayload(id.trim());
   if (!payload) {
     return NextResponse.json({ error: 'Share link not found or expired' }, { status: 404 });
   }
