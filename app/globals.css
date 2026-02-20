@@ -56,12 +56,30 @@ a[class*='rounded']:active {
   transition: transform 0.18s ease;
 }
 
-.hover-lift-only:hover {
+/* Match or exceed specificity of button:not(.pronounce-button):hover so lift wins over default button scale */
+.hover-lift-only:hover,
+button.hover-lift-only:hover,
+summary.hover-lift-only:hover {
   transform: translateY(calc(var(--link-hover-raise) * -1));
 }
 
-.hover-lift-only:active {
+.hover-lift-only:active,
+button.hover-lift-only:active,
+summary.hover-lift-only:active {
   transform: translateY(0);
+}
+
+/* Scale on hover only (no lift) — for buttons inside modals where we want "size up" not "float up" */
+.hover-scale-only {
+  transition: transform 0.18s ease;
+}
+
+.hover-scale-only:hover {
+  transform: scale(var(--button-hover-scale));
+}
+
+.hover-scale-only:active {
+  transform: scale(1);
 }
 
 @layer base {

@@ -12,7 +12,7 @@ const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_
 const homeHref = basePath ? (basePath.endsWith('/') ? basePath : basePath + '/') : '/';
 import LanguageBadge from '@/components/LanguageBadge';
 import { getDeckById, saveDeck, canEditDeckBySource, recordDeckSave, copyDeckToUser, hasUserCopiedDeck, markDeckAsCopiedByUser, getAllDecks } from '@/lib/storage';
-import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl, getSharePayloadStableId } from '@/lib/share-deck';
+import { getSharePayloadFromHash, decodeSharePayload, decodeAndSaveSharedDeck, buildShareDeckUrl, getShortShareUrl, getShortShareIdFromUrl, getSharePayloadStableId } from '@/lib/share-deck';
 import { ActivityType } from '@/types/vocab';
 import { getLanguageName } from '@/lib/languages';
 import { useAuth } from '@/lib/auth-context';
@@ -68,31 +68,54 @@ export default function StudyPage() {
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [sharedPreviewDeck, setSharedPreviewDeck] = useState<typeof deck>(null);
   const [sharedPayload, setSharedPayload] = useState<string | null>(null);
+  const [shareResolving, setShareResolving] = useState(false);
   const [copyingToDecks, setCopyingToDecks] = useState(false);
   const [copyingToDeck, setCopyingToDeck] = useState(false);
   const [showCopyLoginPrompt, setShowCopyLoginPrompt] = useState(false);
 
   // Decode share link for preview only. Do NOT save here — save only when user clicks "Copy to my decks".
-  // When returning from an activity, the hash is percent-encoded (#share=... from encodeURIComponent), so we must decode first.
+  // Supports (1) long form #share=BASE64 and (2) short form ?share=slug-id (fetch payload from API).
   const shareHash =
     typeof window !== 'undefined' ? window.location.hash : '';
+  const shortShareId = getShortShareIdFromUrl();
+
   useEffect(() => {
     const raw = getSharePayloadFromHash();
     if (raw) {
       try {
         const payload = decodeURIComponent(raw);
         setSharedPayload(payload);
-        const preview = decodeSharePayload(payload);
-        setSharedPreviewDeck(preview ?? null);
+        setSharedPreviewDeck(decodeSharePayload(payload) ?? null);
       } catch {
         setSharedPayload(null);
         setSharedPreviewDeck(null);
       }
-    } else {
-      setSharedPayload(null);
-      setSharedPreviewDeck(null);
+      setShareResolving(false);
+      return;
     }
-  }, [shareHash]);
+    if (shortShareId) {
+      setShareResolving(true);
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+      fetch(`${typeof window !== 'undefined' ? window.location.origin : ''}${basePath}/api/share/${encodeURIComponent(shortShareId)}`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Share link not found');
+          return res.json();
+        })
+        .then((data: { payload: string }) => {
+          setSharedPayload(data.payload);
+          setSharedPreviewDeck(decodeSharePayload(data.payload) ?? null);
+        })
+        .catch(() => {
+          setSharedPayload(null);
+          setSharedPreviewDeck(null);
+        })
+        .finally(() => setShareResolving(false));
+      return;
+    }
+    setSharedPayload(null);
+    setSharedPreviewDeck(null);
+    setShareResolving(false);
+  }, [shareHash, shortShareId]);
 
   const handleCopyToMyDecks = () => {
     if (!sharedPayload) return;
@@ -142,13 +165,20 @@ export default function StudyPage() {
 
   const handleCopyShareLink = async () => {
     if (!deck) return;
-    const url = buildShareDeckUrl(deck);
     try {
+      const url = await getShortShareUrl(deck);
       await navigator.clipboard.writeText(url);
       setShareLinkCopied(true);
       setTimeout(() => setShareLinkCopied(false), 2000);
     } catch {
-      setShareLinkCopied(false);
+      const fallback = buildShareDeckUrl(deck);
+      try {
+        await navigator.clipboard.writeText(fallback);
+        setShareLinkCopied(true);
+        setTimeout(() => setShareLinkCopied(false), 2000);
+      } catch {
+        setShareLinkCopied(false);
+      }
     }
   };
 
@@ -177,9 +207,10 @@ export default function StudyPage() {
     return `/${activity}?${params.toString()}`;
   };
 
-  // When URL has #share=... we need one tick to decode — show loading so we don't flash "Deck not found"
   const hasShareHashInUrl = typeof window !== 'undefined' && window.location.hash?.startsWith('#share=');
-  if (hasShareHashInUrl && !displayDeck) {
+  const hasShortShareInUrl = Boolean(shortShareId);
+  const isResolvingShare = shareResolving || ((hasShareHashInUrl || hasShortShareInUrl) && !displayDeck);
+  if (isResolvingShare) {
     return (
       <div className="min-h-screen bg-noise" style={{ position: 'relative', zIndex: 0 }}>
         <Nav />

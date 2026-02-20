@@ -11,7 +11,7 @@ import LanguageBadge from '@/components/LanguageBadge';
 import { StreakPetWidget } from '@/components/StreakPet';
 import { Deck, ActivityType } from '@/types/vocab';
 import { getAllDecks, deleteDeck, getUserLimits, reorderDecksByIds, copyDeckToUser } from '@/lib/storage';
-import { buildShareDeckUrl } from '@/lib/share-deck';
+import { buildShareDeckUrl, getShortShareUrl } from '@/lib/share-deck';
 import { useAuth } from '@/lib/auth-context';
 import { getDeckXP, getXPInfo } from '@/lib/xp';
 import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
@@ -291,13 +291,19 @@ export default function Home() {
   };
 
   const handleCopyShareLink = async (deck: Deck) => {
-    const url = buildShareDeckUrl(deck);
     try {
+      const url = await getShortShareUrl(deck);
       await navigator.clipboard.writeText(url);
       setShareLinkCopiedForDeck(deck.id);
       setTimeout(() => setShareLinkCopiedForDeck(null), 2000);
     } catch {
-      setShareLinkCopiedForDeck(null);
+      try {
+        await navigator.clipboard.writeText(buildShareDeckUrl(deck));
+        setShareLinkCopiedForDeck(deck.id);
+        setTimeout(() => setShareLinkCopiedForDeck(null), 2000);
+      } catch {
+        setShareLinkCopiedForDeck(null);
+      }
     }
   };
 
@@ -399,7 +405,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setShareDecksOpen(true)}
-            className="px-4 py-2 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-100 text-sm font-medium transition-all text-center"
+            className="px-4 py-2 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/50 text-amber-100 text-sm font-medium transition-all text-center hover-lift-only"
           >
             Share Decks
           </button>
@@ -558,7 +564,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => handleCopyShareLink(deck)}
-                        className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 text-amber-100 text-sm font-medium transition-all border border-amber-400/40"
+                        className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/30 hover:bg-amber-500/40 text-amber-100 text-sm font-medium transition-all border border-amber-400/40 hover-scale-only"
                       >
                         {shareLinkCopiedForDeck === deck.id ? '✓ Copied!' : 'Copy share link'}
                       </button>

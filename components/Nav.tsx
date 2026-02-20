@@ -212,8 +212,9 @@ export default function Nav() {
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" 
         style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
       >
+        {/* Scroll when viewport is narrower than nav default (max-w-7xl = 1280px = xl) */}
         <div
-          className="h-16 overflow-x-auto sm:overflow-x-visible"
+          className="h-16 overflow-x-auto xl:overflow-x-visible"
           style={{ position: 'relative', zIndex: 99999, pointerEvents: 'auto' }}
         >
           <div 

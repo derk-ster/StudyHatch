@@ -96,10 +96,43 @@ export function getSharePayloadFromHash(): string | null {
 }
 
 /**
- * Build the full URL for sharing a deck (for pasting into Google Slides, etc.).
+ * Build the full URL for sharing a deck (long form, payload in hash). Kept for backward compatibility.
  */
 export function buildShareDeckUrl(deck: Deck): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const encoded = encodeDeckForShare(deck);
   return `${origin}/study#${SHARE_HASH_PREFIX}${encoded}`;
+}
+
+const SHARE_API = '/api/share';
+
+/**
+ * Create a short share link (e.g. /study?share=3-2-tecnologia-a1b2c3) by storing the payload on the server.
+ * Returns the full short URL. Use this when copying "Copy share link" so links are readable.
+ */
+export async function getShortShareUrl(deck: Deck): Promise<string> {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
+  const encoded = encodeDeckForShare(deck);
+  const res = await fetch(`${origin}${basePath}${SHARE_API}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload: encoded }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to create share link');
+  }
+  const data = (await res.json()) as { id: string };
+  return `${origin}${basePath}/study?share=${encodeURIComponent(data.id)}`;
+}
+
+/**
+ * Check if the current URL uses a short share id (?share=...) rather than hash payload (#share=...).
+ */
+export function getShortShareIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('share');
+  return id && id.length > 0 && id.length < 200 ? id : null;
 }

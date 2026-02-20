@@ -371,175 +371,183 @@ export default function CreateDeckPage() {
             </div>
           )}
 
-          {!showPreview ? (
-            <>
-              <div className="space-y-6">
-                <div>
-                  <label htmlFor="deckName" className="block text-sm font-medium text-white/90 mb-2">
-                    Deck Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="deckName"
-                    value={deckName}
-                    onChange={(e) => setDeckName(e.target.value)}
-                    required
-                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="My Vocabulary Deck"
-                  />
-                </div>
+          {/* Deck name, description, language, teacher, entry mode - always visible */}
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="deckName" className="block text-sm font-medium text-white/90 mb-2">
+                Deck Name *
+              </label>
+              <input
+                type="text"
+                id="deckName"
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="My Vocabulary Deck"
+              />
+            </div>
 
-                <div>
-                  <label htmlFor="deckDescription" className="block text-sm font-medium text-white/90 mb-2">
-                    Description (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    id="deckDescription"
-                    value={deckDescription}
-                    onChange={(e) => setDeckDescription(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="A deck for learning common words"
-                  />
-                </div>
+            <div>
+              <label htmlFor="deckDescription" className="block text-sm font-medium text-white/90 mb-2">
+                Description (Optional)
+              </label>
+              <input
+                type="text"
+                id="deckDescription"
+                value={deckDescription}
+                onChange={(e) => setDeckDescription(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="A deck for learning common words"
+              />
+            </div>
 
-                <div>
-                  <label htmlFor="targetLanguage" className="block text-sm font-medium text-white/90 mb-2">
-                    Target Language *
-                  </label>
-                  <select
-                    id="targetLanguage"
-                    value={targetLanguage}
-                    onChange={(e) => setTargetLanguage(e.target.value)}
-                    required
-                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    {SUPPORTED_LANGUAGES.map(lang => (
-                      <option key={lang.code} value={lang.code} className="bg-gray-800">
-                        {lang.flag} {lang.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-white/60 text-sm mt-2">
-                    Select the language you want to translate English words into
-                  </p>
-                </div>
+            <div>
+              <label htmlFor="targetLanguage" className="block text-sm font-medium text-white/90 mb-2">
+                Target Language *
+              </label>
+              <select
+                id="targetLanguage"
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                {SUPPORTED_LANGUAGES.map(lang => (
+                  <option key={lang.code} value={lang.code} className="bg-gray-800">
+                    {lang.flag} {lang.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-white/60 text-sm mt-2">
+                Select the language you want to translate English words into
+              </p>
+            </div>
 
-                {session?.role === 'teacher' && (
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                    <p className="text-white/80 text-sm mb-3">Publish deck to classes</p>
-                    {teacherClasses.length === 0 ? (
-                      <p className="text-white/60 text-sm">No classes found. Create a class first.</p>
-                    ) : (
-                      <div className="space-y-3">
-                        <label className="flex items-center gap-2 text-sm text-white/80">
+            {session?.role === 'teacher' && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-white/80 text-sm mb-3">Publish deck to classes</p>
+                {teacherClasses.length === 0 ? (
+                  <p className="text-white/60 text-sm">No classes found. Create a class first.</p>
+                ) : (
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 text-sm text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={publishAllClasses}
+                        onChange={(e) => setPublishAllClasses(e.target.checked)}
+                        className="h-4 w-4 rounded border-white/20 bg-white/10"
+                      />
+                      Publish to all classes
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {teacherClasses.map(classroom => (
+                        <label key={classroom.id} className="flex items-center gap-2 text-sm text-white/70">
                           <input
                             type="checkbox"
-                            checked={publishAllClasses}
-                            onChange={(e) => setPublishAllClasses(e.target.checked)}
+                            checked={selectedClassIds.includes(classroom.id)}
+                            onChange={(e) => {
+                              setSelectedClassIds(prev => (
+                                e.target.checked
+                                  ? [...prev, classroom.id]
+                                  : prev.filter(id => id !== classroom.id)
+                              ));
+                            }}
+                            disabled={publishAllClasses}
                             className="h-4 w-4 rounded border-white/20 bg-white/10"
                           />
-                          Publish to all classes
+                          <span>{classroom.name}</span>
                         </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {teacherClasses.map(classroom => (
-                            <label key={classroom.id} className="flex items-center gap-2 text-sm text-white/70">
-                              <input
-                                type="checkbox"
-                                checked={selectedClassIds.includes(classroom.id)}
-                                onChange={(e) => {
-                                  setSelectedClassIds(prev => (
-                                    e.target.checked
-                                      ? [...prev, classroom.id]
-                                      : prev.filter(id => id !== classroom.id)
-                                  ));
-                                }}
-                                disabled={publishAllClasses}
-                                className="h-4 w-4 rounded border-white/20 bg-white/10"
-                              />
-                              <span>{classroom.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
 
-                <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">
-                    Entry Mode *
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setEntryMode('auto')}
-                      className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
-                        entryMode === 'auto'
-                          ? 'bg-purple-600/40 border-purple-400 text-white'
-                          : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
-                      }`}
-                    >
-                      Auto Translate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEntryMode('manual')}
-                      className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
-                        entryMode === 'manual'
-                          ? 'bg-purple-600/40 border-purple-400 text-white'
-                          : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
-                      }`}
-                    >
-                      Manual Entry
-                    </button>
-                  </div>
-                  <p className="text-white/60 text-sm mt-2">
-                    {entryMode === 'auto'
-                      ? 'We will translate automatically, then you can edit each entry.'
-                      : 'Build an editable list without automatic translations.'}
-                  </p>
-                </div>
-
-                <div>
-                  <label htmlFor="wordsInput" className="block text-sm font-medium text-white/90 mb-2">
-                    English Words *
-                  </label>
-                  <textarea
-                    id="wordsInput"
-                    value={wordsInput}
-                    onChange={(e) => setWordsInput(e.target.value)}
-                    required
-                    rows={10}
-                    className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none font-mono"
-                    placeholder="Enter words separated by commas or new lines:&#10;Word1, Word2, Word3"
-                  />
-                  <p className="text-white/60 text-sm mt-2">
-                    Separate words by commas or new lines. Each word will be translated to {selectedLanguage?.name || targetLanguage}.
-                  </p>
-                  {wordsInput.trim() && (
-                    <p className="text-purple-300 text-sm mt-1 font-medium">
-                      Translate {wordsInput.split(/[\n,]+/).filter(w => w.trim().length > 0).length} word{wordsInput.split(/[\n,]+/).filter(w => w.trim().length > 0).length !== 1 ? 's' : ''}
-                    </p>
-                  )}
-                </div>
-
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">
+                Entry Mode *
+              </label>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={handleTranslate}
-                  disabled={isCreating || !wordsInput.trim()}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                  onClick={() => {
+                    setEntryMode('auto');
+                    setShowPreview(false);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                    entryMode === 'auto'
+                      ? 'bg-purple-600/40 border-purple-400 text-white'
+                      : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                  }`}
                 >
-                  {isCreating
-                    ? entryMode === 'auto'
-                      ? 'Translating...'
-                      : 'Preparing...'
-                    : entryMode === 'auto'
-                      ? 'Translate Words'
-                      : 'Create Editable List'}
+                  Auto Translate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEntryMode('manual');
+                    setShowPreview(true);
+                    if (translations.length === 0) {
+                      setTranslations([{ english: '', translation: '', definition: '' }]);
+                    }
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg border transition-all ${
+                    entryMode === 'manual'
+                      ? 'bg-purple-600/40 border-purple-400 text-white'
+                      : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
+                  }`}
+                >
+                  Manual Entry
                 </button>
               </div>
+              <p className="text-white/60 text-sm mt-2">
+                {entryMode === 'auto'
+                  ? 'We will translate automatically, then you can edit each entry.'
+                  : 'Type or paste words in the table below. Switch to Auto Translate to use the word list box instead.'}
+              </p>
+            </div>
+          </div>
+
+          {/* English words textarea + Translate - only in Auto Translate mode before preview */}
+          {entryMode === 'auto' && !showPreview && (
+            <>
+              <div className="mt-6">
+                <label htmlFor="wordsInput" className="block text-sm font-medium text-white/90 mb-2">
+                  English Words *
+                </label>
+                <textarea
+                  id="wordsInput"
+                  value={wordsInput}
+                  onChange={(e) => setWordsInput(e.target.value)}
+                  required
+                  rows={10}
+                  className="w-full px-4 py-2 rounded-lg bg-white/10 text-white placeholder-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none font-mono"
+                  placeholder="Enter words separated by commas or new lines:&#10;Word1, Word2, Word3"
+                />
+                <p className="text-white/60 text-sm mt-2">
+                  Separate words by commas or new lines. Each word will be translated to {selectedLanguage?.name || targetLanguage}.
+                </p>
+                {wordsInput.trim() && (
+                  <p className="text-purple-300 text-sm mt-1 font-medium">
+                    Translate {wordsInput.split(/[\n,]+/).filter(w => w.trim().length > 0).length} word{wordsInput.split(/[\n,]+/).filter(w => w.trim().length > 0).length !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={handleTranslate}
+                disabled={isCreating || !wordsInput.trim()}
+                className="mt-6 w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isCreating ? 'Translating...' : 'Translate Words'}
+              </button>
             </>
-          ) : (
+          )}
+
+          {/* Edit Word List - when Manual Entry or after translating in Auto */}
+          {(showPreview || entryMode === 'manual') ? (
             <>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold mb-4">Edit Word List</h2>
@@ -615,12 +623,14 @@ export default function CreateDeckPage() {
               </div>
 
               <div className="flex gap-4">
-                <button
-                  onClick={handleReset}
-                  className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
-                >
-                  Start Over
-                </button>
+                {entryMode === 'auto' && (
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium"
+                  >
+                    Start Over
+                  </button>
+                )}
                 <button
                   onClick={handleCreateDeck}
                   disabled={!deckName.trim() || isSavingDeck}
@@ -630,7 +640,7 @@ export default function CreateDeckPage() {
                 </button>
               </div>
             </>
-          )}
+          ) : null}
         </div>
       </main>
     </div>
