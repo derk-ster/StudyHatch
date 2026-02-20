@@ -544,6 +544,13 @@ export default function CreateDeckPage() {
               <div className="mb-6">
                 <h2 className="text-2xl font-bold mb-4">Edit Word List</h2>
                 <div className="bg-white/5 rounded-lg p-4 max-h-96 overflow-y-auto space-y-3">
+                  {/* Column headers for the 3 fields + actions */}
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr,1fr,1fr,auto] gap-2 items-center px-3 py-2 text-sm font-medium text-white/70 border-b border-white/10">
+                    <span>English</span>
+                    <span>{selectedLanguage?.name || targetLanguage}</span>
+                    <span>Definition (optional)</span>
+                    <span className="text-right">Actions</span>
+                  </div>
                   {translations.map((trans, index) => (
                     <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr,1fr,1fr,auto] gap-2 items-center bg-white/5 p-3 rounded">
                       <input
