@@ -329,8 +329,8 @@ export default function ViewDecksPage() {
           >
             Public Decks
           </Link>
-          <details className="relative z-10">
-            <summary className="px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-100 text-sm font-medium transition-all text-center cursor-pointer list-none inline-flex items-center justify-center hover-lift-only [&::-webkit-details-marker]:hidden">
+          <details className="relative z-10 w-full sm:w-auto min-w-0">
+            <summary className="w-full px-4 py-2 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-400/40 text-purple-100 text-sm font-medium transition-all text-center cursor-pointer list-none flex items-center justify-center hover-lift-only [&::-webkit-details-marker]:hidden">
               Leaderboards
             </summary>
             <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-56 bg-gray-900 border border-white/10 rounded-xl shadow-xl p-2 z-[200]">

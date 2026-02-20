@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { getStreakInfo, getProgressToNextEvolution, getNextEvolutionStreak } from '@/lib/streak';
 import { PetStage } from '@/types/vocab';
-import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
 
 type PetProps = {
   streak: number;
@@ -88,7 +88,6 @@ export function StreakPetWidget() {
   const [petAnimating, setPetAnimating] = useState(false);
   const [petAnimationKey, setPetAnimationKey] = useState(0);
   const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const streakModalPopupRef = useScrollPopupIntoView(showModal);
 
   useEffect(() => {
     // Refresh streak info periodically
@@ -130,72 +129,80 @@ export function StreakPetWidget() {
         </div>
       </button>
 
-      {showModal && (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 animate-fade-in overflow-hidden"
-          onClick={() => setShowModal(false)}
-          style={{ zIndex: 10000 }}
-          aria-modal="true"
-          role="dialog"
-        >
+      {showModal &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            ref={streakModalPopupRef}
-            className="w-full max-w-md max-h-[85vh] overflow-y-auto overflow-x-hidden flex-shrink-0 bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-            style={{ position: 'relative', zIndex: 10001 }}
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 animate-fade-in overflow-hidden"
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', minWidth: '100vw', minHeight: '100vh' }}
+            onClick={() => setShowModal(false)}
+            aria-modal="true"
+            role="dialog"
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
-                My Streak Pet
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-white/70 hover:text-white text-2xl"
-              >
-                ×
-              </button>
-            </div>
-
-            <PetDisplay
-              streak={streakInfo.streak}
-              petStage={streakInfo.petStage}
-              progressToNext={streakInfo.progressToNext}
-              showDetails
-              onPetClick={triggerPetAnimation}
-              isAnimating={petAnimating}
-              animationKey={petAnimationKey}
-            />
-
-            <div className="mt-6 space-y-3">
-              <div className="bg-white/5 rounded-lg p-4">
-                <div className="text-white/70 text-sm mb-1">Current Streak</div>
-                <div className="text-2xl font-bold text-purple-400">
-                  {streakInfo.streak} Day{streakInfo.streak !== 1 ? 's' : ''}
-                </div>
+            <div
+              className="max-h-[85vh] overflow-y-auto overflow-x-hidden flex-shrink-0 bg-gray-900 rounded-2xl p-4 sm:p-6 md:p-8 border border-white/20 card-glow animate-slide-up shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'relative',
+                zIndex: 10001,
+                width: 'min(100%, 28rem)',
+                minWidth: '280px',
+                minHeight: '380px',
+              }}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                  My Streak Pet
+                </h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="text-white/70 hover:text-white text-2xl"
+                >
+                  ×
+                </button>
               </div>
-              {streakInfo.nextEvolutionStreak < Infinity && (
+
+              <PetDisplay
+                streak={streakInfo.streak}
+                petStage={streakInfo.petStage}
+                progressToNext={streakInfo.progressToNext}
+                showDetails
+                onPetClick={triggerPetAnimation}
+                isAnimating={petAnimating}
+                animationKey={petAnimationKey}
+              />
+
+              <div className="mt-6 space-y-3">
                 <div className="bg-white/5 rounded-lg p-4">
-                  <div className="text-white/70 text-sm mb-1">Next Evolution</div>
-                  <div className="text-lg font-medium text-blue-400">
-                    {streakInfo.nextEvolutionStreak} Days
-                  </div>
-                  <div className="w-full bg-white/20 rounded-full h-2 mt-2">
-                    <div
-                      className="bg-blue-400 h-2 rounded-full transition-all"
-                      style={{ width: `${streakInfo.progressToNext * 100}%` }}
-                    />
+                  <div className="text-white/70 text-sm mb-1">Current Streak</div>
+                  <div className="text-2xl font-bold text-purple-400">
+                    {streakInfo.streak} Day{streakInfo.streak !== 1 ? 's' : ''}
                   </div>
                 </div>
-              )}
-              <div className="bg-white/5 rounded-lg p-4">
-                <div className="text-white/60 text-sm">
-                  Complete at least 1 deck activity each day to maintain your streak!
+                {streakInfo.nextEvolutionStreak < Infinity && (
+                  <div className="bg-white/5 rounded-lg p-4">
+                    <div className="text-white/70 text-sm mb-1">Next Evolution</div>
+                    <div className="text-lg font-medium text-blue-400">
+                      {streakInfo.nextEvolutionStreak} Days
+                    </div>
+                    <div className="w-full bg-white/20 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-blue-400 h-2 rounded-full transition-all"
+                        style={{ width: `${streakInfo.progressToNext * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="bg-white/5 rounded-lg p-4">
+                  <div className="text-white/60 text-sm">
+                    Complete at least 1 deck activity each day to maintain your streak!
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
