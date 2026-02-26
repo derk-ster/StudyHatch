@@ -27,6 +27,7 @@ export default function WritePage() {
   const [correctForm, setCorrectForm] = useState('');
   const [sessionResults, setSessionResults] = useState<Map<string, boolean>>(new Map());
   const [showResults, setShowResults] = useState(false);
+  const [retryCards, setRetryCards] = useState<VocabCard[] | null>(null);
   const [sessionXp, setSessionXp] = useState(0);
   const resultsPopupRef = useScrollPopupIntoView(showResults);
 
@@ -90,13 +91,14 @@ export default function WritePage() {
         };
   };
 
-  // Shuffle cards
+  // Shuffle cards (used when not in retry mode)
   const shuffledCards = useMemo(() => {
     if (!deck) return [];
     return [...deck.cards].sort(() => Math.random() - 0.5);
   }, [deckId, deck]);
 
-  const currentCard = shuffledCards[currentIndex];
+  const effectiveCards = retryCards && retryCards.length > 0 ? retryCards : shuffledCards;
+  const currentCard = effectiveCards[currentIndex];
   const targetLanguageCode = deck?.targetLanguage || 'es';
 
   useEffect(() => {
@@ -109,7 +111,14 @@ export default function WritePage() {
   useEffect(() => {
     setSessionResults(new Map());
     setShowResults(false);
+    setRetryCards(null);
   }, [deckId]);
+
+  const effectiveCards = retryCards && retryCards.length > 0 ? retryCards : shuffledCards;
+  const missedCards = useMemo(
+    () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),
+    [effectiveCards, sessionResults]
+  );
 
   // Calculate results
   const calculateResults = useMemo(() => {
@@ -171,13 +180,17 @@ export default function WritePage() {
   };
 
   const handleNext = () => {
-    if (currentIndex < shuffledCards.length - 1) {
+    if (currentIndex < effectiveCards.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
-      // All cards completed, show results
       setShowResults(true);
     }
   };
+
+  const missedCards = useMemo(
+    () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),
+    [effectiveCards, sessionResults]
+  );
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !showAnswer) {
@@ -220,7 +233,7 @@ export default function WritePage() {
     );
   }
 
-  if (!deck || shuffledCards.length === 0) {
+  if (!deck || effectiveCards.length === 0) {
     return (
       <div className="min-h-screen bg-noise">
         <Nav />
@@ -265,7 +278,7 @@ export default function WritePage() {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-sm text-white/70">
-                Card {currentIndex + 1} of {shuffledCards.length}
+                Card {currentIndex + 1} of {effectiveCards.length}
               </div>
               {deck && <LanguageBadge languageCode={deck.targetLanguage} />}
             </div>
@@ -372,7 +385,7 @@ export default function WritePage() {
               }}
               className="px-8 py-4 bg-green-600 hover:bg-green-700 rounded-lg transition-all font-medium text-lg"
             >
-              {currentIndex < shuffledCards.length - 1 ? 'Next Card (Ctrl+Enter)' : 'View Results (Ctrl+Enter)'}
+              {currentIndex < effectiveCards.length - 1 ? 'Next Card (Ctrl+Enter)' : 'View Results (Ctrl+Enter)'}
             </button>
           )}
         </div>
@@ -445,15 +458,31 @@ export default function WritePage() {
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3">
+              {missedCards.length > 0 && (
+                <button
+                  onClick={() => {
+                    const shuffled = [...missedCards].sort(() => Math.random() - 0.5);
+                    setRetryCards(shuffled);
+                    setShowResults(false);
+                    setCurrentIndex(0);
+                    setSessionResults(new Map());
+                    setSessionXp(0);
+                  }}
+                  className="px-6 py-3 bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 rounded-lg transition-all font-medium"
+                >
+                  Redo missed ({missedCards.length})
+                </button>
+              )}
               <button
                 onClick={() => {
+                  setRetryCards(null);
                   setShowResults(false);
                   setCurrentIndex(0);
                   setSessionResults(new Map());
                   setSessionXp(0);
                 }}
-                className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
+                className="flex-1 min-w-[140px] px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
               >
                 Practice Again
               </button>

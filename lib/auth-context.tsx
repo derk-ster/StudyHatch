@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthSession, User } from '@/types/auth';
-import { getCurrentSession, setCurrentSession, signIn as authSignIn, signUp as authSignUp, signOut as authSignOut, continueAsGuest } from './auth';
+import { getCurrentSession, setCurrentSession, signIn as authSignIn, signUp as authSignUp, signOut as authSignOut, continueAsGuest, syncUsersFromServer } from './auth';
 
 type AuthContextType = {
   session: AuthSession | null;
@@ -20,10 +20,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load session on mount
-    const currentSession = getCurrentSession();
-    setSession(currentSession);
-    setIsLoading(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        await syncUsersFromServer();
+      } finally {
+        if (!cancelled) {
+          const currentSession = getCurrentSession();
+          setSession(currentSession);
+          setIsLoading(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const signIn = async (email: string, password: string) => {

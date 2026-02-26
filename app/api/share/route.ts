@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSharePayload, setSharePayload, hasShareId } from '@/lib/share-store';
 
-/** Slugify deck name for readable short id: lowercase, no accents, alphanumeric and dashes only. */
+/** Slugify deck name for short readable id: lowercase, no accents, alphanumeric and dashes. Max 30 chars to keep links short. */
 function slugify(name: string): string {
   const normalized = (name ?? '')
     .normalize('NFD')
@@ -9,7 +9,7 @@ function slugify(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-  return normalized.slice(0, 50) || 'deck';
+  return normalized.slice(0, 30) || 'deck';
 }
 
 function randomId(length: number): string {

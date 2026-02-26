@@ -396,7 +396,21 @@ export default function Nav() {
                   >
                     Games
                   </Link>
-
+                  <Link
+                    href="/grammar-decks"
+                    className={`px-4 py-1 rounded-lg transition-colors inline-block text-sm relative z-10 ${
+                      pathname?.startsWith('/grammar-decks') || pathname?.startsWith('/conjugation') || pathname?.startsWith('/grammar-speak') ? 'text-white' : 'bg-white/10 hover:bg-white/20 text-white/90'
+                    }`}
+                    style={{ 
+                      position: 'relative', 
+                      zIndex: 99999, 
+                      pointerEvents: 'auto', 
+                      cursor: 'pointer', 
+                      display: 'inline-block',
+                    }}
+                  >
+                    Grammar
+                  </Link>
 
                   {session?.role === 'teacher' && (
                     <Link

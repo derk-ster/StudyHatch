@@ -84,6 +84,26 @@ export type Language = {
 
 export type StudyMode = 'general' | 'tech';
 
+/** Single conjugation prompt: infinitive + tense + person → answer (e.g. hablar, present, yo → hablo) */
+export type GrammarCard = {
+  id: string;
+  infinitive: string;
+  tense: string;   // e.g. 'present', 'preterite', 'imperfect'
+  person: string; // e.g. 'yo', 'tú', 'él/ella/usted', 'nosotros', 'vosotros', 'ellos/ellas/ustedes'
+  answer: string; // correct conjugation
+  translation?: string; // optional English hint (e.g. "I speak")
+};
+
+export type GrammarDeck = {
+  id: string;
+  name: string;
+  description?: string;
+  cards: GrammarCard[];
+  createdDate: number;
+  targetLanguage: string;
+  ownerUserId?: string;
+};
+
 export type ActivityType = 'flashcards' | 'learn' | 'match' | 'quiz' | 'write' | 'scramble';
 
 export type UserProgress = {

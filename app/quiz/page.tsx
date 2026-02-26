@@ -29,6 +29,9 @@ export default function QuizPage() {
   const [showTranslationFirst, setShowTranslationFirst] = useState(true);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [sessionXp, setSessionXp] = useState(0);
+  const [questionsPerQuiz, setQuestionsPerQuiz] = useState(10);
+  const [shuffleKey, setShuffleKey] = useState(0);
+  const [retryMissed, setRetryMissed] = useState<VocabCard[] | null>(null);
   const quizCompletePopupRef = useScrollPopupIntoView(quizComplete);
 
   const deckId = searchParams.get('deck');
@@ -93,12 +96,19 @@ export default function QuizPage() {
         };
   };
 
-  // Shuffle and select 10 cards for quiz
+  // When retryMissed is set, quiz uses only those cards; otherwise shuffle and select N
   const quizCards = useMemo(() => {
-    if (!deck) return [];
+    if (retryMissed && retryMissed.length > 0) {
+      return [...retryMissed].sort(() => Math.random() - 0.5);
+    }
+    if (!deck || deck.cards.length === 0) return [];
     const shuffled = [...deck.cards].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 10);
-  }, [deckId, deck]);
+    const take =
+      questionsPerQuiz <= 0 || questionsPerQuiz >= deck.cards.length
+        ? deck.cards.length
+        : Math.min(questionsPerQuiz, shuffled.length);
+    return shuffled.slice(0, take);
+  }, [deckId, deck, questionsPerQuiz, shuffleKey, retryMissed]);
 
   const currentCard = quizCards[currentIndex];
   const targetLanguageCode = deck?.targetLanguage || 'es';
@@ -297,15 +307,35 @@ export default function QuizPage() {
               <div className="text-sm text-white/70">Streak: {streak}</div>
             </div>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showTranslationFirst}
-              onChange={(e) => setShowTranslationFirst(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <span className="text-sm">{targetLanguageName} → English</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTranslationFirst}
+                onChange={(e) => setShowTranslationFirst(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm">{targetLanguageName} → English</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-sm text-white/80">Questions per quiz:</span>
+              <select
+                value={deck && questionsPerQuiz >= deck.cards.length ? 'all' : questionsPerQuiz}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setQuestionsPerQuiz(v === 'all' ? (deck?.cards.length ?? 10) : parseInt(v, 10));
+                }}
+                className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                {[5, 10, 15, 20, 25].filter((n) => !deck || n <= deck.cards.length).map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+                {deck && deck.cards.length > 0 && (
+                  <option value="all">All ({deck.cards.length})</option>
+                )}
+              </select>
+            </label>
+          </div>
         </div>
 
         {/* Quiz Complete Modal */}
@@ -340,9 +370,30 @@ export default function QuizPage() {
                 </div>
               )}
 
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-3">
+                {missedWords.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const shuffled = [...missedWords].sort(() => Math.random() - 0.5);
+                      setRetryMissed(shuffled);
+                      setCurrentIndex(0);
+                      setScore(0);
+                      setStreak(0);
+                      setMissedWords([]);
+                      setQuizComplete(false);
+                      setSelectedAnswer(null);
+                      setShowResult(false);
+                      setSessionXp(0);
+                    }}
+                    className="px-6 py-3 bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 rounded-lg transition-all font-medium"
+                  >
+                    Redo missed ({missedWords.length})
+                  </button>
+                )}
                 <button
                   onClick={() => {
+                    setRetryMissed(null);
+                    setShuffleKey((k) => k + 1);
                     setCurrentIndex(0);
                     setScore(0);
                     setStreak(0);
@@ -352,7 +403,7 @@ export default function QuizPage() {
                     setShowResult(false);
                     setSessionXp(0);
                   }}
-                  className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
+                  className="flex-1 min-w-[120px] px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all"
                 >
                   Try Again
                 </button>

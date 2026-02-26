@@ -1,4 +1,4 @@
-import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership, ClassSettings } from '@/types/vocab';
+import { UserProgress, StudyMode, ActivityType, Deck, VocabCard, GrammarDeck, GrammarCard, Classroom, PublishedDeck, School, ClassRoom, ClassMembership, ClassSettings } from '@/types/vocab';
 import { addUserClassroom, getAccountData, getCurrentSession, getUserById, removeClassroomFromAllUsers, saveAccountData, setUserSchool } from './auth';
 import { isSchoolModeEnabled } from './school-mode';
 import { recordWeeklyStudyAttempt } from './leaderboards';
@@ -14,6 +14,8 @@ const CLASSES_STORAGE_KEY = 'studyhatch-classes';
 const CLASS_MEMBERSHIPS_STORAGE_KEY = 'studyhatch-class-memberships';
 const CLASS_DECKS_STORAGE_KEY = 'studyhatch-class-decks';
 const CLASS_SETTINGS_STORAGE_KEY = 'studyhatch-class-settings';
+const GRAMMAR_DECKS_STORAGE_KEY = 'studyhatch-grammar-decks';
+const COMBINED_DECK_ORDER_KEY = 'studyhatch-combined-deck-order';
 
 const LAST_DECK_USER_KEY = 'studyhatch-last-deck-user';
 const TAB_DECK_USER_KEY = 'studyhatch-tab-deck-user';
@@ -72,6 +74,58 @@ const getCopiedSourcesStorageKey = (): string => {
     return `${COPIED_SOURCES_KEY}-${session.userId}`;
   }
   return COPIED_SOURCES_KEY;
+};
+
+const getGrammarDeckStorageKey = (): string => {
+  if (typeof window === 'undefined') return GRAMMAR_DECKS_STORAGE_KEY;
+  try {
+    const session = getCurrentSession();
+    const tabUserId = sessionStorage.getItem(TAB_DECK_USER_KEY);
+    const lastUserId = sessionStorage.getItem(LAST_DECK_USER_KEY);
+    if (session?.userId) {
+      if (tabUserId === session.userId) {
+        sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+        return `${GRAMMAR_DECKS_STORAGE_KEY}-${session.userId}`;
+      }
+      if (tabUserId != null) {
+        return `${GRAMMAR_DECKS_STORAGE_KEY}-${lastUserId || tabUserId}`;
+      }
+      sessionStorage.setItem(TAB_DECK_USER_KEY, session.userId);
+      sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+      return `${GRAMMAR_DECKS_STORAGE_KEY}-${session.userId}`;
+    }
+    sessionStorage.removeItem(TAB_DECK_USER_KEY);
+    if (lastUserId) return `${GRAMMAR_DECKS_STORAGE_KEY}-${lastUserId}`;
+  } catch {
+    // ignore
+  }
+  return GRAMMAR_DECKS_STORAGE_KEY;
+};
+
+const getCombinedDeckOrderStorageKey = (): string => {
+  if (typeof window === 'undefined') return COMBINED_DECK_ORDER_KEY;
+  try {
+    const session = getCurrentSession();
+    const tabUserId = sessionStorage.getItem(TAB_DECK_USER_KEY);
+    const lastUserId = sessionStorage.getItem(LAST_DECK_USER_KEY);
+    if (session?.userId) {
+      if (tabUserId === session.userId) {
+        sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+        return `${COMBINED_DECK_ORDER_KEY}-${session.userId}`;
+      }
+      if (tabUserId != null) {
+        return `${COMBINED_DECK_ORDER_KEY}-${lastUserId || tabUserId}`;
+      }
+      sessionStorage.setItem(TAB_DECK_USER_KEY, session.userId);
+      sessionStorage.setItem(LAST_DECK_USER_KEY, session.userId);
+      return `${COMBINED_DECK_ORDER_KEY}-${session.userId}`;
+    }
+    sessionStorage.removeItem(TAB_DECK_USER_KEY);
+    if (lastUserId) return `${COMBINED_DECK_ORDER_KEY}-${lastUserId}`;
+  } catch {
+    // ignore
+  }
+  return COMBINED_DECK_ORDER_KEY;
 };
 
 /** Deck IDs (shared deck sources) this user has already copied to their decks. One copy per source allowed. */
@@ -408,6 +462,95 @@ export const setDeckVisibility = (deckId: string, visibility: 'private' | 'publi
   if (!deck) return false;
   saveDeck({ ...deck, visibility });
   return true;
+};
+
+// Grammar deck storage
+export const getAllGrammarDecks = (): GrammarDeck[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(getGrammarDeckStorageKey());
+    if (stored) return JSON.parse(stored);
+  } catch (error) {
+    console.error('Error loading grammar decks:', error);
+  }
+  return [];
+};
+
+export const getGrammarDeckById = (deckId: string): GrammarDeck | undefined => {
+  return getAllGrammarDecks().find(d => d.id === deckId);
+};
+
+export const saveGrammarDeck = (deck: GrammarDeck): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    const session = getCurrentSession();
+    const decks = getAllGrammarDecks();
+    const existingIndex = decks.findIndex(d => d.id === deck.id);
+    const toSave = {
+      ...deck,
+      ownerUserId: deck.ownerUserId ?? session?.userId,
+    };
+    if (existingIndex >= 0) {
+      decks[existingIndex] = toSave;
+    } else {
+      decks.push(toSave);
+    }
+    localStorage.setItem(getGrammarDeckStorageKey(), JSON.stringify(decks));
+  } catch (error) {
+    console.error('Error saving grammar deck:', error);
+  }
+};
+
+export const deleteGrammarDeck = (deckId: string): void => {
+  if (typeof window === 'undefined') return;
+  const decks = getAllGrammarDecks().filter(d => d.id !== deckId);
+  localStorage.setItem(getGrammarDeckStorageKey(), JSON.stringify(decks));
+  const order = getCombinedDeckOrder().filter(id => id !== deckId);
+  setCombinedDeckOrder(order);
+};
+
+export const reorderGrammarDecksByIds = (orderedIds: string[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    const decks = getAllGrammarDecks();
+    const deckMap = new Map(decks.map(deck => [deck.id, deck]));
+    const reordered: GrammarDeck[] = [];
+    orderedIds.forEach(id => {
+      const deck = deckMap.get(id);
+      if (deck) {
+        reordered.push(deck);
+        deckMap.delete(id);
+      }
+    });
+    deckMap.forEach(deck => reordered.push(deck));
+    localStorage.setItem(getGrammarDeckStorageKey(), JSON.stringify(reordered));
+  } catch (error) {
+    console.error('Error reordering grammar decks:', error);
+  }
+};
+
+/** Display order for merged vocab + grammar decks (array of deck ids). */
+export const getCombinedDeckOrder = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(getCombinedDeckOrderStorageKey());
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+};
+
+export const setCombinedDeckOrder = (orderedIds: string[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(getCombinedDeckOrderStorageKey(), JSON.stringify(orderedIds));
+  } catch (error) {
+    console.error('Error saving combined deck order:', error);
+  }
 };
 
 const dedupeDecksById = (decks: Deck[]): Deck[] => {
@@ -827,6 +970,8 @@ export const deleteDeck = (deckId: string): void => {
       delete progress.deckProgress[deckId];
       saveProgress(progress);
     }
+    const order = getCombinedDeckOrder().filter(id => id !== deckId);
+    setCombinedDeckOrder(order);
   } catch (error) {
     console.error('Error deleting deck:', error);
   }

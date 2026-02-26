@@ -107,7 +107,8 @@ export async function setSharePayload(id: string, payload: string): Promise<void
   store[id] = payload;
   const written = writeStoreSync(store);
   if (!written) {
-    throw new Error('Share store unavailable. Set REDIS_URL in production for short links.');
+    // Read-only FS (e.g. serverless): keep in memory so short link works for this process
+    console.warn('Share store file write skipped (read-only). Short link will work for this instance only. Set REDIS_URL for persistence.');
   }
 }
 

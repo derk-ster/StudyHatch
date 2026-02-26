@@ -86,7 +86,7 @@ export default function ClassroomsPage() {
                             href={`/create?classId=${classroom.id}`}
                             className="inline-flex mt-2 px-3 py-1 rounded-lg bg-purple-600/80 hover:bg-purple-600 text-xs font-semibold transition-all"
                           >
-                            + Create Deck
+                            + Create Vocab Deck
                           </Link>
                         </div>
                       </div>

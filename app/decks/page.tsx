@@ -8,9 +8,9 @@ import Image from 'next/image';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { StreakPetWidget } from '@/components/StreakPet';
-import { getAllDecks, deleteDeck, getUserLimits, getOwnedClassrooms, getPublishedDecksForDeck, publishDeckToClassroom, getClassesForStudent, getClassDeckIdsForStudent, getActiveClassDecks, reorderDecksByIds } from '@/lib/storage';
+import { getAllDecks, getAllGrammarDecks, deleteDeck, deleteGrammarDeck, getUserLimits, getOwnedClassrooms, getPublishedDecksForDeck, publishDeckToClassroom, getClassesForStudent, getClassDeckIdsForStudent, getActiveClassDecks, getCombinedDeckOrder, setCombinedDeckOrder } from '@/lib/storage';
 import { buildShareDeckUrl, getShortShareUrl } from '@/lib/share-deck';
-import { Deck, ActivityType, Classroom } from '@/types/vocab';
+import { Deck, GrammarDeck, ActivityType, Classroom } from '@/types/vocab';
 import { useAuth } from '@/lib/auth-context';
 import { getDeckXP } from '@/lib/xp';
 import { useScrollPopupIntoView } from '@/lib/scroll-popup-into-view';
@@ -54,12 +54,31 @@ const activities: { id: ActivityType | 'ai-chat'; name: string; icon: string; de
   },
 ];
 
+type DeckItem = { type: 'vocab'; deck: Deck } | { type: 'grammar'; deck: GrammarDeck };
+
+function buildOrderedDeckList(vocabDecks: Deck[], grammarDecks: GrammarDeck[]): DeckItem[] {
+  const order = getCombinedDeckOrder();
+  const byId = new Map<string, DeckItem>();
+  vocabDecks.forEach(d => byId.set(d.id, { type: 'vocab', deck: d }));
+  grammarDecks.forEach(d => byId.set(d.id, { type: 'grammar', deck: d }));
+  const ordered: DeckItem[] = [];
+  order.forEach(id => {
+    const item = byId.get(id);
+    if (item) {
+      ordered.push(item);
+      byId.delete(id);
+    }
+  });
+  byId.forEach(item => ordered.push(item));
+  return ordered;
+}
+
 export default function ViewDecksPage() {
   const { session } = useAuth();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [personalDecks, setPersonalDecks] = useState<Deck[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ id: string; type: 'vocab' | 'grammar' } | null>(null);
   const deleteConfirmPopupRef = useScrollPopupIntoView(!!showDeleteConfirm);
   const [ownedClassrooms, setOwnedClassrooms] = useState<Classroom[]>([]);
   const [publishSelections, setPublishSelections] = useState<Record<string, { classroomId: string; expiration: string }>>({});
@@ -112,28 +131,33 @@ export default function ViewDecksPage() {
 
   const limits = getUserLimits();
   const visiblePersonalDecks = session?.role === 'student' ? personalDecks : decks;
+  const grammarDecks = getAllGrammarDecks();
+  const visiblePersonalItems = buildOrderedDeckList(visiblePersonalDecks, grammarDecks);
 
-  const handleDelete = (deckId: string) => {
-    deleteDeck(deckId);
-    const allDecks = getAllDecks();
-    setDecks(allDecks);
-    if (session?.role === 'student') {
-      const classDeckIds = session?.userId ? getClassDeckIdsForStudent(session.userId) : [];
-      setPersonalDecks(allDecks.filter(deck => deck.ownerUserId === session.userId || (!deck.ownerUserId && !classDeckIds.includes(deck.id))));
+  const handleDelete = (deckId: string, type: 'vocab' | 'grammar') => {
+    if (type === 'vocab') {
+      deleteDeck(deckId);
+      const allDecks = getAllDecks();
+      setDecks(allDecks);
+      if (session?.role === 'student') {
+        const classDeckIds = session?.userId ? getClassDeckIdsForStudent(session.userId) : [];
+        setPersonalDecks(allDecks.filter(deck => deck.ownerUserId === session.userId || (!deck.ownerUserId && !classDeckIds.includes(deck.id))));
+      } else {
+        setPersonalDecks(allDecks);
+      }
     } else {
-      setPersonalDecks(allDecks);
+      deleteGrammarDeck(deckId);
     }
     setShowDeleteConfirm(null);
-    
     if (selectedDeck === deckId) {
-      setSelectedDeck(null);
+      const remaining = visiblePersonalItems.filter(item => item.deck.id !== deckId);
+      setSelectedDeck(remaining[0]?.deck.id ?? null);
     }
   };
 
-  const createActivityUrl = (activity: ActivityType | 'ai-chat', deckId: string) => {
-    if (activity === 'ai-chat') {
-      return '/ai-chat';
-    }
+  const createActivityUrl = (activity: ActivityType | 'ai-chat', deckId: string, type: 'vocab' | 'grammar') => {
+    if (type === 'grammar') return `/conjugation?deck=${deckId}`;
+    if (activity === 'ai-chat') return '/ai-chat';
     const params = new URLSearchParams();
     params.set('deck', deckId);
     return `/${activity}?${params.toString()}`;
@@ -156,7 +180,9 @@ export default function ViewDecksPage() {
     }
   };
 
-  const decksToShare = visiblePersonalDecks.filter(d => d.ownerUserId === session?.userId);
+  const decksToShare = visiblePersonalItems
+    .filter((item): item is { type: 'vocab'; deck: Deck } => item.type === 'vocab' && item.deck.ownerUserId === session?.userId)
+    .map(item => item.deck);
   const shareDecksFiltered = shareDecksSearch.trim()
     ? decksToShare.filter(
         d =>
@@ -235,15 +261,14 @@ export default function ViewDecksPage() {
     event.stopPropagation();
     const sourceId = event.dataTransfer.getData('text/plain') || draggingDeckId;
     if (!sourceId || sourceId === targetDeckId) return;
-    const reordered = [...visiblePersonalDecks];
-    const fromIndex = reordered.findIndex(deck => deck.id === sourceId);
-    const toIndex = reordered.findIndex(deck => deck.id === targetDeckId);
+    const reordered = [...visiblePersonalItems];
+    const fromIndex = reordered.findIndex(item => item.deck.id === sourceId);
+    const toIndex = reordered.findIndex(item => item.deck.id === targetDeckId);
     if (fromIndex < 0 || toIndex < 0) return;
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.splice(toIndex, 0, moved);
-    reorderDecksByIds(reordered.map(deck => deck.id));
+    setCombinedDeckOrder(reordered.map(item => item.deck.id));
     setDecks(getAllDecks());
-    setPersonalDecks(reordered);
     setDraggingDeckId(null);
     setIsDragging(false);
   };
@@ -252,8 +277,8 @@ export default function ViewDecksPage() {
     event.preventDefault();
     const sourceId = event.dataTransfer.getData('text/plain') || draggingDeckId;
     if (!sourceId) return;
-    const reordered = [...visiblePersonalDecks];
-    const fromIndex = reordered.findIndex(deck => deck.id === sourceId);
+    const reordered = [...visiblePersonalItems];
+    const fromIndex = reordered.findIndex(item => item.deck.id === sourceId);
     if (fromIndex <= 0) {
       setDraggingDeckId(null);
       setIsDragging(false);
@@ -261,9 +286,8 @@ export default function ViewDecksPage() {
     }
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.unshift(moved);
-    reorderDecksByIds(reordered.map(deck => deck.id));
+    setCombinedDeckOrder(reordered.map(item => item.deck.id));
     setDecks(getAllDecks());
-    setPersonalDecks(reordered);
     setDraggingDeckId(null);
     setIsDragging(false);
   };
@@ -308,8 +332,8 @@ export default function ViewDecksPage() {
           <StreakPetWidget />
         </div>
 
-        {/* Create Deck Button */}
-        <div className="mb-8 text-center flex justify-center" key="create-deck-button">
+        {/* Create Deck Buttons: Vocab + Grammar */}
+        <div className="mb-8 text-center flex flex-wrap justify-center gap-3" key="create-deck-buttons">
           <Link
             href="/create"
             className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg text-lg pulse-glow whitespace-nowrap inline-flex items-center justify-center hover-lift-scale"
@@ -317,7 +341,16 @@ export default function ViewDecksPage() {
               transition: 'transform 0.18s ease, background-color 0.2s ease',
             }}
           >
-            + Create New Deck
+            + Create New Vocab Deck
+          </Link>
+          <Link
+            href="/grammar-decks"
+            className="px-8 py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-lg text-lg whitespace-nowrap inline-flex items-center justify-center hover-lift-scale border border-amber-400/30"
+            style={{ 
+              transition: 'transform 0.18s ease, background-color 0.2s ease',
+            }}
+          >
+            Practice Grammar and Pronunciation
           </Link>
         </div>
 
@@ -366,7 +399,7 @@ export default function ViewDecksPage() {
         {/* Limits Info */}
         <div className="mb-8 text-center">
           <p className="text-white/60 text-sm">
-            {limits.maxDecks === Infinity ? 'Unlimited' : `${visiblePersonalDecks.length} / ${limits.maxDecks}`} decks • {limits.maxCards === Infinity ? 'Unlimited' : limits.maxCards} card limit
+            {limits.maxDecks === Infinity ? 'Unlimited' : `${visiblePersonalItems.length} / ${limits.maxDecks}`} decks • {limits.maxCards === Infinity ? 'Unlimited' : limits.maxCards} card limit
           </p>
         </div>
 
@@ -379,7 +412,7 @@ export default function ViewDecksPage() {
         )}
 
         {/* Decks List */}
-        {visiblePersonalDecks.length === 0 ? (
+        {visiblePersonalItems.length === 0 ? (
           <div className="text-center py-16" data-reveal>
             <div className="text-6xl mb-4">📚</div>
             <h2 className="text-2xl font-bold mb-2 text-white/90">No decks yet</h2>
@@ -388,7 +421,7 @@ export default function ViewDecksPage() {
               href="/create"
               className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg"
             >
-              Create Your First Deck
+              Create Your First Vocab Deck
             </Link>
           </div>
         ) : (
@@ -399,139 +432,167 @@ export default function ViewDecksPage() {
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleGridDrop}
           >
-            {visiblePersonalDecks.map((deck, index) => (
-              <div
-                key={deck.id}
-                data-deck-card
-                className={`group relative bg-white/10 backdrop-blur-md rounded-2xl p-6 border-2 card-glow card-glow-hover opacity-0 animate-slide-up hover-lift-scale ${
-                  selectedDeck === deck.id
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-white/20'
-                }`}
-                style={{ 
-                  animationDelay: `${index * 0.1}s`,
-                  transition: 'transform 0.18s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
-                  gridRow: selectedDeck === deck.id ? 'span 2' : 'span 1',
-                  zIndex: draggingDeckId === deck.id ? 50 : 'auto',
-                }}
-                onClick={() => {
-                  if (isDragging) return;
-                  // Toggle: if already selected, close it; otherwise, open it
-                  setSelectedDeck(selectedDeck === deck.id ? null : deck.id);
-                }}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(event, deck.id)}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors">
-                    {deck.name}
-                  </h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteConfirm(deck.id);
-                    }}
-                    className="text-white/50 hover:text-red-400 transition-colors text-xl"
-                  >
-                    ×
-                  </button>
-                </div>
-                {deck.description && (
-                  <p className="text-white/70 mb-4 text-sm">{deck.description}</p>
-                )}
-                <div className="flex justify-between text-sm text-white/60 mb-2">
-                  <div className="flex flex-col gap-2">
-                    <span>{deck.cards.length} cards</span>
-                    <LanguageBadge languageCode={deck.targetLanguage} />
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span>{formatDate(deck.createdDate)}</span>
-                    <span className="text-xs text-white/60">XP gained: {getDeckXP(deck.id)}</span>
+            {visiblePersonalItems.map((item, index) => {
+              const deck = item.deck;
+              const isVocab = item.type === 'vocab';
+              const isSelected = selectedDeck === deck.id;
+              return (
+                <div
+                  key={deck.id}
+                  data-deck-card
+                  className={`group relative backdrop-blur-md rounded-2xl p-6 border-2 card-glow card-glow-hover opacity-0 animate-slide-up hover-lift-scale ${
+                    isVocab
+                      ? `bg-white/10 ${isSelected ? 'border-purple-500 bg-purple-500/10' : 'border-white/20'}`
+                      : `bg-amber-500/10 ${isSelected ? 'border-amber-500 bg-amber-500/20' : 'border-amber-400/30'}`
+                  }`}
+                  style={{
+                    animationDelay: `${index * 0.1}s`,
+                    transition: 'transform 0.18s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
+                    gridRow: isSelected ? 'span 2' : 'span 1',
+                    zIndex: draggingDeckId === deck.id ? 50 : 'auto',
+                  }}
+                  onClick={() => {
+                    if (isDragging) return;
+                    setSelectedDeck(isSelected ? null : deck.id);
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => handleDrop(event, deck.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className={`text-2xl font-bold text-white transition-colors ${isVocab ? 'group-hover:text-purple-300' : 'group-hover:text-amber-200'}`}>
+                      {deck.name}
+                    </h3>
+                    {!isVocab && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-100 font-medium">Grammar</span>
+                    )}
                     <button
-                      type="button"
-                      draggable
-                      onDragStart={(event) => handleDragStart(event, deck.id)}
-                      className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeleteConfirm({ id: deck.id, type: item.type });
+                      }}
+                      className="text-white/50 hover:text-red-400 transition-colors text-xl"
                     >
-                      Drag
+                      ×
                     </button>
                   </div>
-                </div>
-                <div 
-                  className="overflow-hidden transition-all duration-300 ease-in-out"
-                  style={{
-                    maxHeight: selectedDeck === deck.id ? '500px' : '0px',
-                    opacity: selectedDeck === deck.id ? 1 : 0,
-                  }}
-                >
-                  <div className="mt-4 pt-4 border-t border-white/20">
-                    {ownedClassrooms.length > 0 && (
-                      <div className="mb-4 bg-white/5 rounded-lg p-3 border border-white/10">
-                        <p className="text-white/80 text-sm mb-2">Publish to Classroom</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                          <select
-                            value={publishSelections[deck.id]?.classroomId || ownedClassrooms[0]?.id || ''}
-                            onChange={(e) => handlePublishSelection(deck.id, { classroomId: e.target.value })}
-                            className="px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          >
-                            {ownedClassrooms.map(classroom => (
-                              <option key={classroom.id} value={classroom.id} className="bg-gray-800">
-                                {classroom.name || classroom.classCode}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={publishSelections[deck.id]?.expiration || 'never'}
-                            onChange={(e) => handlePublishSelection(deck.id, { expiration: e.target.value })}
-                            className="px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          >
-                            {expirationOptions.map(option => (
-                              <option key={option.value} value={option.value} className="bg-gray-800">
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePublishDeck(deck.id);
-                            }}
-                            className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-all"
-                          >
-                            Publish
-                          </button>
-                        </div>
-                        {getPublishedDecksForDeck(deck.id).length > 0 && (
-                          <p className="text-white/60 text-xs mt-2">
-                            Published to {getPublishedDecksForDeck(deck.id).length} classroom{getPublishedDecksForDeck(deck.id).length !== 1 ? 's' : ''}.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      {activities.slice(0, 6).map((activity) => (
-                        <Link
-                          key={activity.id}
-                          href={createActivityUrl(activity.id, deck.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-center text-sm transition-all"
-                        >
-                          {activity.icon} {activity.name}
-                        </Link>
-                      ))}
+                  {deck.description && (
+                    <p className="text-white/70 mb-4 text-sm">{deck.description}</p>
+                  )}
+                  <div className="flex justify-between text-sm text-white/60 mb-2">
+                    <div className="flex flex-col gap-2">
+                      <span>{deck.cards.length} {isVocab ? 'cards' : 'conjugations'}</span>
+                      <LanguageBadge languageCode={deck.targetLanguage} />
                     </div>
-                    <Link
-                      href={`/study?deck=${deck.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="block mt-2 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center transition-all font-medium"
-                    >
-                      View All Activities →
-                    </Link>
+                    <div className="flex flex-col items-end gap-2">
+                      <span>{formatDate(deck.createdDate)}</span>
+                      {isVocab && <span className="text-xs text-white/60">XP gained: {getDeckXP(deck.id)}</span>}
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={(event) => handleDragStart(event, deck.id)}
+                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-all"
+                      >
+                        Drag
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                    style={{
+                      maxHeight: isSelected ? '500px' : '0px',
+                      opacity: isSelected ? 1 : 0,
+                    }}
+                  >
+                    <div className="mt-4 pt-4 border-t border-white/20">
+                      {isVocab ? (
+                        <>
+                          {ownedClassrooms.length > 0 && (
+                            <div className="mb-4 bg-white/5 rounded-lg p-3 border border-white/10">
+                              <p className="text-white/80 text-sm mb-2">Publish to Classroom</p>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <select
+                                  value={publishSelections[deck.id]?.classroomId || ownedClassrooms[0]?.id || ''}
+                                  onChange={(e) => handlePublishSelection(deck.id, { classroomId: e.target.value })}
+                                  className="px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                                  {ownedClassrooms.map(classroom => (
+                                    <option key={classroom.id} value={classroom.id} className="bg-gray-800">
+                                      {classroom.name || classroom.classCode}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={publishSelections[deck.id]?.expiration || 'never'}
+                                  onChange={(e) => handlePublishSelection(deck.id, { expiration: e.target.value })}
+                                  className="px-3 py-2 rounded-lg bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                >
+                                  {expirationOptions.map(option => (
+                                    <option key={option.value} value={option.value} className="bg-gray-800">
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePublishDeck(deck.id);
+                                  }}
+                                  className="px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-all"
+                                >
+                                  Publish
+                                </button>
+                              </div>
+                              {getPublishedDecksForDeck(deck.id).length > 0 && (
+                                <p className="text-white/60 text-xs mt-2">
+                                  Published to {getPublishedDecksForDeck(deck.id).length} classroom{getPublishedDecksForDeck(deck.id).length !== 1 ? 's' : ''}.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            {activities.slice(0, 6).map((activity) => (
+                              <Link
+                                key={activity.id}
+                                href={createActivityUrl(activity.id, deck.id, 'vocab')}
+                                onClick={(e) => e.stopPropagation()}
+                                className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-center text-sm transition-all"
+                              >
+                                {activity.icon} {activity.name}
+                              </Link>
+                            ))}
+                          </div>
+                          <Link
+                            href={`/study?deck=${deck.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="block mt-2 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center transition-all font-medium"
+                          >
+                            View All Activities →
+                          </Link>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Link
+                            href={`/conjugation?deck=${deck.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-4 py-3 bg-amber-600 hover:bg-amber-500 rounded-lg text-center transition-all font-medium"
+                          >
+                            Conjugation Practice
+                          </Link>
+                          <Link
+                            href={`/grammar-speak?deck=${deck.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-4 py-3 bg-amber-600/80 hover:bg-amber-500 border border-amber-400/40 rounded-lg text-center transition-all font-medium"
+                          >
+                            Speaking / Pronunciation
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -573,7 +634,7 @@ export default function ViewDecksPage() {
                     {activities.slice(0, 4).map((activity) => (
                       <Link
                         key={activity.id}
-                        href={createActivityUrl(activity.id, deck.id)}
+                        href={createActivityUrl(activity.id, deck.id, 'vocab')}
                         className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-center text-sm transition-all"
                       >
                         {activity.icon} {activity.name}
@@ -661,7 +722,7 @@ export default function ViewDecksPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleDelete(showDeleteConfirm)}
+                  onClick={() => showDeleteConfirm && handleDelete(showDeleteConfirm.id, showDeleteConfirm.type)}
                   className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
                 >
                   Delete

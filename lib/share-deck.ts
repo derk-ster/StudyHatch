@@ -96,19 +96,20 @@ export function getSharePayloadFromHash(): string | null {
 }
 
 /**
- * Build the full URL for sharing a deck (long form, payload in hash). Kept for backward compatibility.
+ * Build the full URL for sharing a deck (long form, payload in hash). Fallback when short share API fails.
  */
 export function buildShareDeckUrl(deck: Deck): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
   const encoded = encodeDeckForShare(deck);
-  return `${origin}/study#${SHARE_HASH_PREFIX}${encoded}`;
+  return `${origin}${basePath}/study#${SHARE_HASH_PREFIX}${encoded}`;
 }
 
 const SHARE_API = '/api/share';
 
 /**
- * Create a short share link (e.g. /study?share=3-2-tecnologia-a1b2c3) by storing the payload on the server.
- * Returns the full short URL. Use this when copying "Copy share link" so links are readable.
+ * Create a short share link (e.g. /share/spanish-basics-a1b2c3) by storing the payload on the server.
+ * Returns the full short URL: deck-name-slug + unique code. Use when copying "Copy share link".
  */
 export async function getShortShareUrl(deck: Deck): Promise<string> {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -124,14 +125,23 @@ export async function getShortShareUrl(deck: Deck): Promise<string> {
     throw new Error((err as { error?: string }).error || 'Failed to create share link');
   }
   const data = (await res.json()) as { id: string };
-  return `${origin}${basePath}/study?share=${encodeURIComponent(data.id)}`;
+  // Path-based short link: /share/deck-name-abc123 (deck name slug + unique code)
+  return `${origin}${basePath}/share/${data.id}`;
 }
 
 /**
- * Check if the current URL uses a short share id (?share=...) rather than hash payload (#share=...).
+ * Check if the current URL uses a short share id: from query (?share=...) or path (/share/...).
  */
 export function getShortShareIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null;
+  const pathname = window.location.pathname || '';
+  const basePath = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
+  const sharePathPrefix = basePath ? `${basePath}/share/` : '/share/';
+  if (pathname.startsWith(sharePathPrefix)) {
+    const pathId = pathname.slice(sharePathPrefix.length).replace(/\/.*$/, '');
+    const id = decodeURIComponent(pathId);
+    return id && id.length > 0 && id.length < 200 ? id : null;
+  }
   const params = new URLSearchParams(window.location.search);
   const id = params.get('share');
   return id && id.length > 0 && id.length < 200 ? id : null;

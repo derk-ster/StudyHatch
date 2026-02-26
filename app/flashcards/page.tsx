@@ -42,6 +42,7 @@ export default function FlashcardsPage() {
   const [flashingCard, setFlashingCard] = useState<{id: string, type: 'known' | 'not-known'} | null>(null);
   const [lastClickedCard, setLastClickedCard] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [retryCards, setRetryCards] = useState<VocabCard[] | null>(null);
   const [sessionStarredCards, setSessionStarredCards] = useState<Set<string>>(new Set());
   const [definitions, setDefinitions] = useState<Map<string, string>>(new Map());
   const [loadingDefinitions, setLoadingDefinitions] = useState<Set<string>>(new Set());
@@ -185,15 +186,21 @@ export default function FlashcardsPage() {
     return { currentProgress, currentDeckProgress };
   };
 
-  const filteredCards = useMemo(() => {
+  const baseCards = useMemo(() => {
     if (!deck) return [];
     return [...deck.cards];
   }, [deck]);
+  const filteredCards = retryCards && retryCards.length > 0 ? retryCards : baseCards;
     
   useEffect(() => {
     const indices = filteredCards.map((_, i) => i);
     setShuffledIndices(indices);
   }, [deckId, filteredCards.length]);
+
+  const notKnownCards = useMemo(
+    () => baseCards.filter((c) => cardStates.get(c.id) === 'not-known'),
+    [baseCards, cardStates]
+  );
 
   const actualIndex = shuffledIndices.length > 0 && shuffledIndices[currentIndex] !== undefined 
     ? shuffledIndices[currentIndex] 
@@ -223,6 +230,7 @@ export default function FlashcardsPage() {
     setShowResults(false);
     setSessionStarredCards(new Set());
     setSessionXp(0);
+    setRetryCards(null);
   }, [deckId]);
 
   // Fetch definition only for English term, and only when card has no stored definition
@@ -347,7 +355,6 @@ export default function FlashcardsPage() {
       if (currentIndex < filteredCards.length - 1) {
         setCurrentIndex(prev => prev + 1);
         setIsFlipped(false);
-        setShowTranslationFirst(false);
       }
     }, 300);
   };
@@ -384,7 +391,6 @@ export default function FlashcardsPage() {
       if (currentIndex < filteredCards.length - 1) {
         setCurrentIndex(prev => prev + 1);
         setIsFlipped(false);
-        setShowTranslationFirst(false);
       }
     }, 300);
   };
@@ -419,7 +425,6 @@ export default function FlashcardsPage() {
       if (currentIndex < filteredCards.length - 1) {
         setCurrentIndex(prev => prev + 1);
         setIsFlipped(false);
-        setShowTranslationFirst(false);
       }
     }, 300);
   };
@@ -765,9 +770,30 @@ export default function FlashcardsPage() {
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3">
+              {notKnownCards.length > 0 && (
+                <button
+                  onClick={() => {
+                    const shuffled = [...notKnownCards].sort(() => Math.random() - 0.5);
+                    setRetryCards(shuffled);
+                    setShowResults(false);
+                    setCurrentIndex(0);
+                    setIsFlipped(false);
+                    setMarkedCards(new Set());
+                    setCardStates(new Map());
+                    setFlashingCard(null);
+                    setLastClickedCard(null);
+                    setSessionStarredCards(new Set());
+                    setSessionXp(0);
+                  }}
+                  className="px-6 py-3 bg-purple-600/80 hover:bg-purple-600 border border-purple-400/40 rounded-lg transition-all font-medium"
+                >
+                  Redo missed ({notKnownCards.length})
+                </button>
+              )}
               <button
                 onClick={() => {
+                  setRetryCards(null);
                   setShowResults(false);
                   setCurrentIndex(0);
                   setIsFlipped(false);
@@ -778,13 +804,13 @@ export default function FlashcardsPage() {
                   setSessionStarredCards(new Set());
                   setSessionXp(0);
                 }}
-                className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
+                className="flex-1 min-w-[140px] px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all font-medium"
               >
                 Study Again
               </button>
               <Link
                 href="/"
-                className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium text-center"
+                className="flex-1 min-w-[100px] px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition-all font-medium text-center"
               >
                 Home
               </Link>

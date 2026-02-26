@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { createSchool, getClassByJoinCode, joinClassByCode } from '@/lib/storage';
 import { recordActivity } from '@/lib/activity-log';
+import { getLastLoginIdentifier, setLastLoginIdentifier } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,6 +30,13 @@ export default function LoginPage() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (isLogin) {
+      const last = getLastLoginIdentifier();
+      if (last) setEmail(last);
+    }
+  }, [isLogin]);
+
   const extractClassCode = (value: string) => {
     const trimmed = value.trim();
     const match = trimmed.match(/join-class\/([A-Za-z0-9]+)/i);
@@ -44,6 +52,7 @@ export default function LoginPage() {
       if (isLogin) {
         const result = await signIn(email, password);
         if (result.success) {
+          setLastLoginIdentifier(email);
           if (result.userId) {
             recordActivity(result.userId, 'login', 'User logged in.');
           }

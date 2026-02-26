@@ -327,7 +327,7 @@ export default function CreateDeckPage() {
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 card-glow p-8">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-2">
-            Create New Deck
+            Create New Vocab Deck
           </h1>
           <p className="text-white/70 mb-8">
             Paste your English words and we&apos;ll automatically generate translations
@@ -636,7 +636,7 @@ export default function CreateDeckPage() {
                   disabled={!deckName.trim() || isSavingDeck}
                   className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSavingDeck ? 'Creating Deck...' : 'Create Deck'}
+                  {isSavingDeck ? 'Creating Deck...' : 'Create Vocab Deck'}
                 </button>
               </div>
             </>

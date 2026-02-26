@@ -17,6 +17,7 @@ import { sanitizeText } from './sanitize';
 const USERS_STORAGE_KEY = 'studyhatch-users'; // Mock user database
 const CURRENT_SESSION_KEY = 'studyhatch-session';
 const LAST_SESSION_KEY = 'studyhatch-session-last';
+const LAST_LOGIN_KEY = 'studyhatch-last-login'; // Remember email/username for login form
 const DECKS_STORAGE_KEY = 'spanish-vocab-decks';
 const DECKS_BACKUP_STORAGE_KEY = 'spanish-vocab-decks-backup';
 const PUBLIC_DECKS_STORAGE_KEY = 'spanish-vocab-public-decks';
@@ -110,7 +111,35 @@ const verifyPassword = async (password: string, stored: StoredPassword): Promise
   return { valid: hash === stored.hash };
 };
 
-// Mock user database (localStorage)
+// Sync users from server so login works across devices and after closing browser
+export async function syncUsersFromServer(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const res = await fetch('/api/users');
+    if (!res.ok) return;
+    const users = await res.json();
+    if (users && typeof users === 'object') {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+  } catch (error) {
+    console.error('Error syncing users from server:', error);
+  }
+}
+
+async function persistUsersToServer(users: Record<string, { user: User; passwordHash: StoredPassword; accountData: AccountData }>): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ users }),
+    });
+  } catch (error) {
+    console.error('Error persisting users to server:', error);
+  }
+}
+
+// Mock user database (localStorage, synced with server)
 function getUsers(): Record<string, { user: User; passwordHash: StoredPassword; accountData: AccountData }> {
   if (typeof window === 'undefined') return {};
   
@@ -131,8 +160,28 @@ function saveUsers(users: Record<string, { user: User; passwordHash: StoredPassw
   
   try {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    persistUsersToServer(users);
   } catch (error) {
     console.error('Error saving users:', error);
+  }
+}
+
+export function getLastLoginIdentifier(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem(LAST_LOGIN_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function setLastLoginIdentifier(emailOrUsername: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const trimmed = String(emailOrUsername).trim();
+    if (trimmed) localStorage.setItem(LAST_LOGIN_KEY, trimmed);
+  } catch {
+    // ignore
   }
 }
 
@@ -143,6 +192,7 @@ export function signUp(
   role: 'teacher' | 'student' = 'student'
 ): Promise<{ success: boolean; error?: string; user?: User }> {
   return new Promise(async (resolve) => {
+    await syncUsersFromServer();
     // Validation
     const safeEmail = sanitizeText(email);
     const safeUsername = sanitizeText(username);
@@ -220,6 +270,7 @@ export function signUp(
 
 export function signIn(emailOrUsername: string, password: string): Promise<{ success: boolean; error?: string; user?: User }> {
   return new Promise(async (resolve) => {
+    await syncUsersFromServer();
     const users = getUsers();
     const input = sanitizeText(emailOrUsername).toLowerCase().trim();
     const rateLimit = checkClientRateLimit(`login-${input}`, LOGIN_RATE_LIMIT_COUNT, LOGIN_RATE_LIMIT_WINDOW);

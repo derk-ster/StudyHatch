@@ -9,8 +9,8 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Nav from '@/components/Nav';
 import LanguageBadge from '@/components/LanguageBadge';
 import { StreakPetWidget } from '@/components/StreakPet';
-import { Deck, ActivityType } from '@/types/vocab';
-import { getAllDecks, deleteDeck, getUserLimits, reorderDecksByIds, copyDeckToUser } from '@/lib/storage';
+import { Deck, GrammarDeck, ActivityType } from '@/types/vocab';
+import { getAllDecks, getAllGrammarDecks, deleteDeck, deleteGrammarDeck, getUserLimits, getCombinedDeckOrder, setCombinedDeckOrder } from '@/lib/storage';
 import { buildShareDeckUrl, getShortShareUrl } from '@/lib/share-deck';
 import { useAuth } from '@/lib/auth-context';
 import { getDeckXP, getXPInfo } from '@/lib/xp';
@@ -65,15 +65,39 @@ const ENCOURAGING_MESSAGES = [
   "Progress, not perfection!",
 ];
 
+type DeckItem = { type: 'vocab'; deck: Deck } | { type: 'grammar'; deck: GrammarDeck };
+
+function buildOrderedDeckList(): DeckItem[] {
+  const vocab = getAllDecks();
+  const grammar = getAllGrammarDecks();
+  const order = getCombinedDeckOrder();
+  const byId = new Map<string, DeckItem>();
+  vocab.forEach(d => byId.set(d.id, { type: 'vocab', deck: d }));
+  grammar.forEach(d => byId.set(d.id, { type: 'grammar', deck: d }));
+  const ordered: DeckItem[] = [];
+  order.forEach(id => {
+    const item = byId.get(id);
+    if (item) {
+      ordered.push(item);
+      byId.delete(id);
+    }
+  });
+  byId.forEach(item => ordered.push(item));
+  return ordered;
+}
+
 export default function Home() {
   const { session, isLoading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const [decks, setDecks] = useState<Deck[]>([]);
+  const [allDecks, setAllDecks] = useState<DeckItem[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ id: string; type: 'vocab' | 'grammar' } | null>(null);
   const deleteConfirmPopupRef = useScrollPopupIntoView(!!showDeleteConfirm);
+  const decksToShare = allDecks
+    .filter((item): item is { type: 'vocab'; deck: Deck } => item.type === 'vocab' && item.deck.ownerUserId === session?.userId)
+    .map(item => item.deck);
   const [draggingDeckId, setDraggingDeckId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -91,14 +115,13 @@ export default function Home() {
 
   useEffect(() => {
     if (isLoading || !session) return;
-    const loadedDecks = getAllDecks();
-    setDecks(loadedDecks);
-    
+    const list = buildOrderedDeckList();
+    setAllDecks(list);
     const deckParam = searchParams.get('deck');
     if (deckParam) {
       setSelectedDeck(deckParam);
-    } else if (loadedDecks.length > 0) {
-      setSelectedDeck(loadedDecks[0].id);
+    } else if (list.length > 0) {
+      setSelectedDeck(list[0].deck.id);
     }
   }, [searchParams, pathname, session, isLoading]);
 
@@ -115,25 +138,7 @@ export default function Home() {
               Build custom vocabulary decks, practice translations, and study with interactive games.
             </p>
             <div className="mt-6 flex items-center justify-center">
-              <div className="relative inline-flex items-center gap-3">
-                <div className="absolute -left-44 -top-10 flex flex-col items-center">
-                  <Image
-                    src="/ClickHereText.png"
-                    alt=""
-                    width={160}
-                    height={80}
-                    className="h-auto w-[140px]"
-                    priority
-                  />
-                  <Image
-                    src="/ClickHereArrow.png"
-                    alt=""
-                    width={180}
-                    height={120}
-                    className="h-auto w-[160px] -mt-10"
-                    priority
-                  />
-                </div>
+              <div className="inline-flex items-center gap-3">
                 <Link
                   className="rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 px-5 py-2 font-semibold text-white shadow-[0_0_22px_rgba(168,85,247,0.75)] transition-all hover:from-purple-500 hover:to-blue-500"
                   href="/login?mode=signup"
@@ -204,14 +209,17 @@ export default function Home() {
 
   const limits = getUserLimits();
 
-  const handleDeleteDeck = (deckId: string) => {
-    deleteDeck(deckId);
-    const updatedDecks = getAllDecks();
-    setDecks(updatedDecks);
+  const handleDeleteDeck = (deckId: string, type: 'vocab' | 'grammar') => {
+    if (type === 'vocab') {
+      deleteDeck(deckId);
+    } else {
+      deleteGrammarDeck(deckId);
+    }
+    const list = buildOrderedDeckList();
+    setAllDecks(list);
     setShowDeleteConfirm(null);
-    
     if (selectedDeck === deckId) {
-      setSelectedDeck(updatedDecks.length > 0 ? updatedDecks[0].id : null);
+      setSelectedDeck(list.length > 0 ? list[0].deck.id : null);
     }
   };
 
@@ -233,14 +241,15 @@ export default function Home() {
     event.stopPropagation();
     const sourceId = event.dataTransfer.getData('text/plain') || draggingDeckId;
     if (!sourceId || sourceId === targetDeckId) return;
-    const reordered = [...decks];
-    const fromIndex = reordered.findIndex(deck => deck.id === sourceId);
-    const toIndex = reordered.findIndex(deck => deck.id === targetDeckId);
+    const reordered = [...allDecks];
+    const fromIndex = reordered.findIndex(item => item.deck.id === sourceId);
+    const toIndex = reordered.findIndex(item => item.deck.id === targetDeckId);
     if (fromIndex < 0 || toIndex < 0) return;
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.splice(toIndex, 0, moved);
-    reorderDecksByIds(reordered.map(deck => deck.id));
-    setDecks(reordered);
+    const newOrder = reordered.map(item => item.deck.id);
+    setCombinedDeckOrder(newOrder);
+    setAllDecks(reordered);
     setDraggingDeckId(null);
     setIsDragging(false);
   };
@@ -249,8 +258,8 @@ export default function Home() {
     event.preventDefault();
     const sourceId = event.dataTransfer.getData('text/plain') || draggingDeckId;
     if (!sourceId) return;
-    const reordered = [...decks];
-    const fromIndex = reordered.findIndex(deck => deck.id === sourceId);
+    const reordered = [...allDecks];
+    const fromIndex = reordered.findIndex(item => item.deck.id === sourceId);
     if (fromIndex <= 0) {
       setDraggingDeckId(null);
       setIsDragging(false);
@@ -258,8 +267,9 @@ export default function Home() {
     }
     const [moved] = reordered.splice(fromIndex, 1);
     reordered.unshift(moved);
-    reorderDecksByIds(reordered.map(deck => deck.id));
-    setDecks(reordered);
+    const newOrder = reordered.map(item => item.deck.id);
+    setCombinedDeckOrder(newOrder);
+    setAllDecks(reordered);
     setDraggingDeckId(null);
     setIsDragging(false);
   };
@@ -276,13 +286,13 @@ export default function Home() {
     setIsDragging(false);
   };
 
-  const createActivityUrl = (activity: ActivityType | 'ai-chat') => {
-    if (activity === 'ai-chat') {
-      return '/ai-chat';
+  const createActivityUrl = (activity: ActivityType | 'ai-chat', deckId: string, type: 'vocab' | 'grammar') => {
+    if (type === 'grammar') {
+      return `/conjugation?deck=${deckId}`;
     }
-    if (!selectedDeck) return '#';
+    if (activity === 'ai-chat') return '/ai-chat';
     const params = new URLSearchParams();
-    params.set('deck', selectedDeck);
+    params.set('deck', deckId);
     return `/${activity}?${params.toString()}`;
   };
 
@@ -307,7 +317,6 @@ export default function Home() {
     }
   };
 
-  const decksToShare = decks.filter(d => d.ownerUserId === session?.userId);
   const shareDecksFiltered = shareDecksSearch.trim()
     ? decksToShare.filter(
         d =>
@@ -350,8 +359,8 @@ export default function Home() {
           <StreakPetWidget />
         </div>
 
-        {/* Create Deck Button */}
-        <div className="mb-8 text-center flex justify-center" key="create-deck-button" data-reveal>
+        {/* Create Deck Buttons: Vocab + Grammar */}
+        <div className="mb-8 text-center flex flex-wrap justify-center gap-3" key="create-deck-buttons" data-reveal>
           <Link
             href="/create"
             className="px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg text-lg pulse-glow whitespace-nowrap inline-flex items-center justify-center hover-lift-scale"
@@ -359,7 +368,16 @@ export default function Home() {
               transition: 'transform 0.18s ease, background-color 0.2s ease',
             }}
           >
-            + Create New Deck
+            + Create New Vocab Deck
+          </Link>
+          <Link
+            href="/grammar-decks"
+            className="px-8 py-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-lg text-lg whitespace-nowrap inline-flex items-center justify-center hover-lift-scale border border-amber-400/30"
+            style={{ 
+              transition: 'transform 0.18s ease, background-color 0.2s ease',
+            }}
+          >
+            Practice Grammar and Pronunciation
           </Link>
         </div>
 
@@ -414,12 +432,12 @@ export default function Home() {
         {/* Limits Info */}
         <div className="mb-8 text-center">
           <p className="text-white/60 text-sm">
-            {limits.maxDecks === Infinity ? 'Unlimited' : `${decks.length} / ${limits.maxDecks}`} decks • {limits.maxCards === Infinity ? 'Unlimited' : limits.maxCards} card limit
+            {limits.maxDecks === Infinity ? 'Unlimited' : `${allDecks.length} / ${limits.maxDecks}`} decks • {limits.maxCards === Infinity ? 'Unlimited' : limits.maxCards} card limit
           </p>
         </div>
 
         {/* Decks List */}
-        {decks.length === 0 ? (
+        {allDecks.length === 0 ? (
           <div className="text-center py-16" data-reveal>
             <div className="text-6xl mb-4">📚</div>
             <h2 className="text-2xl font-bold mb-2 text-white/90">No decks yet</h2>
@@ -428,7 +446,7 @@ export default function Home() {
               href="/create"
               className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-lg"
             >
-              Create Your First Deck
+              Create Your First Vocab Deck
             </Link>
           </div>
         ) : (
@@ -439,96 +457,124 @@ export default function Home() {
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleGridDrop}
           >
-            {decks.map((deck, index) => (
-              <div
-                key={deck.id}
-                data-deck-card
-                className={`group relative bg-white/10 backdrop-blur-md rounded-2xl p-6 border-2 transition-all duration-300 ease-in-out card-glow card-glow-hover opacity-0 animate-slide-up ${
-                  selectedDeck === deck.id
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-white/20'
-                }`}
-                style={{ 
-                  animationDelay: `${index * 0.1}s`,
-                  transition: 'transform 0.18s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
-                  gridRow: selectedDeck === deck.id ? 'span 2' : 'span 1',
-                  zIndex: draggingDeckId === deck.id ? 50 : 'auto',
-                }}
-                onClick={() => {
-                  if (isDragging) return;
-                  // Toggle: if already selected, close it; otherwise, open it
-                  setSelectedDeck(selectedDeck === deck.id ? null : deck.id);
-                }}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(event, deck.id)}
-                onDragEnd={handleDragEnd}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-2xl font-bold text-white group-hover:text-purple-300 transition-colors">
-                    {deck.name}
-                  </h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteConfirm(deck.id);
-                    }}
-                    className="text-white/50 hover:text-red-400 transition-colors text-xl"
-                  >
-                    ×
-                  </button>
-                </div>
-                {deck.description && (
-                  <p className="text-white/70 mb-4 text-sm">{deck.description}</p>
-                )}
-                <div className="flex justify-between text-sm text-white/60 mb-2">
-                  <div className="flex flex-col gap-2">
-                    <span>{deck.cards.length} cards</span>
-                    <LanguageBadge languageCode={deck.targetLanguage} />
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span>{formatDate(deck.createdDate)}</span>
-                    <span className="text-xs text-white/60">XP gained: {getDeckXP(deck.id)}</span>
+            {allDecks.map((item, index) => {
+              const deck = item.deck;
+              const isVocab = item.type === 'vocab';
+              const isSelected = selectedDeck === deck.id;
+              return (
+                <div
+                  key={deck.id}
+                  data-deck-card
+                  className={`group relative backdrop-blur-md rounded-2xl p-6 border-2 transition-all duration-300 ease-in-out card-glow card-glow-hover opacity-0 animate-slide-up ${
+                    isVocab
+                      ? `bg-white/10 ${isSelected ? 'border-purple-500 bg-purple-500/10' : 'border-white/20'}`
+                      : `bg-amber-500/10 ${isSelected ? 'border-amber-500 bg-amber-500/20' : 'border-amber-400/30'}`
+                  }`}
+                  style={{
+                    animationDelay: `${index * 0.1}s`,
+                    transition: 'transform 0.18s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
+                    gridRow: isSelected ? 'span 2' : 'span 1',
+                    zIndex: draggingDeckId === deck.id ? 50 : 'auto',
+                  }}
+                  onClick={() => {
+                    if (isDragging) return;
+                    setSelectedDeck(isSelected ? null : deck.id);
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => handleDrop(event, deck.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className={`text-2xl font-bold text-white transition-colors ${isVocab ? 'group-hover:text-purple-300' : 'group-hover:text-amber-200'}`}>
+                      {deck.name}
+                    </h3>
+                    {!isVocab && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-100 font-medium">Grammar</span>
+                    )}
                     <button
-                      type="button"
-                      draggable
-                      onDragStart={(event) => handleDragStart(event, deck.id)}
-                      className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDeleteConfirm({ id: deck.id, type: item.type });
+                      }}
+                      className="text-white/50 hover:text-red-400 transition-colors text-xl"
                     >
-                      Drag
+                      ×
                     </button>
                   </div>
-                </div>
-                <div 
-                  className="overflow-hidden transition-all duration-300 ease-in-out"
-                  style={{
-                    maxHeight: selectedDeck === deck.id ? '500px' : '0px',
-                    opacity: selectedDeck === deck.id ? 1 : 0,
-                  }}
-                >
-                  <div className="mt-4 pt-4 border-t border-white/20">
-                    <div className="grid grid-cols-2 gap-2">
-                      {activities.slice(0, 6).map((activity) => (
-                        <Link
-                          key={activity.id}
-                          href={createActivityUrl(activity.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-center text-sm transition-all"
-                        >
-                          {activity.icon} {activity.name}
-                        </Link>
-                      ))}
+                  {deck.description && (
+                    <p className="text-white/70 mb-4 text-sm">{deck.description}</p>
+                  )}
+                  <div className="flex justify-between text-sm text-white/60 mb-2">
+                    <div className="flex flex-col gap-2">
+                      <span>{deck.cards.length} {isVocab ? 'cards' : 'conjugations'}</span>
+                      <LanguageBadge languageCode={deck.targetLanguage} />
                     </div>
-                    <Link
-                      href={`/study?deck=${deck.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="block mt-2 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center transition-all font-medium"
-                    >
-                      View All Activities →
-                    </Link>
+                    <div className="flex flex-col items-end gap-2">
+                      <span>{formatDate(deck.createdDate)}</span>
+                      {isVocab && <span className="text-xs text-white/60">XP gained: {getDeckXP(deck.id)}</span>}
+                      <button
+                        type="button"
+                        draggable
+                        onDragStart={(event) => handleDragStart(event, deck.id)}
+                        className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-all"
+                      >
+                        Drag
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                    style={{
+                      maxHeight: isSelected ? '500px' : '0px',
+                      opacity: isSelected ? 1 : 0,
+                    }}
+                  >
+                    <div className="mt-4 pt-4 border-t border-white/20">
+                      {isVocab ? (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            {activities.slice(0, 6).map((activity) => (
+                              <Link
+                                key={activity.id}
+                                href={createActivityUrl(activity.id, deck.id, 'vocab')}
+                                onClick={(e) => e.stopPropagation()}
+                                className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-center text-sm transition-all"
+                              >
+                                {activity.icon} {activity.name}
+                              </Link>
+                            ))}
+                          </div>
+                          <Link
+                            href={`/study?deck=${deck.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="block mt-2 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-center transition-all font-medium"
+                          >
+                            View All Activities →
+                          </Link>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Link
+                            href={`/conjugation?deck=${deck.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-4 py-3 bg-amber-600 hover:bg-amber-500 rounded-lg text-center transition-all font-medium"
+                          >
+                            Conjugation Practice
+                          </Link>
+                          <Link
+                            href={`/grammar-speak?deck=${deck.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-4 py-3 bg-amber-600/80 hover:bg-amber-500 border border-amber-400/40 rounded-lg text-center transition-all font-medium"
+                          >
+                            Speaking / Pronunciation
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -601,7 +647,7 @@ export default function Home() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleDeleteDeck(showDeleteConfirm)}
+                  onClick={() => showDeleteConfirm && handleDeleteDeck(showDeleteConfirm.id, showDeleteConfirm.type)}
                   className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-all"
                 >
                   Delete
