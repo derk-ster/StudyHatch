@@ -80,6 +80,17 @@ export default function ConjugationPage() {
     }
   };
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return;
+      if (showResults || !showAnswer) return;
+      e.preventDefault();
+      handleNext();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showResults, showAnswer, currentIndex, effectiveCards.length]);
+
   const missedCards = useMemo(
     () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),
     [effectiveCards, sessionResults]

@@ -9,6 +9,7 @@ import Nav from '@/components/Nav';
 import { getGrammarDeckById } from '@/lib/storage';
 import { fuzzyMatch } from '@/lib/storage';
 import { playSfx } from '@/lib/sfx';
+import { getLanguageName } from '@/lib/languages';
 
 const SPEECH_LANG_MAP: Record<string, string> = {
   es: 'es-ES',
@@ -145,10 +146,28 @@ export default function GrammarSpeakPage() {
     recognition.maxAlternatives = 3;
     recognition.lang = getSpeechRecognitionLang(deck.targetLanguage);
 
-    recognition.onresult = (event: { results: { 0: { 0: { transcript: string } } } }) => {
+    recognition.onresult = async (event: { results: { 0: { 0: { transcript: string } } } }) => {
       const transcript = (event.results[0][0].transcript || '').trim();
       setSpokenText(transcript);
-      const correct = fuzzyMatch(transcript, currentCard.answer);
+      let correct = fuzzyMatch(transcript, currentCard.answer);
+      if (!correct) {
+        try {
+          const apiBase = typeof window !== 'undefined' ? (process.env.NEXT_PUBLIC_BASE_PATH || '') : '';
+          const res = await fetch(`${apiBase}/api/pronunciation-match`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transcript,
+              expected: currentCard.answer,
+              language: getLanguageName(deck.targetLanguage),
+            }),
+          });
+          const data = await res.json();
+          if (data.match === true) correct = true;
+        } catch {
+          // keep correct false
+        }
+      }
       setIsCorrect(correct);
       setCorrectForm(currentCard.answer);
       setShowAnswer(true);
@@ -179,6 +198,17 @@ export default function GrammarSpeakPage() {
       setShowResults(true);
     }
   };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return;
+      if (showResults || !showAnswer) return;
+      e.preventDefault();
+      handleNext();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showResults, showAnswer, currentIndex, effectiveCards.length]);
 
   const missedCards = useMemo(
     () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),

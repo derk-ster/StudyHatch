@@ -15,17 +15,21 @@ async function readUsers(): Promise<Record<string, StoredUser>> {
   try {
     const raw = await fs.readFile(USERS_FILE, 'utf-8');
     const data = JSON.parse(raw);
-    return typeof data === 'object' && data !== null ? data : {};
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) return {};
+    return data as Record<string, StoredUser>;
   } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return {};
-    throw err;
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code === 'ENOENT') return {};
+    console.error('readUsers error:', err);
+    return {};
   }
 }
 
 async function writeUsers(users: Record<string, StoredUser>): Promise<void> {
   const dir = path.dirname(USERS_FILE);
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 0), 'utf-8');
+  const json = JSON.stringify(users);
+  await fs.writeFile(USERS_FILE, json, 'utf-8');
 }
 
 export async function GET() {
@@ -40,15 +44,15 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const incoming = (body?.users ?? body) as Record<string, StoredUser>;
-    if (!incoming || typeof incoming !== 'object') {
+    if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
       return NextResponse.json({ error: 'Invalid body: expected { users: {...} }' }, { status: 400 });
     }
     const existing = await readUsers();
-    const merged = { ...existing };
+    const merged: Record<string, StoredUser> = { ...existing };
     for (const [id, entry] of Object.entries(incoming)) {
-      if (entry && typeof entry === 'object' && entry.user) {
+      if (id && entry && typeof entry === 'object' && entry.user && typeof entry.user === 'object') {
         merged[id] = entry as StoredUser;
       }
     }
@@ -56,6 +60,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('POST /api/users error:', error);
-    return NextResponse.json({ error: 'Failed to save users' }, { status: 500 });
+    return NextResponse.json(
+      { error: (error as Error).message || 'Failed to save users' },
+      { status: 500 }
+    );
   }
 }

@@ -111,14 +111,22 @@ const verifyPassword = async (password: string, stored: StoredPassword): Promise
   return { valid: hash === stored.hash };
 };
 
+function getUsersApiBase(): string {
+  if (typeof window === 'undefined') return '';
+  const origin = window.location.origin;
+  const basePath = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_BASE_PATH) || '';
+  return `${origin}${basePath}`;
+}
+
 // Sync users from server so login works across devices and after closing browser
 export async function syncUsersFromServer(): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const res = await fetch('/api/users');
+    const base = getUsersApiBase();
+    const res = await fetch(`${base}/api/users`, { cache: 'no-store' });
     if (!res.ok) return;
     const users = await res.json();
-    if (users && typeof users === 'object') {
+    if (users && typeof users === 'object' && !Array.isArray(users)) {
       localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
     }
   } catch (error) {
@@ -126,16 +134,21 @@ export async function syncUsersFromServer(): Promise<void> {
   }
 }
 
-async function persistUsersToServer(users: Record<string, { user: User; passwordHash: StoredPassword; accountData: AccountData }>): Promise<void> {
-  if (typeof window === 'undefined') return;
+/** Persist users to server. Returns true if the server accepted the save. */
+export async function persistUsersToServer(users: Record<string, { user: User; passwordHash: StoredPassword; accountData: AccountData }>): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
   try {
-    await fetch('/api/users', {
+    const base = getUsersApiBase();
+    const res = await fetch(`${base}/api/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ users }),
+      cache: 'no-store',
     });
+    return res.ok;
   } catch (error) {
     console.error('Error persisting users to server:', error);
+    return false;
   }
 }
 
@@ -261,9 +274,13 @@ export function signUp(
       passwordHash,
       accountData,
     };
-    
+
     saveUsers(users);
-    
+    const persisted = await persistUsersToServer(users);
+    if (!persisted) {
+      resolve({ success: false, error: 'Account was created but could not sync. Please check your connection and try again.' });
+      return;
+    }
     resolve({ success: true, user: newUser });
   });
 }
@@ -311,7 +328,8 @@ export function signIn(emailOrUsername: string, password: string): Promise<{ suc
     }
     users[userEntry.user.id] = userEntry;
     saveUsers(users);
-    
+    await persistUsersToServer(users);
+
     resolve({ success: true, user: userEntry.user });
   });
 }
