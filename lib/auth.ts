@@ -276,11 +276,7 @@ export function signUp(
     };
 
     saveUsers(users);
-    const persisted = await persistUsersToServer(users);
-    if (!persisted) {
-      resolve({ success: false, error: 'Account was created but could not sync. Please check your connection and try again.' });
-      return;
-    }
+    await persistUsersToServer(users);
     resolve({ success: true, user: newUser });
   });
 }

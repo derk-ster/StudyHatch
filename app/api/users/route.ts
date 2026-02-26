@@ -11,25 +11,36 @@ type User = import('@/types/auth').User;
 type AccountData = import('@/types/auth').AccountData;
 type StoredUser = { user: User; passwordHash: unknown; accountData: AccountData };
 
+const memoryStore: Record<string, StoredUser> = {};
+
 async function readUsers(): Promise<Record<string, StoredUser>> {
+  let file: Record<string, StoredUser> = {};
   try {
     const raw = await fs.readFile(USERS_FILE, 'utf-8');
     const data = JSON.parse(raw);
-    if (typeof data !== 'object' || data === null || Array.isArray(data)) return {};
-    return data as Record<string, StoredUser>;
+    if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+      file = data as Record<string, StoredUser>;
+    }
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException)?.code;
-    if (code === 'ENOENT') return {};
-    console.error('readUsers error:', err);
-    return {};
+    if (code !== 'ENOENT') console.error('readUsers error:', err);
   }
+  return { ...file, ...memoryStore };
 }
 
-async function writeUsers(users: Record<string, StoredUser>): Promise<void> {
-  const dir = path.dirname(USERS_FILE);
-  await fs.mkdir(dir, { recursive: true });
-  const json = JSON.stringify(users);
-  await fs.writeFile(USERS_FILE, json, 'utf-8');
+async function writeUsers(users: Record<string, StoredUser>): Promise<boolean> {
+  for (const key of Object.keys(memoryStore)) delete memoryStore[key];
+  Object.assign(memoryStore, users);
+  try {
+    const dir = path.dirname(USERS_FILE);
+    await fs.mkdir(dir, { recursive: true });
+    const json = JSON.stringify(users);
+    await fs.writeFile(USERS_FILE, json, 'utf-8');
+    return true;
+  } catch (err) {
+    console.warn('Users file write failed, using memory store:', (err as Error).message);
+    return false;
+  }
 }
 
 export async function GET() {
