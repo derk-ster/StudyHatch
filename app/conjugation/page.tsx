@@ -29,7 +29,7 @@ export default function ConjugationPage() {
     if (deckId) {
       setDeck(getGrammarDeckById(deckId));
     } else {
-      setDeck(null);
+      setDeck(undefined);
     }
     setCurrentIndex(0);
     setUserInput('');

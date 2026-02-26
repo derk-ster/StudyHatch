@@ -100,6 +100,10 @@ export default function WritePage() {
   const effectiveCards = retryCards && retryCards.length > 0 ? retryCards : shuffledCards;
   const currentCard = effectiveCards[currentIndex];
   const targetLanguageCode = deck?.targetLanguage || 'es';
+  const missedCards = useMemo(
+    () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),
+    [effectiveCards, sessionResults]
+  );
 
   useEffect(() => {
     setUserInput('');
@@ -113,12 +117,6 @@ export default function WritePage() {
     setShowResults(false);
     setRetryCards(null);
   }, [deckId]);
-
-  const effectiveCards = retryCards && retryCards.length > 0 ? retryCards : shuffledCards;
-  const missedCards = useMemo(
-    () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),
-    [effectiveCards, sessionResults]
-  );
 
   // Calculate results
   const calculateResults = useMemo(() => {
@@ -186,11 +184,6 @@ export default function WritePage() {
       setShowResults(true);
     }
   };
-
-  const missedCards = useMemo(
-    () => effectiveCards.filter((c) => sessionResults.get(c.id) === false),
-    [effectiveCards, sessionResults]
-  );
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !showAnswer) {

@@ -48,7 +48,7 @@ export default function GrammarSpeakPage() {
     if (deckId) {
       setDeck(getGrammarDeckById(deckId));
     } else {
-      setDeck(null);
+      setDeck(undefined);
     }
     setCurrentIndex(0);
     setSpokenText('');
@@ -103,9 +103,11 @@ export default function GrammarSpeakPage() {
     setShowAnswer(false);
 
     if (typeof window === 'undefined') return;
-    const SpeechRecognitionAPI =
-      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    const Win = window as unknown as {
+      SpeechRecognition?: new (...args: unknown[]) => unknown;
+      webkitSpeechRecognition?: new (...args: unknown[]) => unknown;
+    };
+    const SpeechRecognitionAPI = Win.SpeechRecognition || Win.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       setRecognitionError('Speech recognition is not supported in this browser. Try Chrome or Edge.');
       return;
@@ -128,13 +130,22 @@ export default function GrammarSpeakPage() {
     }
 
     setIsListening(true);
-    const recognition = new SpeechRecognitionAPI() as SpeechRecognition;
+    const recognition = new SpeechRecognitionAPI() as {
+      continuous: boolean;
+      interimResults: boolean;
+      maxAlternatives: number;
+      lang: string;
+      onresult: ((e: { results: { 0: { 0: { transcript: string } } } }) => void) | null;
+      onerror: ((e: { error: string }) => void) | null;
+      onend: (() => void) | null;
+      start: () => void;
+    };
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 3;
     recognition.lang = getSpeechRecognitionLang(deck.targetLanguage);
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: { results: { 0: { 0: { transcript: string } } } }) => {
       const transcript = (event.results[0][0].transcript || '').trim();
       setSpokenText(transcript);
       const correct = fuzzyMatch(transcript, currentCard.answer);
@@ -144,7 +155,7 @@ export default function GrammarSpeakPage() {
       playSfx(correct ? 'correct' : 'incorrect');
       setSessionResults(prev => new Map(prev).set(currentCard.id, correct));
     };
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: { error: string }) => {
       setIsListening(false);
       const message = getRecognitionErrorMessage(event.error);
       if (message) setRecognitionError(message);
